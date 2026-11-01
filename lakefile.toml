@@ -1,0 +1,13 @@
+name = "ChessProof"
+defaultTargets = ["ChessProof", "perft"]
+
+[[lean_lib]]
+name = "ChessProof"
+
+[[lean_exe]]
+name = "perft"
+root = "Perft"
+
+[[lean_exe]]
+name = "flatten"
+root = "Flatten"
