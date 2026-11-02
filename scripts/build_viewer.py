@@ -12,14 +12,16 @@ library and no engine:
     defender reply), its moves (UCI from the `play` equations, SAN from the docstring) and the
     checkpoint and node each move leads to,
   * the best move's node (`winsIn`) and the refutations `refutes_<uci>` with their budgets.
-The result is inlined as JSON into viewer/template.html, which draws the board and the move lists.
+The result is inlined as JSON into viewer/template.html, which draws the board and the move lists,
+together with the piece images of viewer/pieces/cburnett (see viewer/pieces/README.md).
 The page needs no server: open viewer/gotham.html in a browser.
 """
-import json, re, sys
+import base64, json, re, sys
 
 CERT = "ChessDemo/GothamCert.lean"
 TEMPLATE = "viewer/template.html"
 OUT = "viewer/gotham.html"
+PIECES = "viewer/pieces/cburnett"
 ROOT_FEN = "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1 b - - 0 1"
 
 
@@ -77,7 +79,11 @@ def main():
     blob = json.dumps(data, separators=(",", ":"))
     if "</" in blob:
         sys.exit("the data would close the page's script")
-    page = open(TEMPLATE).read().replace("__DATA__", blob)
+    pieces = {f"{c}{k}": "data:image/svg+xml;base64,"
+              + base64.b64encode(open(f"{PIECES}/{c}{k}.svg", "rb").read()).decode()
+              for c in "wb" for k in "KQRBNP"}
+    page = (open(TEMPLATE).read().replace("__PIECES__", json.dumps(pieces))
+            .replace("__DATA__", blob))
     open(OUT, "w").write(page)
     print(f"{OUT}: {len(data['nodes'])} nodes, {len(data['fens'])} positions, "
           f"{len(data['refutations'])} refutations")

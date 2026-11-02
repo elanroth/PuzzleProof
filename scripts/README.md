@@ -100,6 +100,7 @@ Run it from the library's root after regenerating `ChessDemo/GothamCert.lean`. I
 and no engine: it reads the checkpoints, the node theorems (`wN`), the best move's node and the
 `refutes_…` theorems straight from the generated file, so the page shows the tree the kernel
 checked, and stops if any node theorem, move or checkpoint fails to parse. The data is inlined into
-`viewer/template.html`, giving `viewer/gotham.html`, one self-contained page (it loads only its
+`viewer/template.html` with the cburnett piece images of `viewer/pieces/` (GPLv2+, credited in
+`viewer/pieces/README.md`), giving `viewer/gotham.html`, one self-contained page (it loads only its
 fonts). Open it in a browser: a wood board, the main line with a button for each other White reply,
 White's mate after each of Black's other 33 moves, and for each position the theorem that proves it.

@@ -66,16 +66,7 @@ h1 { font: 600 clamp(26px, 4vw, 34px)/1.15 var(--font-display); margin: 0; text-
 .sq.check::before { content: ""; position: absolute; inset: 0;
   background: radial-gradient(circle, rgba(225, 40, 30, .85) 0%, rgba(225, 40, 30, .45) 38%, rgba(225, 40, 30, 0) 72%); }
 .sq { min-height: 0; }
-.sq svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sq svg { filter: drop-shadow(0 1.5px 1.2px rgba(0, 0, 0, .32)); }
-.pc .body { stroke-width: 2.8; stroke-linejoin: round; }
-.pc.w .body { fill: url(#gw); stroke: #3c3b39; }
-.pc.b .body { fill: url(#gb); stroke: #222120; }
-.pc .d { fill: none; stroke-width: 2.8; stroke-linecap: round; }
-.pc.w .d { stroke: #3c3b39; }
-.pc.b .d { stroke: #a3a19e; }
-.pc.w .eye { fill: #3c3b39; }
-.pc.b .eye { fill: #a3a19e; }
+.sq .pc { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 1.5px 1px rgba(0, 0, 0, .28)); }
 .coord { position: absolute; font: 600 clamp(8px, 1.6vw, 11px)/1 var(--font-ui); pointer-events: none; }
 .sq.light .coord { color: #7e5733; } .sq.dark .coord { color: #dcc195; }
 .coord.rank { top: 3px; left: 4px; } .coord.file { bottom: 2px; right: 4px; }
@@ -128,7 +119,6 @@ footer code, .card code { font: 12.5px var(--font-mono); background: var(--code-
   <div class="main">
     <div class="board-col">
       <div class="board" id="board" aria-label="Chess board"></div>
-      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="gw" x1="0.2" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f1f0ee"/><stop offset="1" stop-color="#c9c7c3"/></linearGradient><linearGradient id="gb" x1="0.2" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#6a6865"/><stop offset="0.5" stop-color="#4d4b49"/><stop offset="1" stop-color="#363432"/></linearGradient></defs></svg>
       <div class="controls">
         <button class="btn" id="first" aria-label="First position">⏮</button>
         <button class="btn" id="prev" aria-label="Previous move">◀</button>
@@ -161,43 +151,13 @@ footer code, .card code { font: 12.5px var(--font-mono); background: var(--code-
   </div>
 
   <footer>
-    Built from <code>ChessDemo/GothamCert.lean</code>: 319 node theorems over 314 positions, each proved with <code>decide +kernel</code> (no <code>native_decide</code>). The headline theorems <code>gotham_specWinsIn</code> and <code>gotham_specOnlyWinningMove</code> restate the result against the FIDE rules alone. Where White has several replies, the line shown follows the longest one; the chips under a move switch to the others. Keys: ← → to step, Home and End to jump.
+    Built from <code>ChessDemo/GothamCert.lean</code>: 319 node theorems over 314 positions, each proved with <code>decide +kernel</code> (no <code>native_decide</code>). The headline theorems <code>gotham_specWinsIn</code> and <code>gotham_specOnlyWinningMove</code> restate the result against the FIDE rules alone. Where White has several replies, the line shown follows the longest one; the chips under a move switch to the others. Keys: ← → to step, Home and End to jump. Pieces: cburnett by Colin M.L. Burnett (GPLv2+), from lichess.
   </footer>
 </div>
 
 <script>
 const DATA = __DATA__;
-const PIECE = {
-  p: `<path class="body" d="M37 78 C38 66 42 57 44 51 L56 51 C58 57 62 66 63 78 Z"/>
-      <rect class="body" x="37" y="45" width="26" height="8" rx="4"/>
-      <circle class="body" cx="50" cy="31" r="13.5"/>
-      <rect class="body" x="27" y="75" width="46" height="12" rx="4.5"/>`,
-  r: `<path class="body" d="M33 76 L36 45 L64 45 L67 76 Z"/>
-      <path class="body" d="M27 18 H38 V26 H45 V18 H55 V26 H62 V18 H73 V39 Q73 45 67 46 H33 Q27 45 27 39 Z"/>
-      <rect class="body" x="23" y="73" width="54" height="14" rx="4.5"/>
-      <path class="d" d="M38 64 H62"/>`,
-  b: `<path class="body" d="M37 78 C37 68 42 62 44 56 L56 56 C58 62 63 68 63 78 Z"/>
-      <path class="body" d="M50 17 C64 27 68 39 61 51 L39 51 C32 39 36 27 50 17 Z"/>
-      <rect class="body" x="35" y="48" width="30" height="9" rx="4.5"/>
-      <circle class="body" cx="50" cy="13" r="5.5"/>
-      <rect class="body" x="24" y="75" width="52" height="12" rx="4.5"/>
-      <path class="d" d="M55.5 28 L46 39"/>`,
-  q: `<path class="body" d="M31 75 L23 41 L33 56 L37 31 L44 52 L50 26 L56 52 L63 31 L67 56 L77 41 L69 75 Z"/>
-      <circle class="body" cx="23" cy="39" r="5"/><circle class="body" cx="37" cy="29" r="5"/>
-      <circle class="body" cx="50" cy="23" r="5.5"/><circle class="body" cx="63" cy="29" r="5"/>
-      <circle class="body" cx="77" cy="39" r="5"/>
-      <rect class="body" x="22" y="73" width="56" height="14" rx="4.5"/>
-      <path class="d" d="M31 65 H69"/>`,
-  k: `<path class="body" d="M46.5 12 H53.5 V19 H60 V26 H53.5 V37 H46.5 V26 H40 V19 H46.5 Z"/>
-      <path class="body" d="M31 75 C20 64 21 47 33 44 C42 42 48 49 50 55 C52 49 58 42 67 44 C79 47 80 64 69 75 Z"/>
-      <path class="body" d="M43 50 C43 43 46 38 50 36 C54 38 57 43 57 50 C55 52 52 54 50 56 C48 54 45 52 43 50 Z"/>
-      <rect class="body" x="22" y="73" width="56" height="14" rx="4.5"/>
-      <path class="d" d="M31 65 H69"/>`,
-  n: `<path class="body" d="M35 76 C36 67 43 61 47 54 C41 58 33 61 28 58 C22 55 21 48 25 44 C33 35 40 24 52 18 L55 9 L61 17 C74 23 79 43 75 59 C73 67 71 72 70 76 Z"/>
-      <rect class="body" x="25" y="73" width="52" height="14" rx="4.5"/>
-      <circle class="eye" cx="44" cy="31" r="3.2"/>
-      <path class="d" d="M62 24 C69 32 71 45 67 60"/>`,
-};
+const PIECES = __PIECES__;
 const FILES = "abcdefgh";
 
 function parseFen(fen) {
@@ -287,7 +247,7 @@ function renderBoard() {
       const p = pos.sq[name];
       if (p) {
         const white = p === p.toUpperCase();
-        el.innerHTML = `<svg viewBox="0 0 100 100" class="pc ${white ? "w" : "b"}" aria-hidden="true">${PIECE[p.toLowerCase()]}</svg>`;
+        el.innerHTML = `<img class="pc" src="${PIECES[(white ? "w" : "b") + p.toUpperCase()]}" alt="" draggable="false">`;
         el.setAttribute("aria-label", `${name} ${white ? "white" : "black"} ${p.toLowerCase()}`);
       }
       if (c === 0) el.insertAdjacentHTML("beforeend", `<span class="coord rank">${rank}</span>`);
