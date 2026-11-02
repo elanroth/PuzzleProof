@@ -8,6 +8,7 @@ file that does not compile, or a test that fails, never a false theorem.
 | `gen_cert.py` | Writes a certificate file for a forced-win or only-move claim (Stockfish proposes, Lean checks). |
 | `perft_jobs.py`, `perft_diff.py` | The differential perft test of `chess-perft` against python-chess (`docs/process/ChessTest.md`). |
 | `check_docstrings.py` | Checks that the docstring of every definition and instance under `Chess/` appears word for word in its `docs/spec/` file; reports theorem docstrings that do not (Rules review C8). |
+| `build_viewer.py` | Builds `viewer/gotham.html`, a page that steps through the Gotham proof, from `ChessDemo/GothamCert.lean`. |
 
 Python: any Python 3 with python-chess 1.11 (`pip install chess`); run scripts with `python -I`.
 `gen_cert.py` also needs Stockfish and the compiled program `chess-perft`
@@ -88,3 +89,17 @@ and `Chess.Rules` are checked against their one spec each. Whitespace is normali
 pipes are ignored. A missing definition or instance docstring makes the exit status 1; a missing
 theorem docstring is only listed, because some specs (Basic's, Game's) state a lemma's English in a
 table cell that merges several lemmas.
+
+## build_viewer.py
+
+```
+python -I scripts/build_viewer.py
+```
+
+Run it from the library's root after regenerating `ChessDemo/GothamCert.lean`. It needs no package
+and no engine: it reads the checkpoints, the node theorems (`wN`), the best move's node and the
+`refutes_…` theorems straight from the generated file, so the page shows the tree the kernel
+checked, and stops if any node theorem, move or checkpoint fails to parse. The data is inlined into
+`viewer/template.html`, giving `viewer/gotham.html`, one self-contained page (it loads only its
+fonts). Open it in a browser: a wood board, the main line with a button for each other White reply,
+White's mate after each of Black's other 33 moves, and for each position the theorem that proves it.

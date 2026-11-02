@@ -1,0 +1,437 @@
+<meta charset="utf-8">
+<title>Gotham Mate in 11</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+/* Layout: wood board on the left, move list and proof card on the right; stacks on phones. */
+:root {
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --line: #e2ddd5;
+  --fg: #2b2622;
+  --muted: #6f665e;
+  --accent: #2f6b4f;
+  --accent-soft: #e3efe8;
+  --chip: #f0ece6;
+  --code-bg: #f3f0eb;
+  --sel: #2b2622;
+  --sel-fg: #ffffff;
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1816; --panel: #23201d; --line: #38332e; --fg: #ece6df; --muted: #a59b91;
+    --accent: #7cc39b; --accent-soft: #24372c; --chip: #2e2a26; --code-bg: #2a2623;
+    --sel: #ece6df; --sel-fg: #1a1816; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1816; --panel: #23201d; --line: #38332e; --fg: #ece6df; --muted: #a59b91;
+  --accent: #7cc39b; --accent-soft: #24372c; --chip: #2e2a26; --code-bg: #2a2623;
+  --sel: #ece6df; --sel-fg: #1a1816; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 6px; }
+h1 { font: 600 clamp(26px, 4vw, 34px)/1.15 var(--font-display); margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 68ch; }
+.lede b { color: var(--fg); font-weight: 600; }
+.main { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* Board */
+.board-col { display: grid; gap: 12px; min-width: 0; }
+.board {
+  display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); aspect-ratio: 1; width: 100%; max-width: 100%;
+  border-radius: 4px; overflow: hidden; position: relative;
+  box-shadow: 0 6px 20px rgba(40, 24, 10, .22);
+  --light-wood: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='d' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.003 0.17' numOctaves='4' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.62 0 0 0 0 0.47 0 0 0 0 0.26 1.7 0 0 0 -0.72'/%3E%3C/filter%3E%3Cfilter id='l' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.26' numOctaves='3' seed='8'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.79 0 0 0 0 0.6 1.5 0 0 0 -0.68'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url%28%23d%29'/%3E%3Crect width='400' height='400' filter='url%28%23l%29'/%3E%3C/svg%3E");
+  --dark-wood: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='d' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.003 0.17' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.33 0 0 0 0 0.2 0 0 0 0 0.09 1.6 0 0 0 -0.68'/%3E%3C/filter%3E%3Cfilter id='l' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.26' numOctaves='3' seed='16'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.43 0 0 0 0 0.26 1.3 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url%28%23d%29'/%3E%3Crect width='400' height='400' filter='url%28%23l%29'/%3E%3C/svg%3E");
+}
+.sq { position: relative; display: grid; place-items: center; background-size: 520% 520%; }
+.sq.light { background-color: #ccad7c; background-image: var(--light-wood); }
+.sq.dark  { background-color: #7f5834; background-image: var(--dark-wood); }
+.sq.hl::before { content: ""; position: absolute; inset: 0; background: rgba(246, 214, 92, .5); }
+.sq.check::before { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle, rgba(225, 40, 30, .85) 0%, rgba(225, 40, 30, .45) 38%, rgba(225, 40, 30, 0) 72%); }
+.sq { min-height: 0; }
+.sq svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sq svg { filter: drop-shadow(0 1.5px 1.2px rgba(0, 0, 0, .32)); }
+.pc .body { stroke-width: 2.8; stroke-linejoin: round; }
+.pc.w .body { fill: url(#gw); stroke: #3c3b39; }
+.pc.b .body { fill: url(#gb); stroke: #222120; }
+.pc .d { fill: none; stroke-width: 2.8; stroke-linecap: round; }
+.pc.w .d { stroke: #3c3b39; }
+.pc.b .d { stroke: #a3a19e; }
+.pc.w .eye { fill: #3c3b39; }
+.pc.b .eye { fill: #a3a19e; }
+.coord { position: absolute; font: 600 clamp(8px, 1.6vw, 11px)/1 var(--font-ui); pointer-events: none; }
+.sq.light .coord { color: #7e5733; } .sq.dark .coord { color: #dcc195; }
+.coord.rank { top: 3px; left: 4px; } .coord.file { bottom: 2px; right: 4px; }
+.sq.mate-k::after { content: "#"; position: absolute; top: 2px; right: 3px; font: 700 12px/1 var(--font-ui);
+  color: #fff; background: #c8322a; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; }
+
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; min-width: 44px; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:focus-visible, .mv:focus-visible, .chip:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ply-label { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Panel */
+.panel { display: grid; gap: 16px; min-width: 0; }
+.tabs { display: flex; gap: 4px; background: var(--chip); padding: 4px; border-radius: 8px; width: fit-content; max-width: 100%; flex-wrap: wrap; }
+.tab { border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; font-weight: 500; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { font: 600 12px/1.2 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.moves { display: grid; grid-template-columns: 3ch 1fr 1fr; gap: 2px 6px; font-variant-numeric: tabular-nums; }
+.num { color: var(--muted); text-align: right; padding: 4px 0; }
+.mv { border: 0; background: transparent; text-align: left; padding: 4px 8px; border-radius: 5px; font-weight: 500; }
+.mv:hover { background: var(--chip); }
+.mv.on { background: var(--sel); color: var(--sel-fg); }
+.mv.empty { pointer-events: none; color: var(--muted); }
+.alts { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); padding: 0 0 4px 8px; }
+.chip { border: 1px solid var(--line); background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+.chip:hover { border-color: var(--muted); }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+.chip small { color: var(--muted); margin-left: 4px; }
+.refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.proof p { margin: 0; }
+.lean { font: 13px/1.5 var(--font-mono); background: var(--code-bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--accent); font-weight: 500; }
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+footer { color: var(--muted); font-size: 13px; max-width: 80ch; }
+footer code, .card code { font: 12.5px var(--font-mono); background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
+@media (prefers-reduced-motion: no-preference) { .mv, .chip, .btn { transition: background-color .12s, border-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Gotham Mate in 11</h1>
+    <p class="lede">Black to move. Lean proves that <b>1…Rxb2+</b> forces checkmate within 11 Black moves whatever White does, and that each of Black's other 33 legal moves lets White force mate instead. Every position and every move list below is a step the Lean kernel checked.</p>
+  </header>
+
+  <div class="main">
+    <div class="board-col">
+      <div class="board" id="board" aria-label="Chess board"></div>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="gw" x1="0.2" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f1f0ee"/><stop offset="1" stop-color="#c9c7c3"/></linearGradient><linearGradient id="gb" x1="0.2" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#6a6865"/><stop offset="0.5" stop-color="#4d4b49"/><stop offset="1" stop-color="#363432"/></linearGradient></defs></svg>
+      <div class="controls">
+        <button class="btn" id="first" aria-label="First position">⏮</button>
+        <button class="btn" id="prev" aria-label="Previous move">◀</button>
+        <button class="btn" id="next" aria-label="Next move">▶</button>
+        <button class="btn" id="last" aria-label="Last position">⏭</button>
+        <button class="btn" id="flip">Flip board</button>
+        <span class="ply-label" id="plyLabel"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabMain" aria-selected="true">Main line</button>
+        <button class="tab" role="tab" id="tabRefs" aria-selected="false">Black's other 33 moves</button>
+      </div>
+
+      <div class="card" id="refsCard" hidden>
+        <h2>Pick a first move for Black</h2>
+        <div class="refs" id="refs"></div>
+        <p class="note">Each one is a theorem <code>refutes_…</code>: after it, White forces mate within the number shown.</p>
+      </div>
+
+      <div class="card">
+        <h2 id="lineTitle">Moves</h2>
+        <div class="moves" id="moves"></div>
+      </div>
+
+      <div class="card proof" id="proof"></div>
+    </div>
+  </div>
+
+  <footer>
+    Built from <code>ChessDemo/GothamCert.lean</code>: 319 node theorems over 314 positions, each proved with <code>decide +kernel</code> (no <code>native_decide</code>). The headline theorems <code>gotham_specWinsIn</code> and <code>gotham_specOnlyWinningMove</code> restate the result against the FIDE rules alone. Where White has several replies, the line shown follows the longest one; the chips under a move switch to the others. Keys: ← → to step, Home and End to jump.
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const PIECE = {
+  p: `<path class="body" d="M37 78 C38 66 42 57 44 51 L56 51 C58 57 62 66 63 78 Z"/>
+      <rect class="body" x="37" y="45" width="26" height="8" rx="4"/>
+      <circle class="body" cx="50" cy="31" r="13.5"/>
+      <rect class="body" x="27" y="75" width="46" height="12" rx="4.5"/>`,
+  r: `<path class="body" d="M33 76 L36 45 L64 45 L67 76 Z"/>
+      <path class="body" d="M27 18 H38 V26 H45 V18 H55 V26 H62 V18 H73 V39 Q73 45 67 46 H33 Q27 45 27 39 Z"/>
+      <rect class="body" x="23" y="73" width="54" height="14" rx="4.5"/>
+      <path class="d" d="M38 64 H62"/>`,
+  b: `<path class="body" d="M37 78 C37 68 42 62 44 56 L56 56 C58 62 63 68 63 78 Z"/>
+      <path class="body" d="M50 17 C64 27 68 39 61 51 L39 51 C32 39 36 27 50 17 Z"/>
+      <rect class="body" x="35" y="48" width="30" height="9" rx="4.5"/>
+      <circle class="body" cx="50" cy="13" r="5.5"/>
+      <rect class="body" x="24" y="75" width="52" height="12" rx="4.5"/>
+      <path class="d" d="M55.5 28 L46 39"/>`,
+  q: `<path class="body" d="M31 75 L23 41 L33 56 L37 31 L44 52 L50 26 L56 52 L63 31 L67 56 L77 41 L69 75 Z"/>
+      <circle class="body" cx="23" cy="39" r="5"/><circle class="body" cx="37" cy="29" r="5"/>
+      <circle class="body" cx="50" cy="23" r="5.5"/><circle class="body" cx="63" cy="29" r="5"/>
+      <circle class="body" cx="77" cy="39" r="5"/>
+      <rect class="body" x="22" y="73" width="56" height="14" rx="4.5"/>
+      <path class="d" d="M31 65 H69"/>`,
+  k: `<path class="body" d="M46.5 12 H53.5 V19 H60 V26 H53.5 V37 H46.5 V26 H40 V19 H46.5 Z"/>
+      <path class="body" d="M31 75 C20 64 21 47 33 44 C42 42 48 49 50 55 C52 49 58 42 67 44 C79 47 80 64 69 75 Z"/>
+      <path class="body" d="M43 50 C43 43 46 38 50 36 C54 38 57 43 57 50 C55 52 52 54 50 56 C48 54 45 52 43 50 Z"/>
+      <rect class="body" x="22" y="73" width="56" height="14" rx="4.5"/>
+      <path class="d" d="M31 65 H69"/>`,
+  n: `<path class="body" d="M35 76 C36 67 43 61 47 54 C41 58 33 61 28 58 C22 55 21 48 25 44 C33 35 40 24 52 18 L55 9 L61 17 C74 23 79 43 75 59 C73 67 71 72 70 76 Z"/>
+      <rect class="body" x="25" y="73" width="52" height="14" rx="4.5"/>
+      <circle class="eye" cx="44" cy="31" r="3.2"/>
+      <path class="d" d="M62 24 C69 32 71 45 67 60"/>`,
+};
+const FILES = "abcdefgh";
+
+function parseFen(fen) {
+  const rows = fen.split(" ")[0].split("/");
+  const sq = {};
+  rows.forEach((row, i) => {
+    let f = 0;
+    for (const ch of row) {
+      if (/\d/.test(ch)) { f += +ch; continue; }
+      sq[FILES[f] + (8 - i)] = ch;
+      f++;
+    }
+  });
+  return { sq, turn: fen.split(" ")[1] };
+}
+
+// Depth (plies) of the longest forced line below a node, for choosing the default reply.
+const depthMemo = {};
+function depth(id) {
+  if (id in depthMemo) return depthMemo[id];
+  const n = DATA.nodes[id];
+  let d = 0;
+  if (n.kind === "move") d = 1 + depth(n.move.node);
+  else if (n.kind === "replies") d = 1 + Math.max(...n.replies.map(r => depth(r.node)));
+  return (depthMemo[id] = d);
+}
+function defaultReply(n) {
+  let best = 0;
+  n.replies.forEach((r, i) => { if (depth(r.node) > depth(n.replies[best].node)) best = i; });
+  return best;
+}
+
+const state = { mode: "main", ref: null, choice: {}, ply: 0, flipped: false };
+
+// A line: steps[0] is the start; each later step is one move with the node it reaches.
+function buildLine() {
+  const steps = [{ fen: DATA.rootFen, node: null }];
+  const first = state.mode === "main" ? DATA.best : state.ref;
+  steps.push({ fen: DATA.fens[first.to], node: first.node, uci: first.uci, san: first.san, from: null });
+  let id = first.node;
+  while (true) {
+    const n = DATA.nodes[id];
+    if (n.kind === "mate") break;
+    let mv, alts = null, at = id;
+    if (n.kind === "move") mv = n.move;
+    else {
+      const i = state.choice[id] ?? defaultReply(n);
+      mv = n.replies[i];
+      alts = n.replies;
+    }
+    steps.push({ fen: DATA.fens[mv.to], node: mv.node, uci: mv.uci, san: mv.san, from: at, alts });
+    id = mv.node;
+  }
+  return steps;
+}
+
+let line = buildLine();
+const $ = id => document.getElementById(id);
+
+function kingInCheckSquare(pos, san) {
+  if (!san || !/[+#]$/.test(san)) return null;
+  const k = pos.turn === "w" ? "K" : "k";
+  return Object.keys(pos.sq).find(s => pos.sq[s] === k) || null;
+}
+
+function renderBoard() {
+  const step = line[state.ply];
+  const pos = parseFen(step.fen);
+  const hl = step.uci ? [step.uci.slice(0, 2), step.uci.slice(2, 4)] : [];
+  const chk = kingInCheckSquare(pos, step.san);
+  const mate = step.san && step.san.endsWith("#");
+  const board = $("board");
+  board.innerHTML = "";
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const rank = state.flipped ? r + 1 : 8 - r;
+      const file = state.flipped ? 7 - c : c;
+      const name = FILES[file] + rank;
+      const light = (file + rank) % 2 === 1;
+      const el = document.createElement("div");
+      el.className = "sq " + (light ? "light" : "dark");
+      const h = (file * 37 + rank * 91) % 64;
+      el.style.backgroundPosition = `${(h % 8) * 14}% ${Math.floor(h / 8) * 14}%`;
+      if (hl.includes(name)) el.classList.add("hl");
+      if (name === chk) el.classList.add("check");
+      if (mate && name === chk) el.classList.add("mate-k");
+      const p = pos.sq[name];
+      if (p) {
+        const white = p === p.toUpperCase();
+        el.innerHTML = `<svg viewBox="0 0 100 100" class="pc ${white ? "w" : "b"}" aria-hidden="true">${PIECE[p.toLowerCase()]}</svg>`;
+        el.setAttribute("aria-label", `${name} ${white ? "white" : "black"} ${p.toLowerCase()}`);
+      }
+      if (c === 0) el.insertAdjacentHTML("beforeend", `<span class="coord rank">${rank}</span>`);
+      if (r === 7) el.insertAdjacentHTML("beforeend", `<span class="coord file">${FILES[file]}</span>`);
+      board.appendChild(el);
+    }
+  }
+}
+
+function renderMoves() {
+  const box = $("moves");
+  box.innerHTML = "";
+  // Black moves first (move 1…), so White's moves pair with the next Black move.
+  let moveNo = 1;
+  for (let i = 1; i < line.length; ) {
+    const blackStep = line[i];
+    const whiteStep = line[i + 1];
+    if (i === 1) {
+      box.insertAdjacentHTML("beforeend", `<span class="num">1.</span>`);
+      box.appendChild(mvButton(null));
+      box.appendChild(mvButton(1));
+      i += 1; moveNo = 2;
+      continue;
+    }
+    // Here line[i] is White's move (move moveNo), line[i+1] Black's reply.
+    box.insertAdjacentHTML("beforeend", `<span class="num">${moveNo}.</span>`);
+    box.appendChild(mvButton(i));
+    box.appendChild(line[i + 1] ? mvButton(i + 1) : mvButton(null));
+    addAlts(box, i); addAlts(box, i + 1);
+    i += 2; moveNo++;
+  }
+}
+function mvButton(i) {
+  const b = document.createElement("button");
+  if (i === null) { b.className = "mv empty"; b.textContent = i === null ? "…" : ""; b.tabIndex = -1; return b; }
+  b.className = "mv" + (i === state.ply ? " on" : "");
+  b.textContent = line[i].san;
+  b.addEventListener("click", () => go(i));
+  return b;
+}
+function addAlts(box, i) {
+  const s = line[i];
+  if (!s || !s.alts || s.alts.length < 2) return;
+  const row = document.createElement("div");
+  row.className = "alts";
+  row.append(s.alts.length === 2 ? "Or " : "Or any of ");
+  s.alts.forEach((r, k) => {
+    if (r.uci === s.uci) return;
+    const c = document.createElement("button");
+    c.className = "chip";
+    c.textContent = r.san;
+    c.title = `Follow ${r.san} instead`;
+    c.addEventListener("click", () => { state.choice[s.from] = k; line = buildLine(); go(i); });
+    row.appendChild(c);
+  });
+  box.appendChild(row);
+}
+
+function colorName(c) { return c === "black" ? "Black" : "White"; }
+function other(c) { return c === "black" ? "White" : "Black"; }
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+function renderProof() {
+  const step = line[state.ply];
+  const box = $("proof");
+  const attacker = state.mode === "main" ? "black" : "white";
+  if (state.ply === 0) {
+    if (state.mode === "main") {
+      box.innerHTML = `<h2>Starting position</h2>
+        <span class="badge">Proved in the Lean kernel</span>
+        <p>Black to move. Rxb2+ is legal, Black wins after it, and Black wins after no other legal move.</p>
+        <div class="lean">theorem gotham_specOnlyWinningMove :\n    SpecOnlyWinningMove Puzzles.gotham (uci "b7b2")\ntheorem gotham_specWinsIn :\n    SpecWinsIn .black 11 Puzzles.gotham</div>
+        <p class="note">Step forward to follow the proof one checked position at a time.</p>`;
+    } else {
+      const r = state.ref;
+      box.innerHTML = `<h2>Starting position</h2>
+        <span class="badge">Proved in the Lean kernel</span>
+        <p>If Black plays ${esc(r.san)} instead of Rxb2+, White forces mate within ${r.budget} move${r.budget > 1 ? "s" : ""}.</p>
+        <div class="lean">theorem ${r.theorem} :\n    WinsIn .white ${r.budget} (Puzzles.gotham.play ${r.uci})</div>`;
+    }
+    return;
+  }
+  const n = DATA.nodes[step.node];
+  const toMove = parseFen(step.fen).turn === "w" ? "White" : "Black";
+  const att = colorName(n.color);
+  let body;
+  if (n.kind === "mate") {
+    body = `<p><b>${other(n.color)} is checkmated.</b> The kernel checked that ${other(n.color)} is in check and has no legal move.</p>`;
+  } else if (n.kind === "move") {
+    body = `<p>${att} to move. ${att} can force mate within ${n.budget} more move${n.budget > 1 ? "s" : ""}, starting with <b>${esc(n.move.san)}</b>.</p>`;
+  } else {
+    const list = n.replies.map(r => esc(r.san)).join(", ");
+    body = `<p>${toMove} to move. ${toMove}'s legal moves here are exactly <b>${list}</b>, and after each one ${att} still forces mate within ${n.budget}.</p>`;
+  }
+  box.innerHTML = `<h2>This position</h2>
+    <span class="badge">Proved in the Lean kernel</span>
+    ${body}
+    <div class="lean">theorem ${step.node} : ${n.claim}</div>`;
+}
+
+function renderControls() {
+  $("first").disabled = $("prev").disabled = state.ply === 0;
+  $("last").disabled = $("next").disabled = state.ply === line.length - 1;
+  const total = line.length - 1;
+  $("plyLabel").textContent = `Move ${state.ply} of ${total}`;
+  $("lineTitle").textContent = state.mode === "main" ? "Main line: Black mates" : `After ${state.ref.san}: White mates`;
+}
+
+function render() { renderBoard(); renderMoves(); renderProof(); renderControls(); }
+function go(i) { state.ply = Math.max(0, Math.min(line.length - 1, i)); render(); }
+
+function setMode(mode, ref) {
+  state.mode = mode; state.ref = ref || null; state.ply = 0;
+  line = buildLine();
+  $("tabMain").setAttribute("aria-selected", mode === "main");
+  $("tabRefs").setAttribute("aria-selected", mode === "ref");
+  $("refsCard").hidden = mode !== "ref";
+  renderRefs(); render();
+}
+function renderRefs() {
+  const box = $("refs");
+  box.innerHTML = "";
+  DATA.refutations.forEach(r => {
+    const c = document.createElement("button");
+    c.className = "chip" + (state.ref === r ? " on" : "");
+    c.innerHTML = `${esc(r.san)}<small>mate in ${r.budget}</small>`;
+    c.addEventListener("click", () => { setMode("ref", r); state.ply = 1; render(); });
+    box.appendChild(c);
+  });
+}
+
+$("first").onclick = () => go(0);
+$("prev").onclick = () => go(state.ply - 1);
+$("next").onclick = () => go(state.ply + 1);
+$("last").onclick = () => go(line.length - 1);
+$("flip").onclick = () => { state.flipped = !state.flipped; renderBoard(); };
+$("tabMain").onclick = () => setMode("main");
+$("tabRefs").onclick = () => setMode("ref", state.ref || DATA.refutations.find(r => r.budget === 5) || DATA.refutations[0]);
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") { go(state.ply + 1); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { go(state.ply - 1); e.preventDefault(); }
+  else if (e.key === "Home") { go(0); e.preventDefault(); }
+  else if (e.key === "End") { go(line.length - 1); e.preventDefault(); }
+});
+setMode("main");
+</script>
