@@ -26,6 +26,11 @@ every definition below carries the docstring given there.
   `Slides` and `Reaches` describe.
 * (M4, soundness) `legalMoves_eq_filter`: `legalMoves p` is `candidates p` filtered by `Legal`;
   hence `legalMoves_sound`: every entry of `legalMoves p` is legal.
+* (the cover) `PseudoLegal.mem_candidates`: every pseudo-legal move is a candidate.
+* (M2, M4) `mem_pseudoMoves`, `mem_legalMoves`: the generator lists exactly the pseudo-legal and
+  the legal moves.
+* (M6) `checkmate_iff`, `stalemate_iff`: checkmate and stalemate read off the generator; through
+  them `Checkmate` and `Stalemate` get their cheap decisions.
 * `candidates_ignores_epTarget`: the candidates do not read the en passant target.
 * `perft_one`, `sum_perftDivide`: perft of depth 1 counts `legalMoves`, and the divide adds up to
   perft of one more ply.
@@ -51,10 +56,10 @@ every definition below carries the docstring given there.
   (design choice 10; which one is spec open item 4).
 * The candidates read the board, the side to move and the castling rights, never the en passant
   target (design choice 13, `candidates_ignores_epTarget`).
-* Completeness (M4: every legal move is listed) is planned in `Chess/MoveGen/Correct.lean`, through
-  one geometric cover lemma (`PseudoLegal.mem_candidates`). Until it is proved, that `legalMoves`
-  misses no legal move is the one trusted claim of this module; the tests at the end check it on
-  seventeen positions (`agreesWithLegal`), and on `kingsPos` it is a kernel-checked theorem.
+* Completeness (M4: every legal move is listed) goes through one geometric cover lemma,
+  `PseudoLegal.mem_candidates`: a case split over the six rules with no reasoning about checks,
+  pins or blockers. Nothing in this module is trusted: `legalMoves` lists exactly the legal moves.
+  That it lists none twice (M5) is still only tested (`agreesWithLegal`).
 -/
 
 namespace Chess
@@ -201,8 +206,8 @@ def castleCandidates (p : Position) : List Move :=
 
 /-- The candidate moves of `p`: the candidate moves from every square, in square order (a1, b1, …,
 h8), then the candidate castling moves. They are meant to include every pseudo-legal move of `p`
-(the cover, `PseudoLegal.mem_candidates`, planned in `Chess/MoveGen/Correct.lean`); in general
-some candidates are not pseudo-legal. -/
+Every pseudo-legal move of `p` is a candidate (the cover, `PseudoLegal.mem_candidates`); in
+general some candidates are not pseudo-legal. -/
 def candidates (p : Position) : List Move :=
   Square.all.flatMap (candidatesFrom p) ++ castleCandidates p
 
@@ -233,15 +238,13 @@ end Candidates
 
 /-! ## The generator -/
 
-/-- The pseudo-legal candidates of `p`: the candidate moves that obey the movement rules
-(`PseudoLegal`). That they are all the pseudo-legal moves of `p` is M2, planned in
-`Chess/MoveGen/Correct.lean`. -/
+/-- The pseudo-legal moves of `p`: the candidate moves that obey the movement rules
+(`PseudoLegal`). -/
 def pseudoMoves (p : Position) : List Move :=
   (candidates p).filter fun m => decide (PseudoLegal p m)
 
-/-- The legal candidates of `p`: the entries of `pseudoMoves p` after which no king of the mover's
-colour is attacked (FIDE 3.9.2). That they are all the legal moves of `p` is M4, planned in
-`Chess/MoveGen/Correct.lean`. -/
+/-- The legal moves of `p`: the entries of `pseudoMoves p` after which no king of the mover's
+colour is attacked (FIDE 3.9.2). -/
 def legalMoves (p : Position) : List Move :=
   (pseudoMoves p).filter fun m => decide (¬ (p.play m).board.KingAttacked p.turn)
 
@@ -274,6 +277,87 @@ theorem legalMoves_sound (h : m ∈ legalMoves p) : Legal p m :=
   (mem_legalMoves_iff_candidate.mp h).2
 
 end Generator
+
+/-! ## Completeness -/
+
+section Completeness
+
+variable {p : Position} {m : Move}
+
+/-- A pawn move of the side to move whose target is one of its pawn targets, and which obeys the
+promotion rule, is a candidate from its source square. -/
+theorem mem_candidatesFrom_pawn (hs : p.board m.src = some ⟨p.turn, .pawn⟩)
+    (ht : m.dst ∈ pawnTargets p.turn m.src) (hp : m.PromotionRule p.turn) :
+    m ∈ candidatesFrom p m.src := by
+  simp only [candidatesFrom, hs, ↓reduceIte, List.mem_flatMap]
+  exact ⟨m.dst, ht, mem_pawnMovesTo.mpr ⟨rfl, rfl, hp⟩⟩
+
+/-- A candidate from a move's own source square is a candidate. -/
+theorem mem_candidates_of_mem_candidatesFrom (h : m ∈ candidatesFrom p m.src) :
+    m ∈ candidates p :=
+  List.mem_append_left _ (List.mem_flatMap.mpr ⟨m.src, Square.mem_all _, h⟩)
+
+/-- A move with no promotion choice to a square short of the last rank obeys the promotion
+rule. -/
+theorem promotionRule_of_none (hp : m.promo = none) (h : m.dst.relRank p.turn ≠ 7) :
+    m.PromotionRule p.turn := by
+  simp [Move.PromotionRule, hp, h]
+
+/-- **Every pseudo-legal move of `p` is a candidate of `p` (the cover).** -/
+theorem PseudoLegal.mem_candidates (h : PseudoLegal p m) : m ∈ candidates p := by
+  rcases h with ⟨k, hk, hs, hr, -, hp⟩ | ⟨hs, hd, -, hpr⟩ | ⟨⟨hs, hd⟩, hr1, -, -, hp⟩ |
+    ⟨hs, hr, -, hpr⟩ | ⟨⟨hs, -⟩, hr, hr5, -, -, hp⟩ | ⟨w, hc⟩
+  · apply mem_candidates_of_mem_candidatesFrom
+    simp only [candidatesFrom, hs, hk, ↓reduceIte, List.mem_map]
+    exact ⟨m.dst, mem_reachTargets.mpr hr, by cases m; simp_all⟩
+  · exact mem_candidates_of_mem_candidatesFrom
+      (mem_candidatesFrom_pawn hs (by simp [pawnTargets, hd]) hpr)
+  · refine mem_candidates_of_mem_candidatesFrom
+      (mem_candidatesFrom_pawn hs (by simp [pawnTargets, hd]) (promotionRule_of_none hp ?_))
+    have := Square.relRank_of_offset_forward (dr := 2) (by simpa using hd)
+    omega
+  · refine mem_candidates_of_mem_candidatesFrom (mem_candidatesFrom_pawn hs ?_ hpr)
+    rcases hr with h | h <;> simp [pawnTargets, h]
+  · refine mem_candidates_of_mem_candidatesFrom (mem_candidatesFrom_pawn hs ?_
+      (promotionRule_of_none hp (by rw [hr5]; decide)))
+    rcases hr with h | h <;> simp [pawnTargets, h]
+  · refine List.mem_append_right _ ?_
+    have hm := hc.eq_castle
+    obtain ⟨⟨hsrc, hk, -⟩, ⟨hright, -⟩, -⟩ := hc
+    simp only [castleCandidates, ← hsrc, hk, ↓reduceIte, List.mem_map, List.mem_filter]
+    exact ⟨w, ⟨Wing.mem_all w, hright⟩, hm.symm⟩
+
+/-- **`pseudoMoves p` lists exactly the pseudo-legal moves of `p` (M2).** -/
+theorem mem_pseudoMoves : m ∈ pseudoMoves p ↔ PseudoLegal p m :=
+  mem_pseudoMoves_iff_candidate.trans ⟨And.right, fun h => ⟨h.mem_candidates, h⟩⟩
+
+/-- Every legal move of `p` is listed by `legalMoves p` (M4, completeness). -/
+theorem legalMoves_complete (h : Legal p m) : m ∈ legalMoves p :=
+  mem_legalMoves_iff_candidate.mpr ⟨h.1.mem_candidates, h⟩
+
+/-- **`legalMoves p` lists exactly the legal moves of `p` (M4).** -/
+theorem mem_legalMoves : m ∈ legalMoves p ↔ Legal p m :=
+  ⟨legalMoves_sound, legalMoves_complete⟩
+
+/-- **Checkmate is check with no listed move (M6).** -/
+theorem checkmate_iff : Checkmate p ↔ InCheck p ∧ legalMoves p = [] := by
+  simp only [Checkmate, List.eq_nil_iff_forall_not_mem, mem_legalMoves]
+
+/-- Stalemate is no check and no listed move (M6). -/
+theorem stalemate_iff : Stalemate p ↔ ¬ InCheck p ∧ legalMoves p = [] := by
+  simp only [Stalemate, List.eq_nil_iff_forall_not_mem, mem_legalMoves]
+
+/-- Checkmate is decided through the generator: check, and no listed move. This replaces the
+instance of `Chess.Rules`, which tests every move. -/
+instance (priority := high) Checkmate.decidableByGen (p : Position) : Decidable (Checkmate p) :=
+  decidable_of_iff _ checkmate_iff.symm
+
+/-- Stalemate is decided through the generator: no check, and no listed move. This replaces the
+instance of `Chess.Rules`, which tests every move. -/
+instance (priority := high) Stalemate.decidableByGen (p : Position) : Decidable (Stalemate p) :=
+  decidable_of_iff _ stalemate_iff.symm
+
+end Completeness
 
 /-! ## Perft -/
 
@@ -384,8 +468,10 @@ example : (legalMoves Position.initial).length = 20 := by decide +kernel
 #guard perft 2 Position.initial == 400
 #guard ((perftDivide 1 Position.initial).map (·.2)).sum == 400
 
--- Fool's mate, through the generator: no listed move.
+-- Fool's mate, through the generator: no listed move, so checkmate (decided by `checkmate_iff`).
 example : legalMoves foolsMate = [] := by decide +kernel
+example : Checkmate foolsMate := by decide +kernel
+example : ¬ Stalemate foolsMate := by decide +kernel
 
 -- The empty board: the castling rights alone propose nothing.
 #guard (candidates ⟨Board.empty, .white, CastlingRights.full, none⟩).isEmpty

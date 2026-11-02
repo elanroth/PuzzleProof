@@ -69,8 +69,11 @@ Basic ──► Position ──► Rules ──► MoveGen ──┐
 | O8 (bonus) | done | `Forces.trans` |
 | **Closing demo** | **not started** | Gotham `WinsIn .black 11` and `OnlyWinningMove … (uci "b7b2")`, [kernel] |
 
-Stage 2 items already reached: M1 (target lists) and M4 soundness. **M4 completeness is proved but
-not landed.** The 56-line cover proof in `docs/reviews/MoveGen.md` (Appendix) elaborates against
+Stage 2 items already reached: M1 (target lists), M2, M4 (both halves) and M6. **Update: step 1
+below has landed** (section `Completeness` of `Chess/MoveGen.lean`: `PseudoLegal.mem_candidates`,
+`mem_pseudoMoves`, `legalMoves_complete`, `mem_legalMoves`, `checkmate_iff`, `stalemate_iff`, and
+the generator-backed `Checkmate`/`Stalemate` instances; `decide +kernel` proves
+`Checkmate foolsMate` in about 1.7 s). Original note: The 56-line cover proof in `docs/reviews/MoveGen.md` (Appendix) elaborates against
 today's build in about 2 s, with standard axioms only. I re-checked it in a scratch file for this
 review and added `stalemate_iff` the same way. See step 1.
 
@@ -191,7 +194,7 @@ Lean, then critique, then a file review. Steps 1–7 close **Stage 1**, and on t
 deliver the **Stage 2 headline** (M4 and G8). Step 8 completes Stage 2, and steps 9–10 open
 Stages 3–5.
 
-1. **Land generator completeness (M4, M6; THEOREMS ★★).** Add a section `Completeness` to
+1. ✅ **(Done.) Land generator completeness (M4, M6; THEOREMS ★★).** Add a section `Completeness` to
    `Chess/MoveGen.lean` with `PseudoLegal.mem_candidates` (the cover), `mem_pseudoMoves`,
    `mem_legalMoves`, `checkmate_iff` and `stalemate_iff`, from the MoveGen review appendix
    (verified against today's build). Use `CastleMove.eq_castle` in the castling bullet. Register

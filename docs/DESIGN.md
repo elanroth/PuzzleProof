@@ -125,10 +125,11 @@ The executable layer computes what the specification describes:
 
 Each executable function has, or will have, a theorem stating what it computes in specification
 terms. The checkers and the search are proved in Stage 1 (C1, C2, G5). For the generator this
-theorem is M4 (Stage 2): in Stage 1 the generator is *tested*, by perft (M7) and by checking it
-against the decidable `Legal` on test positions (Section 5.7), and it is part of the trusted base.
-Until M4 is proved, chess theorems are honestly about "the game whose moves are `legalMoves`", and
-G8 later turns them into theorems about FIDE chess without changing a single statement.
+theorem is M4, `mem_legalMoves : m ∈ legalMoves p ↔ Legal p m`, proved in `MoveGen` through one
+geometric cover lemma (pulled forward from Stage 2; MoveGen review C1). The generator is therefore
+not part of the trusted base. Chess theorems are stated about "the game whose moves are
+`legalMoves`", and G8 turns them into theorems about FIDE chess without changing a single
+statement.
 
 The executable layer works on the *same* `Position` as the specification. This is deliberate. The
 Stage 2 link is then a membership `↔`, the simplest possible refinement statement, and no
@@ -730,8 +731,8 @@ claimed.
 
 What a reader trusts for a Stage 1 chess theorem: the Lean kernel; the English and Lean of `Basic`,
 `Position`, `Rules`, the definitions section of `Game`, and `ChessGame` (including the FEN and UCI
-parsers until M11); and, until M4, `MoveGen` as the meaning of "legal". After Stage 2 the last item
-disappears.
+parsers until M11). `MoveGen` is not trusted: M4 (`mem_legalMoves`) proves that it lists exactly
+the moves `Legal` allows.
 
 ### 7.4 Keeping kernel checks affordable
 

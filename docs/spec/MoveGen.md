@@ -11,14 +11,13 @@ Timings are from that scratch file, on this machine, one process at a time.
 
 File: `Chess/MoveGen.lean`. Depends on: `Chess.Rules` (and through it `Chess.Position`,
 `Chess.Basic`); core only. Does **not** import `Chess.Game`. Refines DESIGN §5.7 and §8.4. Theorem
-targets here: **M1** (target lists mean `Reaches`), the soundness half of **M4**
-(`legalMoves_sound`), and the perft definitions and equations that **M7**'s tests use. Planned in
-`Chess/MoveGen/Correct.lean` (Stage 2, §7 below): the completeness half of **M4** through one
-cover lemma, **M2**, **M5**, **M6**.
+targets here: **M1** (target lists mean `Reaches`), **M4** in both halves (`legalMoves_sound`,
+`legalMoves_complete`, `mem_legalMoves`), **M2** and **M6** through one cover lemma (§7), and the
+perft definitions and equations that **M7**'s tests use. Planned in `Chess/MoveGen/Correct.lean`:
+**M5**.
 
-What a reader must trust from this module, and for how long: until the cover lemma (L7.1) is
-proved, that `legalMoves` *misses no legal move*. That every move it lists is legal is a theorem of
-this module (L3.5), proved in Stage 1 by the shape of the definitions (design choice 1).
+What a reader must trust from this module: nothing. That every move it lists is legal is L3.5, by
+the shape of the definitions (design choice 1); that it misses none is the cover L7.1.
 
 ## 0. How to read this document
 
@@ -64,7 +63,7 @@ add an illegal move: everything it lists is legal by a one-line theorem (L3.5, S
 the last filter is `Legal`'s own second conjunct. Completeness needs only that no such test removes
 a pseudo-legal move, so the whole of M4's difficulty collapses into one geometric fact, "every
 pseudo-legal move is a candidate" (L7.1), which needs no reasoning about checks, pins, en passant
-victims or castling attacks. Until L7.1 is proved, that fact is what a reader trusts.
+victims or castling attacks. L7.1 is proved (§7), so nothing here is trusted.
 
 ## Contents of the file, in order
 
@@ -328,13 +327,10 @@ def candidates (p : Position) : List Move :=
 ```
 
 Docstring: "The candidate moves of `p`: the candidate moves from every square, in square order (a1,
-b1, …, h8), then the candidate castling moves. They are meant to include every pseudo-legal move of
-`p` (the cover, `PseudoLegal.mem_candidates`, planned in `Chess/MoveGen/Correct.lean`); in general
-some candidates are not pseudo-legal."
+b1, …, h8), then the candidate castling moves. Every pseudo-legal move of `p` is a candidate (the
+cover, `PseudoLegal.mem_candidates`); in general some candidates are not pseudo-legal."
 
-Notes. The second sentence of the docstring is L7.1 (Stage 2), stated as an intention; until L7.1
-is proved it is the one trusted claim of this module (header). When L7.1 lands, the sentence becomes
-plain: "Every pseudo-legal move of `p` is a candidate." On the empty board there are no candidates
+Notes. The second sentence of the docstring is L7.1, proved in §7 of this module. On the empty board there are no candidates
 (no piece, and castling needs the king), so `legalMoves` is empty and `perft (n + 1)` is 0 there. In the initial position there
 are 56 candidates (30 pawn, 6 knight, 4 bishop, 4 rook, 5 queen, 5 king, 2 castling) and 20
 pseudo-legal moves *(checked)*.
@@ -375,14 +371,11 @@ def pseudoMoves (p : Position) : List Move :=
   (candidates p).filter fun m => decide (PseudoLegal p m)
 ```
 
-Docstring: "The pseudo-legal candidates of `p`: the candidate moves that obey the movement rules
-(`PseudoLegal`). That they are all the pseudo-legal moves of `p` is M2, planned in
-`Chess/MoveGen/Correct.lean`."
+Docstring: "The pseudo-legal moves of `p`: the candidate moves that obey the movement rules
+(`PseudoLegal`)."
 
-Notes. "The pseudo-legal moves of `p`" would be the completeness claim M2 (L7.2), which is Stage 2;
-the docstring says what the definition is now and names the theorem that will justify the stronger
-reading (design choice 8). When L7.2 lands, the first sentence becomes "The pseudo-legal moves of
-`p`" and the second is dropped.
+Notes. "The pseudo-legal moves of `p`" is the completeness claim M2 (L7.2), proved in §7 of this
+module (design choice 8: a promise is proved in the file that makes it).
 
 ### D3.2 `legalMoves (p : Position) : List Move`
 
@@ -391,12 +384,10 @@ def legalMoves (p : Position) : List Move :=
   (pseudoMoves p).filter fun m => decide (¬ (p.play m).board.KingAttacked p.turn)
 ```
 
-Docstring: "The legal candidates of `p`: the entries of `pseudoMoves p` after which no king of the
-mover's colour is attacked (FIDE 3.9.2). That they are all the legal moves of `p` is M4, planned in
-`Chess/MoveGen/Correct.lean`."
+Docstring: "The legal moves of `p`: the entries of `pseudoMoves p` after which no king of the
+mover's colour is attacked (FIDE 3.9.2)."
 
-Notes. As for D3.1: "the legal moves of `p`" is M4's completeness half (L7.4), so it waits for L7.4;
-then the first sentence becomes "The legal moves of `p`". The filter's condition is, word for word,
+Notes. As for D3.1: "the legal moves of `p`" is M4 (L7.4), proved in §7 of this module. The filter's condition is, word for word,
 the second conjunct of `Legal` (Rules D6.1), so D3.1 and D3.2 together are "the candidates that are legal" (L3.3), DESIGN §5.7's sentence read as a
 program. Both use the `Decidable` instances fixed in `Chess.Rules`; see design choice 10 for what
 that means for speed-ups.
@@ -644,9 +635,30 @@ allows; any `native_decide` version is `_native` and lives only there (DESIGN §
 
 ---
 
-## 7. Stage 2: `Chess/MoveGen/Correct.lean` (planned, not translated now)
+## 7. Section "Completeness" (pulled into Stage 1; M5 still planned in `Chess/MoveGen/Correct.lean`)
 
-Imports `Chess.MoveGen`. With the definitions above, M2, M4 and M6 follow from one lemma, the cover.
+With the definitions above, M2, M4 and M6 follow from one lemma, the cover. L7.1–L7.4, L7.6 and
+L7.7 are in the section `Completeness` of `Chess/MoveGen.lean`, right after "The generator"
+(MoveGen review C1). L7.5 (M5, `Nodup`) is longer and stays planned in `Chess/MoveGen/Correct.lean`.
+
+Helpers of the cover, each with its docstring:
+
+| ID | English (= Lean docstring) | Lean statement |
+|---|---|---|
+| L7.0a | A pawn move of the side to move whose target is one of its pawn targets, and which obeys the promotion rule, is a candidate from its source square. | `theorem mem_candidatesFrom_pawn (hs : p.board m.src = some ⟨p.turn, .pawn⟩) (ht : m.dst ∈ pawnTargets p.turn m.src) (hp : m.PromotionRule p.turn) : m ∈ candidatesFrom p m.src` |
+| L7.0b | A candidate from a move's own source square is a candidate. | `theorem mem_candidates_of_mem_candidatesFrom (h : m ∈ candidatesFrom p m.src) : m ∈ candidates p` |
+| L7.0c | A move with no promotion choice to a square short of the last rank obeys the promotion rule. | `theorem promotionRule_of_none (hp : m.promo = none) (h : m.dst.relRank p.turn ≠ 7) : m.PromotionRule p.turn` |
+
+Docstrings of the main rows: L7.1 "**Every pseudo-legal move of `p` is a candidate of `p` (the
+cover).**"; L7.2 "**`pseudoMoves p` lists exactly the pseudo-legal moves of `p` (M2).**"; L7.3
+"Every legal move of `p` is listed by `legalMoves p` (M4, completeness)."; L7.4 "**`legalMoves p`
+lists exactly the legal moves of `p` (M4).**"; L7.6 "**Checkmate is check with no listed move
+(M6).**"; L7.7 "Stalemate is no check and no listed move (M6)." The two instances:
+`Checkmate.decidableByGen` "Checkmate is decided through the generator: check, and no listed move.
+This replaces the instance of `Chess.Rules`, which tests every move." and
+`Stalemate.decidableByGen` "Stalemate is decided through the generator: no check, and no listed
+move. This replaces the instance of `Chess.Rules`, which tests every move." Both are declared with
+`priority := high`. `decide +kernel` proves `Checkmate foolsMate` in about 1.7 s.
 
 `variable {p : Position} {m : Move}`
 
@@ -693,8 +705,8 @@ split). Open item 1 proposes pulling `Correct.lean` into Stage 1.
    the second half of `Legal`. Every other test it makes (the colour and kind of the piece on a
    square, empty squares and blockers, the edge of the board, the two guards of `castleCandidates`)
    only removes candidates. So none can add an illegal move (soundness is one line, L3.5), and
-   completeness needs only that none removes a pseudo-legal move, which is the cover L7.1 and is
-   exactly what a reader trusts until L7.1 is proved. Reasons:
+   completeness needs only that none removes a pseudo-legal move, which is the cover L7.1, proved
+   in §7. Reasons:
    - *Faithful by construction.* Principle 6 of DESIGN ("one predicate per rule, shared by every
      user") applied to the generator: no second copy of en passant, castling or promotion exists to
      drift from the first. The prototype's generator restated every rule in its own encoding
@@ -834,7 +846,7 @@ Not here, on purpose:
   `perft_one`, `sum_perftDivide`; `mem_legalMoves_of_agreesWithLegal`,
   `nodup_legalMoves_of_agreesWithLegal`), and
   `## Implementation notes` summarizing design choices 1, 5, 6, 10 and 13, and saying that completeness
-  (M4) is planned in `Chess/MoveGen/Correct.lean` and is the one trusted claim until then.
+  (M4) goes through the cover `PseudoLegal.mem_candidates` and that only M5 is still tested, not proved.
 - Section order as in "Contents"; each a `/-! ## … -/` heading. Lemmas in `section Targets`,
   `section Candidates`, `section Generator`, `section Testing`, each opening with its `variable`
   line (§1–§3, §5); the perft lemmas need none (§4).
