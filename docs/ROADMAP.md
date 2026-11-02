@@ -94,7 +94,7 @@ program `chess-perft`. Step 5 split `Game` into `Game/Defs → Game/Laws → {Ga
 | C1, C2, C3, C7 | done | `checkWin_sound`, `checkWin_complete`, `Forces.move_of_play_eq`/`replies_of_moves_eq`/`of_play_eq`, `WinsIn.of_mated` (step 5), `checkOnlyMove_sound` (with an `OnlyMoveCert` since step 5) |
 | O2 | done | `OnlyWinningMove.wins_iff`, `.unique`, `.of_refuted`, `.winsIn_play` |
 | O8 (bonus) | done | `Forces.trans` |
-| **Closing demo** | **done** (2026-11-02, steps 6–7); the trusted file under the G8 readings, `Spec/Winning`, has had only a self-review so far (step 7, "Not done") | `ChessDemo.gotham_winsIn : WinsIn .black 11 Puzzles.gotham`, `ChessDemo.gotham_onlyWinningMove : OnlyWinningMove Puzzles.gotham (uci "b7b2")`, and through G8 `gotham_specWinsIn`, `gotham_specOnlyWinningMove`; the refutations behind the only move (a forced mate for White after each other move), `gotham_refuted` and `gotham_specRefuted`; [kernel], standard axioms only (`ChessDemo/Axioms.lean`). Exact `MateIn`: `ChessDemo.foolsMate_mateIn` (1) and `rookMate2_mateIn` (2) by search, `rookMate3_mateIn` (3) by a certificate for the win (`rookMate3_winsIn`) and a search for minimality (`rookMate3_not_winsIn_two`). |
+| **Closing demo** | **done** (2026-11-02, steps 6–7); the trusted file under the G8 readings, `Spec/Winning`, and `ChessGame/Fide` were reviewed independently on 2026-11-02 (`docs/reviews/G8_REVIEW.md`: no soundness defect) | `ChessDemo.gotham_winsIn : WinsIn .black 11 Puzzles.gotham`, `ChessDemo.gotham_onlyWinningMove : OnlyWinningMove Puzzles.gotham (uci "b7b2")`, and through G8 `gotham_specWinsIn`, `gotham_specOnlyWinningMove`; the refutations behind the only move (a forced mate for White after each other move), `gotham_refuted` and `gotham_specRefuted`; [kernel], standard axioms only (`ChessDemo/Axioms.lean`). Exact `MateIn`: `ChessDemo.foolsMate_mateIn` (1) and `rookMate2_mateIn` (2) by search, `rookMate3_mateIn` (3) by a certificate for the win (`rookMate3_winsIn`) and a search for minimality (`rookMate3_not_winsIn_two`). |
 | R3 (Stage 2, brought forward) | done (2026-11-02, step 6) | `reaches_symm`, `reaches_pawn_symm`, `Board.attackedBy_iff_superpiece` |
 
 Stage 2 items already reached: M1 (target lists), M2, M4 (both halves), M6 and **G8** (step 2
@@ -484,10 +484,10 @@ Stages 3–5.
      of their own (`GothamCert.refutations`, generated, restated as `gotham_refuted` and, through
      G8, `gotham_specRefuted`). Game spec §4.3 now allows literal moves in a generated file, with
      the `uci "…" = lit` bridge in the restating file; the demo ledger has 16 entries.
-   **Not done.** An independent review of `Spec/Winning` (and `ChessGame/Fide`): it must be written
-   by a separate reviewer session, and until it exists no summary for the owner should call Stage
-   1 closed without saying that the trusted file under the G8 headlines has had only a
-   self-review; the owner's ep sign-off (Rules review C4), now overdue; a `_native` variant (not
+   **Done afterwards** (2026-11-02): an independent review of `Spec/Winning` and `ChessGame/Fide`
+   by a separate reviewer session, `docs/reviews/G8_REVIEW.md`. It found no soundness defect, and
+   its F1 and F4 docstring notes are applied.
+   **Not done.** The owner's ep sign-off (Rules review C4), now overdue; a `_native` variant (not
    needed: the kernel version is affordable).
 7a. ✅ **(Done, 2026-11-02.) Readability round.** Fixes for the findings of an independent
    readability and fidelity audit, each reproduced by two skeptics. Details in the process logs:

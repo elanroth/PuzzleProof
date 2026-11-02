@@ -127,7 +127,8 @@ def SpecMateIn (a : Color) (n : Nat) (p : Position) : Prop :=
 ```
 
 Docstring: "`SpecMateIn a n p`: from position `p`, the side `a` mates in exactly `n`: it can force
-checkmate of the other side within `n` moves of its own, and not within fewer."
+checkmate of the other side within `n` moves of its own, and not within fewer. With `n = 0` it says
+that the other side is to move and already checkmated."
 
 Note. Not in the Round 1 plan of `docs/spec/ChessGame.md` §7, which stated L7.5 for `MateIn` by
 spelling out `SpecWinsIn a n p ∧ ∀ k < n, ¬ SpecWinsIn a k p`. A name makes the bridge read like the
@@ -178,7 +179,13 @@ Notes.
 
 1. **Import `Chess.Rules` only** (ChessGame review C2). The trusted reading of a headline should not
    contain the generator or the abstract game. Every name used here (`Legal`, `Position.play`,
-   `Checkmate`, `Stalemate`, `Position.turn`, `Color.other`) is in `Chess.Rules` or below it.
+   `Checkmate`, `Stalemate`, `Position.turn`, `Color.other`) is in `Chess.Rules` or below it. The
+   definitions use only `Chess.Rules.Defs`; `Rules.Laws` is needed only to prove the G2 lemmas
+   (`play_turn`). An independent review (`docs/reviews/G8_REVIEW.md`) checked the constant closure.
+6. **Meant for positions in which the side not to move is not in check**, such as every `fen`
+   position (`Position.Sane`) and every position reached from one by legal moves. Elsewhere `Legal`
+   allows the capture of a king, after which that side can never be checkmated (G8 review, F1).
+   FIDE says nothing about such positions, so the definitions are left unguarded.
 2. **The same three rules as `Game.Forces`, written out**, rather than a second `Game` instance
    whose moves are `Legal`. A `Game` needs a finite list of available moves; `Legal` is a relation,
    and listing it is exactly the generator's job. Writing the rules out keeps this file free of

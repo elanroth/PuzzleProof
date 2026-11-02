@@ -39,6 +39,12 @@ below carries the docstring given there.
   clock, no fifty- or seventy-five-move rule, no repetition rule and no dead-position rule.
 * No decision procedure is given here. Claims are decided or certified through `Chess.Game` and
   carried over by the equivalences of `Chess.ChessGame.Fide`.
+* The definitions are meant for positions in which the side not to move is not in check, such as
+  every `fen` position (`Position.Sane`) and every position reached from one by legal moves. On
+  other positions `Legal` allows the capture of a king, after which that side can never be
+  checkmated.
+* The definitions use only `Chess.Rules.Defs`. The whole of `Chess.Rules` is imported for the
+  proofs of the G2 lemmas (`play_turn` of `Chess.Rules.Laws`).
 -/
 
 namespace Chess
@@ -76,7 +82,8 @@ def SpecWins (a : Color) (p : Position) : Prop :=
   ∃ n, SpecWinsIn a n p
 
 /-- `SpecMateIn a n p`: from position `p`, the side `a` mates in exactly `n`: it can force
-checkmate of the other side within `n` moves of its own, and not within fewer. -/
+checkmate of the other side within `n` moves of its own, and not within fewer. With `n = 0` it says
+that the other side is to move and already checkmated. -/
 def SpecMateIn (a : Color) (n : Nat) (p : Position) : Prop :=
   SpecWinsIn a n p ∧ ∀ k < n, ¬ SpecWinsIn a k p
 

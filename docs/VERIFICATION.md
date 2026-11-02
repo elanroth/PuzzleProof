@@ -184,8 +184,11 @@ None of these was acted on.
 
 ## 8. What remains open
 
-- **An independent review of `Spec/Winning` and `ChessGame/Fide`.** It must come from a separate
-  session (ROADMAP step 7). `Chess.Puzzles` has no file-level review.
+- ~~An independent review of `Spec/Winning` and `ChessGame/Fide`.~~ Done 2026-11-02 in a separate
+  session: `docs/reviews/G8_REVIEW.md`. It found no soundness defect, and no finding affects Gotham.
+  F1 (the definitions are meant for positions where the side not to move is not in check) and the
+  F4 nits are now documented. Still open from it: F2, a parser-free statement of the Gotham board,
+  and F3, the kernel stalling on `∀ r, Legal p r → …`. `Chess.Puzzles` has no file-level review.
 - **M5 (`legalMoves` has no duplicates) is tested only.** M4 and M6 are proved.
 - **Owner decisions:**
   - the `WinsIn`/`SpecWinsIn` naming;
