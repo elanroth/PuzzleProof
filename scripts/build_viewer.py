@@ -11,7 +11,9 @@ library and no engine:
   * each node theorem `wN : WinsIn .c k pN`, with its kind (mated, one attacker move, or every
     defender reply), its moves (UCI from the `play` equations, SAN from the docstring) and the
     checkpoint and node each move leads to,
-  * the best move's node (`winsIn`) and the refutations `refutes_<uci>` with their budgets.
+  * the best move's node (`winsIn`) and the refutations `refutes_<uci>` with their budgets,
+  * the Lean source of each of these theorems, shown beside the board as the proof is stepped
+    through, and the headline statements of ChessDemo/Gotham.lean for the starting position.
 The result is inlined as JSON into viewer/template.html, which draws the board and the move lists,
 together with the piece images of viewer/pieces/cburnett (see viewer/pieces/README.md).
 The page needs no server: open viewer/gotham.html in a browser.
@@ -19,13 +21,25 @@ The page needs no server: open viewer/gotham.html in a browser.
 import base64, json, re, sys
 
 CERT = "ChessDemo/GothamCert.lean"
+HEADLINE = "ChessDemo/Gotham.lean"
 TEMPLATE = "viewer/template.html"
 OUT = "viewer/gotham.html"
 PIECES = "viewer/pieces/cburnett"
 ROOT_FEN = "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1 b - - 0 1"
 
 
-def extract(src):
+def blocks(src):
+    """Each theorem's source, docstring included, keyed by its name."""
+    out = {}
+    for para in re.split(r"\n\s*\n", src):
+        m = re.search(r"^(?:theorem|def) (\w+)", para, re.M)
+        if m:
+            out[m.group(1)] = para.strip()
+    return out
+
+
+def extract(src, headline):
+    code = blocks(src)
     fens = {m.group(2): m.group(1)
             for m in re.finditer(r"/-- `([^`]+)` -/\s*def (p\d+) : Position", src)}
     fens.setdefault("p0", ROOT_FEN)
@@ -37,7 +51,7 @@ def extract(src):
         doc, wid, color, k, pos, body = m.groups()
         doc = " ".join(doc.split())
         node = {"claim": f"WinsIn .{color} {k} {pos}", "color": color, "budget": int(k),
-                "pos": pos}
+                "pos": pos, "src": code[wid]}
         if "of_mated" in body:
             node["kind"] = "mate"
         elif "replies_of_moves_eq" in body:
@@ -62,7 +76,8 @@ def extract(src):
               r"theorem (refutes_\w+) :.*?= (p\d+)\) (w\d+)")
     for m in re.finditer(ref_re, src, re.S):
         u, san, k, name, p, w = m.groups()
-        refs.append({"uci": u, "san": san, "budget": int(k), "theorem": name, "to": p, "node": w})
+        refs.append({"uci": u, "san": san, "budget": int(k), "theorem": name, "to": p, "node": w,
+                     "src": code[name]})
     best = re.search(r"theorem winsIn : .*?play_best (w\d+)", src, re.S).group(1)
 
     declared = set(re.findall(r"^theorem (w\d+) ", src, re.M))
@@ -70,12 +85,15 @@ def extract(src):
                for mv in ([n["move"]] if n["kind"] == "move" else n.get("replies", []))}
     if declared != set(nodes) or not targets <= set(nodes) or not {n["pos"] for n in nodes.values()} <= set(fens):
         sys.exit("the certificate file did not parse completely")
-    return {"rootFen": ROOT_FEN, "best": {"uci": "b7b2", "san": "Rxb2+", "to": "p1", "node": best},
+    top = blocks(headline)
+    return {"rootFen": ROOT_FEN, "best": {"uci": "b7b2", "san": "Rxb2+", "to": "p1", "node": best,
+                                          "src": code["play_best"] + "\n\n" + code["winsIn"]},
+            "start": top["gotham_specWinsIn"] + "\n\n" + top["gotham_specOnlyWinningMove"],
             "refutations": refs, "nodes": nodes, "fens": fens}
 
 
 def main():
-    data = extract(open(CERT).read())
+    data = extract(open(CERT).read(), open(HEADLINE).read())
     blob = json.dumps(data, separators=(",", ":"))
     if "</" in blob:
         sys.exit("the data would close the page's script")

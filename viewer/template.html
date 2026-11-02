@@ -1,187 +1,192 @@
+<!doctype html>
 <meta charset="utf-8">
 <title>Gotham Mate in 11</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: wood board on the left, move list and proof card on the right; stacks on phones. */
+/* One screen on a laptop: board on the left; the move list and the Lean proof of the current move on the right. */
 :root {
-  --bg: #f7f6f3;
+  --bg: #f2f1ee;
   --panel: #ffffff;
-  --line: #e2ddd5;
-  --fg: #2b2622;
-  --muted: #6f665e;
-  --accent: #2f6b4f;
-  --accent-soft: #e3efe8;
-  --chip: #f0ece6;
-  --code-bg: #f3f0eb;
-  --sel: #2b2622;
-  --sel-fg: #ffffff;
-  --font-display: "Source Serif 4", Georgia, serif;
-  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --line: #dedad4;
+  --fg: #1e1c1a;
+  --muted: #6c665f;
+  --sel: #e9dcc4;
+  --hl: #fff1b8;
+  --kw: #8a3b8f;
+  --name: #1d5f8a;
+  --comment: #7b746c;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --size: min(calc(100vh - 140px), 56vw, 760px);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1a1816; --panel: #23201d; --line: #38332e; --fg: #ece6df; --muted: #a59b91;
-    --accent: #7cc39b; --accent-soft: #24372c; --chip: #2e2a26; --code-bg: #2a2623;
-    --sel: #ece6df; --sel-fg: #1a1816; color-scheme: dark;
+    --bg: #191816; --panel: #22201e; --line: #3a3632; --fg: #ebe6df; --muted: #a39a90;
+    --sel: #4a3c28; --hl: #4a4020; --kw: #d79be0; --name: #8cc4ea; --comment: #958c82; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1a1816; --panel: #23201d; --line: #38332e; --fg: #ece6df; --muted: #a59b91;
-  --accent: #7cc39b; --accent-soft: #24372c; --chip: #2e2a26; --code-bg: #2a2623;
-  --sel: #ece6df; --sel-fg: #1a1816; color-scheme: dark;
+  --bg: #191816; --panel: #22201e; --line: #3a3632; --fg: #ebe6df; --muted: #a39a90;
+  --sel: #4a3c28; --hl: #4a4020; --kw: #d79be0; --name: #8cc4ea; --comment: #958c82; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body {
-  background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-ui);
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--ui); }
+button, select { font: inherit; color: inherit; }
+code { font-family: var(--mono); font-size: .9em; }
+
+.app {
+  height: 100%; max-width: 1320px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 12px;
+  padding-block: 14px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 28px 40px;
 }
-.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
-header { display: grid; gap: 6px; }
-h1 { font: 600 clamp(26px, 4vw, 34px)/1.15 var(--font-display); margin: 0; text-wrap: balance; }
-.lede { margin: 0; color: var(--muted); max-width: 68ch; }
-.lede b { color: var(--fg); font-weight: 600; }
-.main { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 28px; align-items: start; }
-@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+h1 { font-size: 19px; font-weight: 650; margin: 0; }
+.sub { margin: 0; color: var(--muted); }
+.sub a { color: inherit; }
+.pick { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 100%; }
+
+.main { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; min-height: 0; }
+.right, .left, .proof > * { min-width: 0; }
+.left { display: flex; flex-direction: column; gap: 8px; }
 
 /* Board */
-.board-col { display: grid; gap: 12px; min-width: 0; }
 .board {
-  display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); aspect-ratio: 1; width: 100%; max-width: 100%;
-  border-radius: 4px; overflow: hidden; position: relative;
-  box-shadow: 0 6px 20px rgba(40, 24, 10, .22);
+  width: var(--size); height: var(--size);
+  display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+  border-radius: 3px; overflow: hidden; box-shadow: 0 2px 10px rgba(40, 24, 10, .2);
   --light-wood: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='d' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.003 0.17' numOctaves='4' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.62 0 0 0 0 0.47 0 0 0 0 0.26 1.7 0 0 0 -0.72'/%3E%3C/filter%3E%3Cfilter id='l' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.26' numOctaves='3' seed='8'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.79 0 0 0 0 0.6 1.5 0 0 0 -0.68'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url%28%23d%29'/%3E%3Crect width='400' height='400' filter='url%28%23l%29'/%3E%3C/svg%3E");
   --dark-wood: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='d' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.003 0.17' numOctaves='4' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.33 0 0 0 0 0.2 0 0 0 0 0.09 1.6 0 0 0 -0.68'/%3E%3C/filter%3E%3Cfilter id='l' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.26' numOctaves='3' seed='16'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.43 0 0 0 0 0.26 1.3 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url%28%23d%29'/%3E%3Crect width='400' height='400' filter='url%28%23l%29'/%3E%3C/svg%3E");
 }
-.sq { position: relative; display: grid; place-items: center; background-size: 520% 520%; }
+.sq { position: relative; min-height: 0; background-size: 520% 520%; }
 .sq.light { background-color: #ccad7c; background-image: var(--light-wood); }
-.sq.dark  { background-color: #7f5834; background-image: var(--dark-wood); }
+.sq.dark { background-color: #7f5834; background-image: var(--dark-wood); }
 .sq.hl::before { content: ""; position: absolute; inset: 0; background: rgba(246, 214, 92, .5); }
 .sq.check::before { content: ""; position: absolute; inset: 0;
-  background: radial-gradient(circle, rgba(225, 40, 30, .85) 0%, rgba(225, 40, 30, .45) 38%, rgba(225, 40, 30, 0) 72%); }
-.sq { min-height: 0; }
+  background: radial-gradient(circle, rgba(225, 40, 30, .9) 0%, rgba(225, 40, 30, .45) 40%, rgba(225, 40, 30, 0) 72%); }
 .sq .pc { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 1.5px 1px rgba(0, 0, 0, .28)); }
-.coord { position: absolute; font: 600 clamp(8px, 1.6vw, 11px)/1 var(--font-ui); pointer-events: none; }
-.sq.light .coord { color: #7e5733; } .sq.dark .coord { color: #dcc195; }
-.coord.rank { top: 3px; left: 4px; } .coord.file { bottom: 2px; right: 4px; }
-.sq.mate-k::after { content: "#"; position: absolute; top: 2px; right: 3px; font: 700 12px/1 var(--font-ui);
-  color: #fff; background: #c8322a; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; }
+.coord { position: absolute; font: 600 clamp(9px, 1.1vw, 12px)/1 var(--ui); pointer-events: none; }
+.sq.light .coord { color: #7f5834; } .sq.dark .coord { color: #dcc195; }
+.coord.rank { top: 3px; left: 4px; } .coord.file { bottom: 3px; right: 4px; }
 
-.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-button { font: inherit; color: inherit; cursor: pointer; }
-.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; min-width: 44px; }
+.controls { display: flex; align-items: center; gap: 6px; width: var(--size); max-width: 100%; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; height: 34px; min-width: 42px; padding: 0 10px; cursor: pointer; }
 .btn:hover:not(:disabled) { border-color: var(--muted); }
-.btn:disabled { opacity: .4; cursor: default; }
-.btn:focus-visible, .mv:focus-visible, .chip:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.ply-label { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.btn:disabled { opacity: .35; cursor: default; }
+.credit { margin: 0; width: var(--size); max-width: 100%; color: var(--muted); font-size: 12px; }
+.credit a { color: inherit; }
+.count { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--name); outline-offset: 2px; }
 
-/* Panel */
-.panel { display: grid; gap: 16px; min-width: 0; }
-.tabs { display: flex; gap: 4px; background: var(--chip); padding: 4px; border-radius: 8px; width: fit-content; max-width: 100%; flex-wrap: wrap; }
-.tab { border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; font-weight: 500; color: var(--muted); }
-.tab[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
-.card h2 { font: 600 12px/1.2 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
-.moves { display: grid; grid-template-columns: 3ch 1fr 1fr; gap: 2px 6px; font-variant-numeric: tabular-nums; }
-.num { color: var(--muted); text-align: right; padding: 4px 0; }
-.mv { border: 0; background: transparent; text-align: left; padding: 4px 8px; border-radius: 5px; font-weight: 500; }
-.mv:hover { background: var(--chip); }
-.mv.on { background: var(--sel); color: var(--sel-fg); }
-.mv.empty { pointer-events: none; color: var(--muted); }
-.alts { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); padding: 0 0 4px 8px; }
-.chip { border: 1px solid var(--line); background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
-.chip:hover { border-color: var(--muted); }
-.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
-.chip small { color: var(--muted); margin-left: 4px; }
-.refs { display: flex; flex-wrap: wrap; gap: 6px; }
-.proof p { margin: 0; }
-.lean { font: 13px/1.5 var(--font-mono); background: var(--code-bg); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
-.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--accent); font-weight: 500; }
-.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.note { font-size: 13px; color: var(--muted); margin: 0; }
-footer { color: var(--muted); font-size: 13px; max-width: 80ch; }
-footer code, .card code { font: 12.5px var(--font-mono); background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
-@media (prefers-reduced-motion: no-preference) { .mv, .chip, .btn { transition: background-color .12s, border-color .12s; } }
+/* Right column: moves on top, the Lean proof below; each scrolls inside itself. */
+.right { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 0; height: calc(var(--size) + 42px); }
+.panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-height: 0; display: flex; flex-direction: column; }
+.proof-panel { max-height: calc((var(--size) + 42px) * .62); }
+.panel > h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.scroll { overflow: auto; min-height: 0; }
+
+.moves { display: grid; grid-template-columns: 2.6em 1fr 1fr; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.num { color: var(--muted); text-align: right; padding: 3px 8px 3px 0; }
+.mv { border: 0; background: none; text-align: left; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: 500; }
+.mv:hover { background: var(--bg); }
+.mv.on { background: var(--sel); font-weight: 650; }
+.mv.blank { cursor: default; color: var(--muted); }
+.var { grid-column: 2 / 4; padding: 0 8px 4px; color: var(--muted); font-size: 13px; }
+.alt { border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--name); text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.proof { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.say { margin: 0; }
+.say strong { font-weight: 650; }
+pre { margin: 0; font: 12.5px/1.55 var(--mono); background: var(--bg); border-radius: 6px; padding: 8px 0; overflow-x: auto; }
+pre .ln { display: block; padding: 0 12px; white-space: pre; }
+pre .ln.mark { background: var(--hl); }
+.k { color: var(--kw); font-weight: 600; }
+.n { color: var(--name); }
+.c { color: var(--comment); font-style: italic; }
+.foot { margin: 0; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .board { width: 100%; height: auto; aspect-ratio: 1; max-width: 560px; }
+  .controls, .credit { width: 100%; max-width: 560px; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .right { height: auto; grid-template-rows: auto auto; }
+  .proof-panel { max-height: none; }
+  .right .panel.moves-panel { order: 2; max-height: 300px; }
+  .pick { margin-left: 0; width: 100%; }
+  .pick select { flex: 1; min-width: 0; }
+}
 </style>
 
-<div class="wrap">
+<div class="app">
   <header>
     <h1>Gotham Mate in 11</h1>
-    <p class="lede">Black to move. Lean proves that <b>1…Rxb2+</b> forces checkmate within 11 Black moves whatever White does, and that each of Black's other 33 legal moves lets White force mate instead. Every position and every move list below is a step the Lean kernel checked.</p>
+    <p class="sub">Black to move and win. Every move below is checked by the Lean kernel.</p>
+    <label class="pick">Black's first move
+      <select id="line"></select>
+    </label>
   </header>
 
   <div class="main">
-    <div class="board-col">
+    <div class="left">
       <div class="board" id="board" aria-label="Chess board"></div>
       <div class="controls">
-        <button class="btn" id="first" aria-label="First position">⏮</button>
-        <button class="btn" id="prev" aria-label="Previous move">◀</button>
-        <button class="btn" id="next" aria-label="Next move">▶</button>
-        <button class="btn" id="last" aria-label="Last position">⏭</button>
-        <button class="btn" id="flip">Flip board</button>
-        <span class="ply-label" id="plyLabel"></span>
+        <button class="btn" id="first" aria-label="Start">⏮</button>
+        <button class="btn" id="prev" aria-label="Back">◀</button>
+        <button class="btn" id="next" aria-label="Forward">▶</button>
+        <button class="btn" id="last" aria-label="End">⏭</button>
+        <button class="btn" id="flip" title="Flip board">Flip</button>
+        <span class="count" id="count"></span>
       </div>
+      <p class="credit">Proof and code: <a href="https://github.com/elanroth/PuzzleProof">github.com/elanroth/PuzzleProof</a>. Pieces: cburnett by Colin M.L. Burnett (GPLv2+).</p>
     </div>
 
-    <div class="panel">
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" id="tabMain" aria-selected="true">Main line</button>
-        <button class="tab" role="tab" id="tabRefs" aria-selected="false">Black's other 33 moves</button>
-      </div>
-
-      <div class="card" id="refsCard" hidden>
-        <h2>Pick a first move for Black</h2>
-        <div class="refs" id="refs"></div>
-        <p class="note">Each one is a theorem <code>refutes_…</code>: after it, White forces mate within the number shown.</p>
-      </div>
-
-      <div class="card">
-        <h2 id="lineTitle">Moves</h2>
-        <div class="moves" id="moves"></div>
-      </div>
-
-      <div class="card proof" id="proof"></div>
+    <div class="right">
+      <section class="panel moves-panel">
+        <h2 id="movesTitle">Moves</h2>
+        <div class="scroll"><div class="moves" id="moves"></div></div>
+      </section>
+      <section class="panel proof-panel">
+        <h2>Lean proof of this step</h2>
+        <div class="scroll"><div class="proof" id="proof"></div></div>
+      </section>
     </div>
   </div>
-
-  <footer>
-    Built from <code>ChessDemo/GothamCert.lean</code>: 319 node theorems over 314 positions, each proved with <code>decide +kernel</code> (no <code>native_decide</code>). The headline theorems <code>gotham_specWinsIn</code> and <code>gotham_specOnlyWinningMove</code> restate the result against the FIDE rules alone. Where White has several replies, the line shown follows the longest one; the chips under a move switch to the others. Keys: ← → to step, Home and End to jump. Pieces: cburnett by Colin M.L. Burnett (GPLv2+), from lichess.
-  </footer>
 </div>
 
 <script>
 const DATA = __DATA__;
 const PIECES = __PIECES__;
 const FILES = "abcdefgh";
+const $ = id => document.getElementById(id);
 
 function parseFen(fen) {
-  const rows = fen.split(" ")[0].split("/");
   const sq = {};
-  rows.forEach((row, i) => {
+  fen.split(" ")[0].split("/").forEach((row, i) => {
     let f = 0;
     for (const ch of row) {
-      if (/\d/.test(ch)) { f += +ch; continue; }
-      sq[FILES[f] + (8 - i)] = ch;
-      f++;
+      if (/\d/.test(ch)) f += +ch;
+      else sq[FILES[f++] + (8 - i)] = ch;
     }
   });
   return { sq, turn: fen.split(" ")[1] };
 }
 
-// Depth (plies) of the longest forced line below a node, for choosing the default reply.
+// Length of the longest forced line below a node: the default when the defender has a choice.
 const depthMemo = {};
 function depth(id) {
   if (id in depthMemo) return depthMemo[id];
   const n = DATA.nodes[id];
-  let d = 0;
-  if (n.kind === "move") d = 1 + depth(n.move.node);
-  else if (n.kind === "replies") d = 1 + Math.max(...n.replies.map(r => depth(r.node)));
+  const d = n.kind === "move" ? 1 + depth(n.move.node)
+    : n.kind === "replies" ? 1 + Math.max(...n.replies.map(r => depth(r.node))) : 0;
   return (depthMemo[id] = d);
 }
 function defaultReply(n) {
@@ -190,208 +195,197 @@ function defaultReply(n) {
   return best;
 }
 
-const state = { mode: "main", ref: null, choice: {}, ply: 0, flipped: false };
+const state = { first: null, choice: {}, ply: 0, flipped: false };
 
-// A line: steps[0] is the start; each later step is one move with the node it reaches.
+// A line is the start position followed by one step per move. Each step records the theorem
+// that justifies the move (`by`: the node it was played from, or the root claim) and the node
+// it reaches.
 function buildLine() {
-  const steps = [{ fen: DATA.rootFen, node: null }];
-  const first = state.mode === "main" ? DATA.best : state.ref;
-  steps.push({ fen: DATA.fens[first.to], node: first.node, uci: first.uci, san: first.san, from: null });
-  let id = first.node;
-  while (true) {
+  const f = state.first;
+  const steps = [{ fen: DATA.rootFen }];
+  steps.push({ fen: DATA.fens[f.to], node: f.node, uci: f.uci, san: f.san, by: null, mover: "b" });
+  let id = f.node;
+  for (;;) {
     const n = DATA.nodes[id];
     if (n.kind === "mate") break;
-    let mv, alts = null, at = id;
+    let mv, alts = null;
     if (n.kind === "move") mv = n.move;
-    else {
-      const i = state.choice[id] ?? defaultReply(n);
-      mv = n.replies[i];
-      alts = n.replies;
-    }
-    steps.push({ fen: DATA.fens[mv.to], node: mv.node, uci: mv.uci, san: mv.san, from: at, alts });
+    else { mv = n.replies[state.choice[id] ?? defaultReply(n)]; alts = n.replies; }
+    const mover = parseFen(DATA.fens[n.pos]).turn;
+    steps.push({ fen: DATA.fens[mv.to], node: mv.node, uci: mv.uci, san: mv.san, by: id, alts, mover });
     id = mv.node;
   }
   return steps;
 }
-
-let line = buildLine();
-const $ = id => document.getElementById(id);
-
-function kingInCheckSquare(pos, san) {
-  if (!san || !/[+#]$/.test(san)) return null;
-  const k = pos.turn === "w" ? "K" : "k";
-  return Object.keys(pos.sq).find(s => pos.sq[s] === k) || null;
-}
+let line;
 
 function renderBoard() {
   const step = line[state.ply];
   const pos = parseFen(step.fen);
   const hl = step.uci ? [step.uci.slice(0, 2), step.uci.slice(2, 4)] : [];
-  const chk = kingInCheckSquare(pos, step.san);
-  const mate = step.san && step.san.endsWith("#");
+  const king = pos.turn === "w" ? "K" : "k";
+  const chk = step.san && /[+#]$/.test(step.san) ? Object.keys(pos.sq).find(s => pos.sq[s] === king) : null;
   const board = $("board");
   board.innerHTML = "";
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const rank = state.flipped ? r + 1 : 8 - r;
-      const file = state.flipped ? 7 - c : c;
-      const name = FILES[file] + rank;
-      const light = (file + rank) % 2 === 1;
-      const el = document.createElement("div");
-      el.className = "sq " + (light ? "light" : "dark");
-      const h = (file * 37 + rank * 91) % 64;
-      el.style.backgroundPosition = `${(h % 8) * 14}% ${Math.floor(h / 8) * 14}%`;
-      if (hl.includes(name)) el.classList.add("hl");
-      if (name === chk) el.classList.add("check");
-      if (mate && name === chk) el.classList.add("mate-k");
-      const p = pos.sq[name];
-      if (p) {
-        const white = p === p.toUpperCase();
-        el.innerHTML = `<img class="pc" src="${PIECES[(white ? "w" : "b") + p.toUpperCase()]}" alt="" draggable="false">`;
-        el.setAttribute("aria-label", `${name} ${white ? "white" : "black"} ${p.toLowerCase()}`);
-      }
-      if (c === 0) el.insertAdjacentHTML("beforeend", `<span class="coord rank">${rank}</span>`);
-      if (r === 7) el.insertAdjacentHTML("beforeend", `<span class="coord file">${FILES[file]}</span>`);
-      board.appendChild(el);
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const rank = state.flipped ? r + 1 : 8 - r;
+    const file = state.flipped ? 7 - c : c;
+    const name = FILES[file] + rank;
+    const el = document.createElement("div");
+    el.className = "sq " + ((file + rank) % 2 ? "light" : "dark");
+    const h = (file * 37 + rank * 91) % 64;
+    el.style.backgroundPosition = `${(h % 8) * 14}% ${Math.floor(h / 8) * 14}%`;
+    if (hl.includes(name)) el.classList.add("hl");
+    if (name === chk) el.classList.add("check");
+    const p = pos.sq[name];
+    if (p) {
+      const white = p === p.toUpperCase();
+      el.innerHTML = `<img class="pc" src="${PIECES[(white ? "w" : "b") + p.toUpperCase()]}" alt="${white ? "white" : "black"} ${p.toLowerCase()} on ${name}" draggable="false">`;
     }
+    if (c === 0) el.insertAdjacentHTML("beforeend", `<span class="coord rank">${rank}</span>`);
+    if (r === 7) el.insertAdjacentHTML("beforeend", `<span class="coord file">${FILES[file]}</span>`);
+    board.appendChild(el);
   }
+}
+
+function moveLabel(i) {
+  // Black moves first: line[1] is move 1 for Black, then White and Black alternate.
+  const n = Math.floor(i / 2) + 1;
+  return line[i].mover === "b" ? `${n}… ${line[i].san}` : `${n}. ${line[i].san}`;
 }
 
 function renderMoves() {
   const box = $("moves");
   box.innerHTML = "";
-  // Black moves first (move 1…), so White's moves pair with the next Black move.
-  let moveNo = 1;
-  for (let i = 1; i < line.length; ) {
-    const blackStep = line[i];
-    const whiteStep = line[i + 1];
-    if (i === 1) {
-      box.insertAdjacentHTML("beforeend", `<span class="num">1.</span>`);
-      box.appendChild(mvButton(null));
-      box.appendChild(mvButton(1));
-      i += 1; moveNo = 2;
-      continue;
+  const add = html => box.insertAdjacentHTML("beforeend", html);
+  for (let i = 1; i < line.length; i++) {
+    const s = line[i];
+    if (s.mover === "b" && i === 1) { add(`<span class="num">1.</span><span class="mv blank">…</span>`); box.appendChild(mvBtn(i)); continue; }
+    if (s.mover === "w") {
+      add(`<span class="num">${Math.floor(i / 2) + 1}.</span>`);
+      box.appendChild(mvBtn(i));
+      if (line[i + 1]) box.appendChild(mvBtn(i + 1)); else add(`<span></span>`);
+      addVar(box, i); addVar(box, i + 1);
+      i++;
     }
-    // Here line[i] is White's move (move moveNo), line[i+1] Black's reply.
-    box.insertAdjacentHTML("beforeend", `<span class="num">${moveNo}.</span>`);
-    box.appendChild(mvButton(i));
-    box.appendChild(line[i + 1] ? mvButton(i + 1) : mvButton(null));
-    addAlts(box, i); addAlts(box, i + 1);
-    i += 2; moveNo++;
   }
 }
-function mvButton(i) {
+function mvBtn(i) {
   const b = document.createElement("button");
-  if (i === null) { b.className = "mv empty"; b.textContent = i === null ? "…" : ""; b.tabIndex = -1; return b; }
   b.className = "mv" + (i === state.ply ? " on" : "");
   b.textContent = line[i].san;
-  b.addEventListener("click", () => go(i));
+  b.onclick = () => go(i);
   return b;
 }
-function addAlts(box, i) {
+function addVar(box, i) {
   const s = line[i];
   if (!s || !s.alts || s.alts.length < 2) return;
   const row = document.createElement("div");
-  row.className = "alts";
-  row.append(s.alts.length === 2 ? "Or " : "Or any of ");
-  s.alts.forEach((r, k) => {
-    if (r.uci === s.uci) return;
-    const c = document.createElement("button");
-    c.className = "chip";
-    c.textContent = r.san;
-    c.title = `Follow ${r.san} instead`;
-    c.addEventListener("click", () => { state.choice[s.from] = k; line = buildLine(); go(i); });
-    row.appendChild(c);
+  row.className = "var";
+  row.append(`${s.mover === "w" ? "White" : "Black"} could also play `);
+  const others = s.alts.map((r, k) => ({ r, k })).filter(o => o.r.uci !== s.uci);
+  others.forEach((o, j) => {
+    const b = document.createElement("button");
+    b.className = "alt";
+    b.textContent = o.r.san;
+    b.title = `Show the proof after ${o.r.san}`;
+    b.onclick = () => { state.choice[s.by] = o.k; line = buildLine(); go(i); };
+    row.appendChild(b);
+    if (j < others.length - 1) row.append(", ");
   });
+  row.append(" (also proved).");
   box.appendChild(row);
 }
 
-function colorName(c) { return c === "black" ? "Black" : "White"; }
-function other(c) { return c === "black" ? "White" : "Black"; }
-function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function code(src, uci) {
+  let inComment = false;
+  return src.split("\n").map(raw => {
+    let html = esc(raw);
+    const startsComment = !inComment && raw.trimStart().startsWith("/-");
+    if (inComment || startsComment) {
+      inComment = !raw.includes("-/");
+      return `<span class="ln"><span class="c">${html}</span></span>`;
+    }
+    html = html.replace(/\b(theorem|by|fun|exact|rw)\b/g, '<span class="k">$1</span>')
+               .replace(/\b([wp]\d+)\b/g, '<span class="n">$1</span>');
+    const mark = uci && new RegExp(`\\bplay ${uci}\\b`).test(raw);
+    return `<span class="ln${mark ? " mark" : ""}">${html || " "}</span>`;
+  }).join("");
+}
+const side = c => c === "w" ? "White" : "Black";
+const within = k => `within ${k} move${k === 1 ? "" : "s"}`;
 
 function renderProof() {
-  const step = line[state.ply];
   const box = $("proof");
-  const attacker = state.mode === "main" ? "black" : "white";
+  const step = line[state.ply];
+  const f = state.first;
+  let say, src, foot = "";
   if (state.ply === 0) {
-    if (state.mode === "main") {
-      box.innerHTML = `<h2>Starting position</h2>
-        <span class="badge">Proved in the Lean kernel</span>
-        <p>Black to move. Rxb2+ is legal, Black wins after it, and Black wins after no other legal move.</p>
-        <div class="lean">theorem gotham_specOnlyWinningMove :\n    SpecOnlyWinningMove Puzzles.gotham (uci "b7b2")\ntheorem gotham_specWinsIn :\n    SpecWinsIn .black 11 Puzzles.gotham</div>
-        <p class="note">Step forward to follow the proof one checked position at a time.</p>`;
+    if (f === DATA.best) {
+      say = `<strong>The claim.</strong> Black mates ${within(11)}, and 1… Rxb2+ is the only move that wins. Step forward to follow the proof one move at a time.`;
+      src = DATA.start;
     } else {
-      const r = state.ref;
-      box.innerHTML = `<h2>Starting position</h2>
-        <span class="badge">Proved in the Lean kernel</span>
-        <p>If Black plays ${esc(r.san)} instead of Rxb2+, White forces mate within ${r.budget} move${r.budget > 1 ? "s" : ""}.</p>
-        <div class="lean">theorem ${r.theorem} :\n    WinsIn .white ${r.budget} (Puzzles.gotham.play ${r.uci})</div>`;
+      say = `<strong>The claim.</strong> After 1… ${esc(f.san)}, White mates ${within(f.budget)}. This is one of the 33 refutations behind “Rxb2+ is the only winning move”.`;
+      src = f.src;
     }
-    return;
-  }
-  const n = DATA.nodes[step.node];
-  const toMove = parseFen(step.fen).turn === "w" ? "White" : "Black";
-  const att = colorName(n.color);
-  let body;
-  if (n.kind === "mate") {
-    body = `<p><b>${other(n.color)} is checkmated.</b> The kernel checked that ${other(n.color)} is in check and has no legal move.</p>`;
-  } else if (n.kind === "move") {
-    body = `<p>${att} to move. ${att} can force mate within ${n.budget} more move${n.budget > 1 ? "s" : ""}, starting with <b>${esc(n.move.san)}</b>.</p>`;
   } else {
-    const list = n.replies.map(r => esc(r.san)).join(", ");
-    body = `<p>${toMove} to move. ${toMove}'s legal moves here are exactly <b>${list}</b>, and after each one ${att} still forces mate within ${n.budget}.</p>`;
+    const mv = esc(moveLabel(state.ply));
+    const reached = DATA.nodes[step.node];
+    if (step.by === null) {
+      src = f.src;
+      say = f === DATA.best
+        ? `<strong>${mv}</strong> The kernel checks that this move is legal and gives position <code>p1</code>, and <code>w60</code> proves Black mates ${within(10)} from there.`
+        : `<strong>${mv}</strong> The kernel checks that this move gives position <code>${f.to}</code>, and <code>${f.node}</code> proves White mates ${within(f.budget)} from there.`;
+    } else {
+      const n = DATA.nodes[step.by];
+      src = n.src;
+      const att = n.color === "black" ? "Black" : "White";
+      if (n.kind === "move") {
+        say = `<strong>${mv}</strong> <code>${step.by}</code>: ${att} plays ${esc(step.san)} from <code>${n.pos}</code>. The kernel checks the move is legal and gives <code>${n.move.to}</code>` +
+          (reached.kind === "mate" ? "." : `, where <code>${n.move.node}</code> proves mate ${within(reached.budget)}.`);
+      } else {
+        const list = n.replies.map(r => esc(r.san)).join(", ");
+        say = `<strong>${mv}</strong> <code>${step.by}</code>: in <code>${n.pos}</code>, ${side(step.mover)}'s legal moves are exactly ${list}. The kernel checks that list, and each reply is covered: this one leads to <code>${step.node}</code>.`;
+      }
+    }
+    if (reached.kind === "mate") {
+      src += "\n\n" + reached.src;
+      say += ` Then <code>${step.node}</code> checks that ${reached.color === "black" ? "White" : "Black"} is checkmated: in check, with no legal move.`;
+    }
+    foot = `The board shows <code>${reached.pos}</code>.`;
   }
-  box.innerHTML = `<h2>This position</h2>
-    <span class="badge">Proved in the Lean kernel</span>
-    ${body}
-    <div class="lean">theorem ${step.node} : ${n.claim}</div>`;
+  box.innerHTML = `<p class="say">${say}</p><pre>${code(src, step.uci)}</pre>${foot ? `<p class="foot">${foot}</p>` : ""}`;
 }
 
 function renderControls() {
   $("first").disabled = $("prev").disabled = state.ply === 0;
   $("last").disabled = $("next").disabled = state.ply === line.length - 1;
-  const total = line.length - 1;
-  $("plyLabel").textContent = `Move ${state.ply} of ${total}`;
-  $("lineTitle").textContent = state.mode === "main" ? "Main line: Black mates" : `After ${state.ref.san}: White mates`;
+  $("count").textContent = `${state.ply} / ${line.length - 1}`;
+  $("movesTitle").textContent = state.first === DATA.best ? "Moves: Black mates" : `Moves: after 1… ${state.first.san}, White mates`;
 }
 
-function render() { renderBoard(); renderMoves(); renderProof(); renderControls(); }
+function render() {
+  renderBoard(); renderMoves(); renderProof(); renderControls();
+  const on = document.querySelector(".mv.on");
+  if (on) on.scrollIntoView({ block: "nearest" });
+}
 function go(i) { state.ply = Math.max(0, Math.min(line.length - 1, i)); render(); }
+function setFirst(f) { state.first = f; state.ply = 0; line = buildLine(); render(); }
 
-function setMode(mode, ref) {
-  state.mode = mode; state.ref = ref || null; state.ply = 0;
-  line = buildLine();
-  $("tabMain").setAttribute("aria-selected", mode === "main");
-  $("tabRefs").setAttribute("aria-selected", mode === "ref");
-  $("refsCard").hidden = mode !== "ref";
-  renderRefs(); render();
-}
-function renderRefs() {
-  const box = $("refs");
-  box.innerHTML = "";
-  DATA.refutations.forEach(r => {
-    const c = document.createElement("button");
-    c.className = "chip" + (state.ref === r ? " on" : "");
-    c.innerHTML = `${esc(r.san)}<small>mate in ${r.budget}</small>`;
-    c.addEventListener("click", () => { setMode("ref", r); state.ply = 1; render(); });
-    box.appendChild(c);
-  });
-}
-
+const sel = $("line");
+sel.innerHTML = `<option value="-1">1… Rxb2+ (the winning move)</option>` +
+  DATA.refutations.map((r, i) => `<option value="${i}">1… ${esc(r.san)}: White mates ${within(r.budget)}</option>`).join("");
+sel.onchange = () => setFirst(sel.value === "-1" ? DATA.best : DATA.refutations[+sel.value]);
 $("first").onclick = () => go(0);
 $("prev").onclick = () => go(state.ply - 1);
 $("next").onclick = () => go(state.ply + 1);
 $("last").onclick = () => go(line.length - 1);
 $("flip").onclick = () => { state.flipped = !state.flipped; renderBoard(); };
-$("tabMain").onclick = () => setMode("main");
-$("tabRefs").onclick = () => setMode("ref", state.ref || DATA.refutations.find(r => r.budget === 5) || DATA.refutations[0]);
 document.addEventListener("keydown", e => {
-  if (e.target.closest && e.target.closest("input, textarea")) return;
-  if (e.key === "ArrowRight") { go(state.ply + 1); e.preventDefault(); }
-  else if (e.key === "ArrowLeft") { go(state.ply - 1); e.preventDefault(); }
-  else if (e.key === "Home") { go(0); e.preventDefault(); }
-  else if (e.key === "End") { go(line.length - 1); e.preventDefault(); }
+  if (e.target.closest("select")) return;
+  const k = { ArrowRight: state.ply + 1, ArrowLeft: state.ply - 1, Home: 0, End: line.length - 1 }[e.key];
+  if (k !== undefined) { go(k); e.preventDefault(); }
 });
-setMode("main");
+setFirst(DATA.best);
 </script>

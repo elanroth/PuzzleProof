@@ -102,5 +102,7 @@ and no engine: it reads the checkpoints, the node theorems (`wN`), the best move
 checked, and stops if any node theorem, move or checkpoint fails to parse. The data is inlined into
 `viewer/template.html` with the cburnett piece images of `viewer/pieces/` (GPLv2+, credited in
 `viewer/pieces/README.md`), giving `viewer/gotham.html`, one self-contained page (it loads only its
-fonts). Open it in a browser: a wood board, the main line with a button for each other White reply,
-White's mate after each of Black's other 33 moves, and for each position the theorem that proves it.
+fonts). Open it in a browser, or at https://elanroth.github.io/PuzzleProof/viewer/gotham.html: a wood
+board; a menu for Black's first move (Rxb2+, or any of the 33 refuted alternatives); the moves, with
+a link for each other reply the proof also covers; and beside them the Lean source of the node
+theorem that justifies the current move, with the move's line marked.
