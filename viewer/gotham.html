@@ -20,7 +20,7 @@
   --comment: #7b746c;
   --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-  --size: min(calc(100vh - 140px), 56vw, 760px);
+  --size: min(calc(100vh - 116px), 56vw, 760px);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -76,20 +76,30 @@ select { background: var(--panel); border: 1px solid var(--line); border-radius:
 .sq.light .coord { color: #7f5834; } .sq.dark .coord { color: #dcc195; }
 .coord.rank { top: 3px; left: 4px; } .coord.file { bottom: 3px; right: 4px; }
 
-.controls { display: flex; align-items: center; gap: 6px; width: var(--size); max-width: 100%; }
-.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; height: 34px; min-width: 42px; padding: 0 10px; cursor: pointer; }
-.btn:hover:not(:disabled) { border-color: var(--muted); }
-.btn:disabled { opacity: .35; cursor: default; }
-.credit { margin: 0; width: var(--size); max-width: 100%; color: var(--muted); font-size: 12px; }
+.under { display: flex; align-items: center; gap: 12px; width: var(--size); max-width: 100%; }
+.credit { margin: 0; color: var(--muted); font-size: 12px; }
 .credit a { color: inherit; }
-.count { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.flip { margin-left: auto; flex: none; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.flip:hover { color: var(--fg); border-color: var(--muted); }
+.count { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Step controls, under the move list. */
+.nav { display: grid; grid-template-columns: 1fr 1fr 1.8fr 1fr 1fr; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
+.nav button { height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; color: var(--fg); font-weight: 600; }
+.nav button:hover:not(:disabled) { border-color: var(--muted); }
+.nav button:disabled { opacity: .3; cursor: default; }
+.nav svg { width: 22px; height: 22px; fill: currentColor; }
+.nav svg .stroke { fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav .play { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.nav .play:hover:not(:disabled) { opacity: .88; }
 :focus-visible { outline: 2px solid var(--name); outline-offset: 2px; }
 
 /* Right column: moves on top, the Lean proof below; each scrolls inside itself. */
-.right { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 0; height: calc(var(--size) + 42px); }
+.right { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; min-height: 0; height: calc(var(--size) + 30px); }
 .panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-height: 0; display: flex; flex-direction: column; }
-.proof-panel { max-height: calc((var(--size) + 42px) * .62); }
-.panel > h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.proof-panel { max-height: calc((var(--size) + 30px) * .58); }
+.panel > h2 { display: flex; gap: 12px; align-items: baseline; font-size: 13px; font-weight: 600; color: var(--muted); margin: 0; padding: 9px 14px; border-bottom: 1px solid var(--line); }
 .scroll { overflow: auto; min-height: 0; }
 
 .moves { display: grid; grid-template-columns: 2.6em 1fr 1fr; padding: 6px 8px; font-variant-numeric: tabular-nums; }
@@ -116,11 +126,11 @@ pre .ln.mark { background: var(--hl); }
   html, body { height: auto; }
   .app { height: auto; }
   .board { width: 100%; height: auto; aspect-ratio: 1; max-width: 560px; }
-  .controls, .credit { width: 100%; max-width: 560px; }
+  .under { width: 100%; max-width: 560px; }
   .main { grid-template-columns: minmax(0, 1fr); }
   .right { height: auto; grid-template-rows: auto auto; }
   .proof-panel { max-height: none; }
-  .right .panel.moves-panel { order: 2; max-height: 300px; }
+  .right .panel.moves-panel { max-height: 340px; }
   .pick { margin-left: 0; width: 100%; }
   .pick select { flex: 1; min-width: 0; }
 }
@@ -138,21 +148,23 @@ pre .ln.mark { background: var(--hl); }
   <div class="main">
     <div class="left">
       <div class="board" id="board" aria-label="Chess board"></div>
-      <div class="controls">
-        <button class="btn" id="first" aria-label="Start">⏮</button>
-        <button class="btn" id="prev" aria-label="Back">◀</button>
-        <button class="btn" id="next" aria-label="Forward">▶</button>
-        <button class="btn" id="last" aria-label="End">⏭</button>
-        <button class="btn" id="flip" title="Flip board">Flip</button>
-        <span class="count" id="count"></span>
+      <div class="under">
+        <p class="credit">Proof and code: <a href="https://github.com/elanroth/PuzzleProof">github.com/elanroth/PuzzleProof</a>. Pieces: cburnett by Colin M.L. Burnett (GPLv2+).</p>
+        <button class="flip" id="flip" title="Flip the board">Flip board</button>
       </div>
-      <p class="credit">Proof and code: <a href="https://github.com/elanroth/PuzzleProof">github.com/elanroth/PuzzleProof</a>. Pieces: cburnett by Colin M.L. Burnett (GPLv2+).</p>
     </div>
 
     <div class="right">
       <section class="panel moves-panel">
-        <h2 id="movesTitle">Moves</h2>
+        <h2><span id="movesTitle">Moves</span><span class="count" id="count"></span></h2>
         <div class="scroll"><div class="moves" id="moves"></div></div>
+        <div class="nav" role="toolbar" aria-label="Step through the moves">
+          <button id="first" title="Start (Home)" aria-label="Start"><svg viewBox="0 0 24 24"><path d="M5 5h2.6v14H5zM19 5v14L8.5 12z"/></svg></button>
+          <button id="prev" title="Back (←)" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" class="stroke"/></svg></button>
+          <button id="play" class="play" title="Play (space)" aria-label="Play"><svg viewBox="0 0 24 24"><path id="playIcon" d="M7 4.5v15L19.5 12z"/></svg><span id="playLabel">Play</span></button>
+          <button id="next" title="Forward (→)" aria-label="Forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" class="stroke"/></svg></button>
+          <button id="last" title="End (End)" aria-label="End"><svg viewBox="0 0 24 24"><path d="M16.4 5H19v14h-2.6zM5 5v14l10.5-7z"/></svg></button>
+        </div>
       </section>
       <section class="panel proof-panel">
         <h2>Lean proof of this step</h2>
@@ -361,7 +373,12 @@ function renderProof() {
 function renderControls() {
   $("first").disabled = $("prev").disabled = state.ply === 0;
   $("last").disabled = $("next").disabled = state.ply === line.length - 1;
-  $("count").textContent = `${state.ply} / ${line.length - 1}`;
+  $("count").textContent = `Move ${state.ply} of ${line.length - 1}`;
+  const playing = timer !== null;
+  $("play").setAttribute("aria-label", playing ? "Pause" : "Play");
+  $("play").title = playing ? "Pause (space)" : "Play (space)";
+  $("playLabel").textContent = playing ? "Pause" : "Play";
+  $("playIcon").setAttribute("d", playing ? "M6.5 5h4v14h-4zM13.5 5h4v14h-4z" : "M7 4.5v15L19.5 12z");
   $("movesTitle").textContent = state.first === DATA.best ? "Moves: Black mates" : `Moves: after 1… ${state.first.san}, White mates`;
 }
 
@@ -370,8 +387,22 @@ function render() {
   const on = document.querySelector(".mv.on");
   if (on) on.scrollIntoView({ block: "nearest" });
 }
-function go(i) { state.ply = Math.max(0, Math.min(line.length - 1, i)); render(); }
-function setFirst(f) { state.first = f; state.ply = 0; line = buildLine(); render(); }
+// Play steps forward once every PLAY_MS until the mate; any other navigation pauses it.
+const PLAY_MS = 1300;
+let timer = null;
+function pause() { clearInterval(timer); timer = null; }
+function togglePlay() {
+  if (timer !== null) { pause(); renderControls(); return; }
+  if (state.ply === line.length - 1) state.ply = 0;
+  timer = setInterval(() => {
+    state.ply++;
+    if (state.ply >= line.length - 1) pause();
+    render();
+  }, PLAY_MS);
+  render();
+}
+function go(i) { pause(); state.ply = Math.max(0, Math.min(line.length - 1, i)); render(); }
+function setFirst(f) { pause(); state.first = f; state.ply = 0; line = buildLine(); render(); }
 
 const sel = $("line");
 sel.innerHTML = `<option value="-1">1… Rxb2+ (the winning move)</option>` +
@@ -381,9 +412,11 @@ $("first").onclick = () => go(0);
 $("prev").onclick = () => go(state.ply - 1);
 $("next").onclick = () => go(state.ply + 1);
 $("last").onclick = () => go(line.length - 1);
+$("play").onclick = togglePlay;
 $("flip").onclick = () => { state.flipped = !state.flipped; renderBoard(); };
 document.addEventListener("keydown", e => {
   if (e.target.closest("select")) return;
+  if (e.key === " " && !e.target.closest("button")) { togglePlay(); e.preventDefault(); return; }
   const k = { ArrowRight: state.ply + 1, ArrowLeft: state.ply - 1, Home: 0, End: line.length - 1 }[e.key];
   if (k !== undefined) { go(k); e.preventDefault(); }
 });
