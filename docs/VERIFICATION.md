@@ -203,7 +203,5 @@ None of these was acted on.
 - **Performance:** a board read from a FEN re-reads the text on every square in compiled code. It
   is worked around by `Position.tabulate`; the options are in ROADMAP §4.
 
-Scratch logs of this final pass are in
-`/private/tmp/claude-501/-Users-elanroth-ACM--claude-worktrees-chess-lean-proofs-f678ef/595afb6a-8372-4cff-a24b-3b1e5afc733e/scratchpad/overnight/final/`
-(build logs and timings, `Scan.lean`, `count.py`, `Replay.lean`, the perft job files and results,
+Scratch logs of this final pass were kept outside the repository (build logs and timings, `Scan.lean`, `count.py`, `Replay.lean`, the perft job files and results,
 and the regenerated certificate).

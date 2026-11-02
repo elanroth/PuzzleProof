@@ -14,7 +14,7 @@ optimal"), and asks what has to be true underneath each claim. For each theorem 
   dependencies.
 
 Sources: everything in `docs/research/` (cited as *landscape*, *game-theory*, *representation*,
-*lean-eng*, *prior-work*), and the prototype in `../chess-lean`.
+*lean-eng*, *prior-work*), and the prototype in `prototype/`.
 
 ---
 

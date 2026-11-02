@@ -25,7 +25,7 @@ namespace Chess
 namespace Puzzles
 
 /-- The GothamChess "checkmate in 11" position, Black to move, from the game Leo vs. Casim as
-shown in https://youtube.com/shorts/KqSqHs6QYJE and transcribed in the prototype `chess-lean`.
+shown in https://youtube.com/shorts/KqSqHs6QYJE and transcribed in the prototype (`prototype/`).
 White threatens `Rh8#`. The puzzle's claim, proved in the prototype and the target of this
 library's Stage 1 demonstration, is that `Rxb2+` (`b7b2`) is Black's only winning move and that
 Black mates within 11 moves of its own. There is no en passant target: had White just played

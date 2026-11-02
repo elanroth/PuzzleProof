@@ -120,7 +120,7 @@ directly. The value is defined by well-founded recursion on the remaining game l
 ### 2.3 Judgment: the right Lean shape
 
 - **Win is a least fixed point; give it as an inductive predicate.** This is the prototype's
-  `WinsIn` (`chess-lean/ChessProof/Cert.lean`). It worked well, and its three constructors
+  `WinsIn` (`prototype/ChessProof/Cert.lean`). It worked well, and its three constructors
   (`mate`, `att`, `dfd`) mirror the attractor recurrence exactly.
 - **"Avoid losing" is a greatest fixed point; give it by the existence of an invariant, not by
   coinduction.** The sketch:
@@ -343,7 +343,7 @@ that may differ from the legal-move-relevant state (§1.1).
   DTZ and the halfmove clock. A UCI option (`Syzygy50MoveRule`) controls whether 50-move draws
   that Syzygy detects count as draws. Sources: CPW Syzygy page above;
   <https://github.com/official-stockfish/Stockfish/issues/5175>.
-- **The prototype** (`chess-lean/`) used Stockfish plus python-chess to emit a `Cert` for the
+- **The prototype** (`prototype/`) used Stockfish plus python-chess to emit a `Cert` for the
   GothamChess mate in 11, and an `onlyMove` checker. Kernel-only checking of the flattened
   320-node proof took about 80 s and about 6 GB. The `native_decide` version also trusts
   Lean's compiler. In Lean 4 core, `native_decide` goes through the `Lean.ofReduceBool` axiom,
@@ -526,5 +526,5 @@ engine numbers out of theorems.
 - Certifying algorithms: <https://cs.au.dk/~gerth/ae17/slides/certifying.pdf>
 - Stockfish WDL model: <https://github.com/official-stockfish/WDL_model>
 - Stockfish Syzygy and the 50-move counter: <https://github.com/official-stockfish/Stockfish/issues/5175>
-- Prior prototype: `/Users/elanroth/ACM/.claude/worktrees/chess-lean-proofs-f678ef/chess-lean`
+- Prior prototype: `prototype`
   (`ChessProof/Cert.lean`, `README.md`)

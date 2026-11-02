@@ -15,7 +15,7 @@ Date: 2026-11-01. Author role: English specification writer. Lean written in the
 `Position`, `Rules` and `MoveGen` (for conventions and for the review findings addressed to `Game`:
 MoveGen review C2 (kernel cost per node, the `isLegal` question) and C3 (morphisms by membership),
 Rules review C6), `Chess/Basic.lean` (the `Color` section), and the prototype's
-`chess-lean/ChessProof/Cert.lean` and `GothamKernel.lean` (what to keep: the three-rule semantics
+`prototype/ChessProof/Cert.lean` and `GothamKernel.lean` (what to keep: the three-rule semantics
 with the stalemate guard, `not_both`, per-node literal checkpoints; what to drop: fuel in the
 checker, `memB`/`lookup` helpers, the budget counted after the best move, six glue lemmas).
 
@@ -363,7 +363,7 @@ of 15 lines. Lemma IDs follow the §0 rule: new numbers, placed where they read 
 
 Date: 2026-11-02. Author role: overnight implementer. Inputs: `docs/ROADMAP.md` §5 step 5,
 `docs/reviews/Game.md` (C2, C3, C9), `docs/DESIGN.md` §7.2, §7.4, §11, the spec and this log, and
-the prototype (`chess-lean/ChessProof/Cert.lean`, `GothamKernel.lean`, `Flatten.lean`,
+the prototype (`prototype/ChessProof/Cert.lean`, `GothamKernel.lean`, `Flatten.lean`,
 `scripts/gen_cert.py`) for what generated files look like. Starting state: `lake build` green
 (11 jobs).
 

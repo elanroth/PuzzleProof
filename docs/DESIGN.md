@@ -5,7 +5,7 @@ Author role: architect. Date: 2026-11-01. Status: second draft, revised after th
 
 Inputs: `docs/research/*.md` (cited as *representation*, *lean-eng*, *game-theory*, *prior-work*,
 *landscape*), `docs/THEOREMS.md` (theorem IDs such as R4, G2, C1 refer to it), and the prototype in
-`../chess-lean`.
+`prototype/`.
 
 This document fixes the architecture in English. Lean names appear so that the English and the code
 can be matched, but the only Lean here is short signatures. The per-module details belong in

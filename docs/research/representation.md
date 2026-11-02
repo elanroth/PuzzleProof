@@ -47,7 +47,7 @@ completeness and refinement theorems) and `docs/research/game-theory.md`.
 numbering: `square = 8*rank + file`, with a1 = 0, b1 = 1, ..., h8 = 63 [CPW-MAP]. Compass
 offsets: N +8, S −8, E +1, W −1, NE +9, NW +7, SE −7, SW −9 [CPW-MAP, CPW-SET]. Mirrors are XORs
 on the index: `sq ^ 7` flips files, `sq ^ 56` flips ranks, `sq ^ 63` does both [CPW-MAP]. The
-prototype also uses `s = rank*8 + file` with a1 = 0 (`chess-lean/ChessProof/Basic.lean`).
+prototype also uses `s = rank*8 + file` with a1 = 0 (`prototype/ChessProof/Basic.lean`).
 Sebastian Lague's engine uses the same indexing [YT-LAGUE1].
 
 **Judgment.** Use LERF, because it is the convention every source, FEN tool and perft reference
@@ -79,7 +79,7 @@ convenient for halving case analyses later.
   and array engines add piece lists so they need not scan the board [CPW-BR].
 - **Full position**: piece placement, side to move, castling rights, en-passant target and the
   reversible-move (50-move) counter. Repetition needs the game history [CPW-BR]. The prototype
-  leaves out the 50-move and repetition rules (`chess-lean/README.md`).
+  leaves out the 50-move and repetition rules (`prototype/README.md`).
 
 ### 2.2 Bitboards as sets
 
@@ -327,11 +327,11 @@ With 3 and 4, a game-tree theorem proved by evaluating the fast implementation
 
 ---
 
-## 5. Lessons from the prototype (`chess-lean/`)
+## 5. Lessons from the prototype (`prototype/`)
 
 - **What worked**: one `Nat` of 64 nibbles makes kernel reduction fast, because GMP shifts and
   masks are cheap. It was fast enough for a kernel-only mate in 11 (320 per-node theorems, about
-  80 s, about 6 GB, `chess-lean/README.md`). Perft agreement with python-chess on the standard
+  80 s, about 6 GB, `prototype/README.md`). Perft agreement with python-chess on the standard
   suite was the correctness evidence.
 - **What should change**:
   - Everything is a `Nat`: piece codes `0..14` with `kind = c &&& 7`, square `64` for "none",
@@ -433,5 +433,5 @@ Videos (auto-captions fetched with yt-dlp and read in full or searched):
 - [YT-CMK] Chess Programming (Code Monkey King), *Bitboard CHESS ENGINE in C* series, e.g. masking rook attacks https://www.youtube.com/watch?v=F6zdC0W0kGg, magic candidates https://www.youtube.com/watch?v=KqWeOVyOoyU, brute-force magics https://www.youtube.com/watch?v=UnEu5GOiSEs (titles only; the series is listed at https://www.chessprogramming.org/BBC)
 
 Local:
-- Prototype: `chess-lean/README.md`, `chess-lean/ChessProof/Basic.lean`
+- Prototype: `prototype/README.md`, `prototype/ChessProof/Basic.lean`
 - Lean core sources: `~/.elan/toolchains/leanprover--lean4---v4.28.0/src/lean/Init/Data/BitVec/`, `.../Std/Data/`

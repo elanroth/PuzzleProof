@@ -13,7 +13,7 @@ Date: 2026-11-01. Author role: English specification writer. Lean written in the
 `docs/THEOREMS.md` (§0.5, R4, R6–R11, M10, M11, G16, C1–C3, §9), `docs/research/lean-engineering.md`
 (§2, §5, §6, §10), `Chess/Basic.lean` (whole file), `docs/spec/Basic.md`, `docs/process/Basic.md`
 and `docs/reviews/Basic.md` (conventions, and review items C1, C4, C5, C8 addressed to later
-modules), and the prototype's `chess-lean/ChessProof/Basic.lean` (nibble codes 1–6 and 9–14,
+modules), and the prototype's `prototype/ChessProof/Basic.lean` (nibble codes 1–6 and 9–14,
 `castle : Nat` bit flags, `get bd s` by shift and mask).
 
 **What the draft fixes.** 37 definition entries (D1.1–D6.9) and 39 lemma entries (P1.1–P5.10,

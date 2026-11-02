@@ -17,7 +17,7 @@ sections) and `Chess/Basic.lean`; `docs/spec/MoveGen.md` (§0, §8, §10, for fo
 `docs/process/MoveGen.md` (Round 1, for format); the review findings addressed to this module:
 Game review C1 (explicit `decMated`, `abbrev`) and C8 ("without move-count rules" in headline
 docstrings), Position review C3 (the display letters become trusted); and the prototype's
-`chess-lean/ChessProof/Fen.lean` (what to drop: `pieceCode` returning 0 for unknown letters,
+`prototype/ChessProof/Fen.lean` (what to drop: `pieceCode` returning 0 for unknown letters,
 `epSquare` returning 64, `fenChars` returning `default` on a malformed string, `uci` returning
 `default`).
 

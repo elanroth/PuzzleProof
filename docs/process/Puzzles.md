@@ -9,8 +9,8 @@ Lean (`Chess/Puzzles.lean`). Each round says what changed, in which direction, a
 
 Date: 2026-11-02. Author role: overnight implementer (ROADMAP step 5, "name headline positions
 once"), writing spec and Lean in one round. Inputs: `docs/ROADMAP.md` §5 steps 5 and 7,
-`chess-lean/ChessProof/Gotham.lean` and `chess-lean/README.md` (read only),
-`chess-lean/artifact/chess-proofs.html` (the prototype's write-up, for the main line and the move
+`prototype/ChessProof/Gotham.lean` and `prototype/README.md` (read only),
+`prototype/artifact/chess-proofs.html` (the prototype's write-up, for the main line and the move
 count), `Chess/ChessGame.lean` (`fen`, the en passant and clock conventions), `Chess/Position.lean`
 (`Position.epTarget`).
 

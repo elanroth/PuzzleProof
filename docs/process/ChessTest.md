@@ -142,7 +142,7 @@ back). By M4 the root move sets are the sets of `Legal` moves. The six positions
 published counts to depth 4 (two to depth 5). It is a test, not a proof; it covers
 no position outside the jobs, and python-chess is itself untrusted.
 
-To reproduce (from `chess-library`, with python-chess installed):
+To reproduce (from the repository root, with python-chess installed):
 
 ```
 lake build chess-perft

@@ -1033,7 +1033,7 @@ order. The only-move root of a per-node proof is L2.19.
 
 A per-node defender proof discharges the hypothesis `h` of L4.10 by walking the explicit list:
 L4.18 once per move, and L4.17 at the end, as the prototype did with its `all_cons` and `all_nil`
-(`chess-lean/ChessProof/Cert.lean`). Round 5 left this step to core's `List.forall_mem_cons` and
+(`prototype/ChessProof/Cert.lean`). Round 5 left this step to core's `List.forall_mem_cons` and
 `List.forall_mem_nil`, which the interface of §4.3 does not list. Round 6 added L4.17 and L4.18
 (review of Round 5) so that the interface is self-sufficient: a generated file names no lemma of
 core, whose names and shapes may change with the toolchain, and such a change is then absorbed by

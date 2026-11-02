@@ -3,7 +3,7 @@
 Reviewer role: file-level design reviewer. Date: 2026-11-01.
 Read: `Chess/Basic.lean` (whole file), `docs/spec/Basic.md`, `docs/process/Basic.md` (Rounds 1–4),
 `docs/DESIGN.md` (§1–§5, §8), `docs/THEOREMS.md` (R1–R7, M1), and the prototype's
-`chess-lean/ChessProof/Basic.lean` for comparison. No other library module exists yet.
+`prototype/ChessProof/Basic.lean` for comparison. No other library module exists yet.
 
 State after this review: `lake build` green; `lake env lean Chess/Basic.lean` gives no warnings;
 no `sorry`, no `native_decide`. 1076 lines, 43 definitions, 118 lemmas. Basic builds in about 2.4 s.

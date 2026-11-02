@@ -12,7 +12,7 @@ mates by search. Specifications: `docs/spec/ChessDemo.Gotham.md`, `ChessDemo.Got
 ## Round 1 (2026-11-02, overnight implementer)
 
 Inputs: ROADMAP §5 steps 6–7, MoveGen review C2, Rules review C3, the prototype
-(`chess-lean/ChessProof/Gotham.lean`, `Cert.lean`, `GothamKernel.lean`, `Flatten.lean`,
+(`prototype/ChessProof/Gotham.lean`, `Cert.lean`, `GothamKernel.lean`, `Flatten.lean`,
 `scripts/gen_cert.py`).
 
 **Order of work, and one departure from the convention.** For the library changes (R3,

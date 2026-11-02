@@ -10,7 +10,7 @@ it depends on, and the places where English and Lean most easily drift apart.
 Conventions used throughout:
 
 - **Fact** marks something established by a cited source (or by reading the prototype at
-  `chess-lean/`). **Judgment** marks this researcher's assessment. Lean sketches are
+  `prototype/`). **Judgment** marks this researcher's assessment. Lean sketches are
   judgments about good shapes, not code that has been compiled.
 - Difficulty scale (judgment):
   - **D0**: closed by computation on concrete data (`decide`, `decide +kernel`, `native_decide`).
@@ -33,7 +33,7 @@ Conventions used throughout:
 | *Lean Across the Board* | Lean (3-era docs) | Chessboard puzzles from the book *Across the Board* (piece placement, Guarini). | Combinatorics on boards, not game rules. |
 | Mathlib `SetTheory.Game.PGame`; vihdzp `CombinatorialGames` | Lean | Conway's combinatorial game theory (normal play, no draws). | Not a fit: chess is not normal-play (it has draws and a terminal win condition), and Mathlib is out of scope here. |
 | Ambrona, *A Practical Algorithm for Chess Unwinnability* (FUN 2022) | Java (CHA) | Claims a sound, complete and practically efficient algorithm for unwinnability; ran over the whole Lichess database (3+ billion games). | Defines the target for "dead position" theorems; an untrusted oracle we could certify against. |
-| Prototype `chess-lean/` (this repo) | Lean 4.28 | `WinsIn` semantics; `Cert` checker with `check_sound`; `not_both`; `onlyMove_sound`; a mate in 11 and an only-move theorem, both via `native_decide` and kernel-only (~80 s, ~6 GB, 320 generated per-node theorems); perft matching python-chess on the standard suite. | Our starting point. Its README states the move generator is *not* proved against a declarative rule set and the 50-move and repetition rules are not modelled. |
+| Prototype `prototype/` (this repo) | Lean 4.28 | `WinsIn` semantics; `Cert` checker with `check_sound`; `not_both`; `onlyMove_sound`; a mate in 11 and an only-move theorem, both via `native_decide` and kernel-only (~80 s, ~6 GB, 320 generated per-node theorems); perft matching python-chess on the standard suite. | Our starting point. Its README states the move generator is *not* proved against a declarative rule set and the 50-move and repetition rules are not modelled. |
 
 Fact (search result): no formally verified chess *move generator* in Lean, Coq, Dafny or Agda
 turned up in searches; published verification work is endgame- or retrograde-focused.
@@ -329,7 +329,7 @@ cheap computable checks into certified rejections of illegal FENs.
 
 ### 3.8 Forced-win semantics
 
-The prototype's semantics (fact, `chess-lean/ChessProof/Cert.lean`) is an inductive predicate
+The prototype's semantics (fact, `prototype/ChessProof/Cert.lean`) is an inductive predicate
 `WinsIn a n p`, "side `a` can force checkmate from `p` using at most `n` of its own moves,
 whatever the opponent does", with three constructors: `mate` (the defender is to move and
 is mated), `att` (the attacker picks one legal move, budget `n+1 → n`), `dfd` (the defender has
@@ -597,4 +597,4 @@ soundness; `Optimal` via interval certificates; FIDE agreement for `WinsIn`.
 - python-chess Syzygy documentation (WDL, DTZ, cursed wins): https://python-chess.readthedocs.io/en/latest/syzygy.html
 - Tan, Heule, Myreen, *cake_lpr: Verified Propagation Redundancy Checking in CakeML* (TACAS 2021): https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7984575/
 - Lean `native_decide` / `ofReduceBool` trust: https://lean-lang.org/doc/reference/4.35.0-rc3/releases/v4.12.0/ ; Zulip thread on changes: https://leanprover-community.github.io/archive/stream/270676-lean4/topic/Heads.20up.3A.20changes.20to.20native_decide.20(and.20bv_decide).html
-- Prototype in this repository: `/Users/elanroth/ACM/.claude/worktrees/chess-lean-proofs-f678ef/chess-lean` (README, `ChessProof/Basic.lean`, `ChessProof/Cert.lean`, `ChessProof/Line.lean`, `scratch/`)
+- Prototype in this repository: `prototype` (README, `ChessProof/Basic.lean`, `ChessProof/Cert.lean`, `ChessProof/Line.lean`, `scratch/`)

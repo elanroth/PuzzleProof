@@ -271,7 +271,7 @@ move. Times are wall seconds.
   - Memory grows linearly, about 35 KB per iteration (3.6 GB at 100k), because of the kernel
     cache.
 - **Memory grows within one declaration.** The prototype's kernel-only mate-in-11
-  (`chess-lean/scratch/kernel.log`) needed 80 s and 5.75 GB for 320 generated theorems.
+  (`prototype/scratch/kernel.log`) needed 80 s and 5.75 GB for 320 generated theorems.
 - **Per-theorem cost:**
 
   | proof style | List board (40 updates) | Nat board |
@@ -563,6 +563,6 @@ These are judgments, each tied to the measurements above.
 - Mathlib naming conventions: <https://leanprover-community.github.io/contribute/naming.html>
 - Mathlib documentation requirements: <https://leanprover-community.github.io/contribute/doc.html>
 - Mathlib style guide: <https://leanprover-community.github.io/contribute/style.html>
-- Prior prototype (local): `/Users/elanroth/ACM/.claude/worktrees/chess-lean-proofs-f678ef/chess-lean/`,
+- Prior prototype (local): `prototype/`,
   in particular `ChessProof/Basic.lean`, `ChessProof/GothamKernel.lean` and `scratch/kernel.log`.
 - All measurements were taken by me in this session on Lean 4.28.0 (§0).

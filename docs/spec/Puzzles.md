@@ -68,7 +68,7 @@ def gotham : Position := fen "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1
 *(checked)*
 
 Docstring: "The GothamChess "checkmate in 11" position, Black to move, from the game Leo vs. Casim
-as shown in https://youtube.com/shorts/KqSqHs6QYJE and transcribed in the prototype `chess-lean`.
+as shown in https://youtube.com/shorts/KqSqHs6QYJE and transcribed in the prototype (`prototype/`).
 White threatens `Rh8#`. The puzzle's claim, proved in the prototype and the target of this
 library's Stage 1 demonstration, is that `Rxb2+` (`b7b2`) is Black's only winning move and that
 Black mates within 11 moves of its own. There is no en passant target: had White just played
@@ -77,10 +77,10 @@ clock fields `0 1` are ignored."
 
 **Where the string comes from, and how it was checked** (2026-11-02).
 
-- The string is the one of the prototype, `chess-lean/ChessProof/Gotham.lean`, character for
-  character. The same string appears in the prototype's write-up (`chess-lean/artifact/`), whose
+- The string is the one of the prototype, `prototype/ChessProof/Gotham.lean`, character for
+  character. The same string appears in the prototype's write-up (`prototype/artifact/`), whose
   main line starts `Rxb2+ Kc1 Rb1+ Kxb1 Qb5+` and lists 34 legal moves at the root.
-  `chess-lean/README.md` describes the position ("the GothamChess mate-in-11 position") but does
+  `prototype/README.md` describes the position ("the GothamChess mate-in-11 position") but does
   not repeat the FEN.
 - python-chess 1.11.2 reads it as a valid position: Black to move, one king each, White (not to
   move) not in check, 34 legal moves, `b7b2` legal and written `Rxb2+`. Writing it back gives the

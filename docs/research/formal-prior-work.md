@@ -7,7 +7,7 @@ against the source) from **Assessment** (my judgment). The lessons are collected
 "Cross-cutting lessons" and "Recommendations for this library" at the end.
 
 Researched 2026-11-01. Code was read from source: the local clones of `Chess.lean` and
-`Lean-Hackathon` in `~/chess-lean-research/`, the prototype in `../chess-lean`, and
+`Lean-Hackathon` in `~/chess-lean-research/`, the prototype in `prototype/`, and
 `coqtbgen`, `coqchess`, `games` and `combinatorial-games` through the GitHub API. Papers
 were read as full text where available.
 
@@ -24,7 +24,7 @@ were read as full text where available.
 | dwrensha/Chess.lean | Lean 4 + Mathlib | no castling; e.p. yes | inductive `ForcedWin` (no depth) | textbook mates (Morphy mate in 2, Emms puzzles) via custom tactics | kernel `decide`; Stockfish only suggests moves |
 | aastha-guptaa/Lean-Hackathon | Lean 4 | castling, e.p., promotion | none (one move line ending in mate) | local lemmas (bishop keeps colour, no friendly capture) | an `#eval` run; the LLM's line is checked, not proved |
 | vihdzp/combinatorial-games (formerly Mathlib CGT) | Lean 4 + Mathlib | normal-play games; loopy games | `≤`, `⧏` on `IGame`; `IsWin`/`IsLoss` on `LGame` | Conway theory, nimbers, surreals | none |
-| Prototype `chess-lean` (ours) | Lean 4 core | full rules except 50-move and repetition | inductive `WinsIn a n p` | `check_sound`, `not_both`, `onlyMove_sound`; Gotham mate in 11 | `native_decide`, or ~80 s and ~5.7 GB with kernel-only checking |
+| Prototype `prototype` (ours) | Lean 4 core | full rules except 50-move and repetition | inductive `WinsIn a n p` | `check_sound`, `not_both`, `onlyMove_sound`; Gotham mate in 11 | `native_decide`, or ~80 s and ~5.7 GB with kernel-only checking |
 
 ---
 
@@ -460,9 +460,9 @@ removed from Mathlib by "chore: remove deprecated material from CGT" (#35550,
 
 ---
 
-## 8. Our prototype: `chess-lean` (Lean 4, core only)
+## 8. Our prototype: `prototype` (Lean 4, core only)
 
-Source: `/Users/elanroth/ACM/.claude/worktrees/chess-lean-proofs-f678ef/chess-lean`.
+Source: `prototype`.
 
 ### Facts
 - The board is a single `Nat` of 64 nibbles (codes 0, 1–6, 9–14). Castling rights are a
@@ -719,4 +719,4 @@ These are judgments, ordered roughly by when they bite.
 - elazarg/GameTheory: <https://reservoir.lean-lang.org/@elazarg/GameTheory>
 - Maliković and Čubrilo, *What Were the Last Moves?*: <https://www.bib.irb.hr/445958>
 - Perft: <https://www.chessprogramming.org/Perft>
-- Prototype: `/Users/elanroth/ACM/.claude/worktrees/chess-lean-proofs-f678ef/chess-lean`
+- Prototype: `prototype`

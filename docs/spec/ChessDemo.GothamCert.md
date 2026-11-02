@@ -108,7 +108,7 @@ Nodes: 159 attacker, 36 defender and 124 mate leaves; 314 positions.
 
 319 node theorems (159 attacker nodes, 36 defender nodes, 124 mate leaves), 314 checkpoints, 81
 moves, 33 refutations (30 mates in 1, two in 2, one in 5), about 4 000 lines. The prototype's tree
-(`chess-lean`) had 320 nodes.
+(`prototype`) had 320 nodes.
 
 Kernel cost, `lake build ChessDemo.GothamCert`, sequential elaboration (the lakefile sets
 `Elab.async = false` for `ChessDemo`): **165 s, 1.13 GB peak** (2026-11-02, this machine, under

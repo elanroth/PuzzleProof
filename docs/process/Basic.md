@@ -12,7 +12,7 @@ Date: 2026-11-01. Author role: English specification writer. Lean written: none 
 **Inputs read.** `docs/DESIGN.md` (§1, §2, §4.1–4.2, §5.2–5.5, §5.7, §6.1, §8, §9, §11),
 `docs/THEOREMS.md` (§0.5, R1–R6, M1, §9), `docs/research/lean-engineering.md` (§4, §6–§10),
 `docs/research/representation.md` (§0, §1, §4, §5, recommendations), and the prototype's
-`chess-lean/ChessProof/Basic.lean` (for what not to repeat: biased offsets, sentinel square 64,
+`prototype/ChessProof/Basic.lean` (for what not to repeat: biased offsets, sentinel square 64,
 hard-coded castling squares). No module of the library exists yet.
 
 **What the draft fixes.** 42 definition entries (D1.1–D8.3), each with a docstring sentence and a
