@@ -1,0 +1,534 @@
+<title>Chess Proofs in Lean</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column (~68ch) with full-bleed board panels; a scoresheet-like
+   move list beside the board on wide screens, stacked on phones. */
+:root {
+  --bg: #f2f4ee;
+  --surface: #e7ebe1;
+  --fg: #18211c;
+  --muted: #56645b;
+  --rule: #c9d2c4;
+  --accent: #2f6b45;
+  --accent-ink: #ffffff;
+  --sq-light: #eceed4;
+  --sq-dark: #7d9a63;
+  --sq-from: #d9c55a;
+  --sq-to: #e8d46a;
+  --win: #2f7a45;
+  --lose: #b2493b;
+  --draw: #5d6f86;
+  --warn: #9a6a12;
+  --code-bg: #e3e8dc;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #19201b; --fg: #e3e9e2; --muted: #9aa89e; --rule: #2d3830;
+    --accent: #6fbf86; --accent-ink: #0d1510; --sq-light: #c9cdb3; --sq-dark: #5f7c4a;
+    --sq-from: #b9a640; --sq-to: #cdb94c; --win: #6fbf86; --lose: #e07a6a; --draw: #93a6c0;
+    --warn: #d9a94a; --code-bg: #1b231e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #19201b; --fg: #e3e9e2; --muted: #9aa89e; --rule: #2d3830;
+  --accent: #6fbf86; --accent-ink: #0d1510; --sq-light: #c9cdb3; --sq-dark: #5f7c4a;
+  --sq-from: #b9a640; --sq-to: #cdb94c; --win: #6fbf86; --lose: #e07a6a; --draw: #93a6c0;
+  --warn: #d9a94a; --code-bg: #1b231e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 1060px; margin: 0 auto; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.85rem; font-weight: 600; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, pre { font-family: var(--mono); font-size: 0.86em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.05em 0.3em; border-radius: 3px; }
+pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.5; margin: 0; }
+.eyebrow { font-family: var(--display); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.lede { font-size: 1.15rem; color: var(--fg); }
+.muted { color: var(--muted); }
+section { padding-block: 56px 8px; border-top: 1px solid var(--rule); display: grid; gap: 18px; }
+section > .col { display: grid; gap: 14px; }
+.stack { display: grid; gap: 14px; }
+
+/* header */
+header { padding-block: 40px 40px; display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); align-items: center; }
+header .text { display: grid; gap: 16px; min-width: 0; }
+nav { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--display); font-size: 0.95rem; }
+nav a { text-decoration: none; color: var(--muted); }
+nav a:hover { color: var(--accent); }
+.verdict { white-space: pre; font-family: var(--mono); font-size: 0.8rem; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; overflow-x: auto; }
+
+/* boards */
+.board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; width: 100%; max-width: 100%; border: 2px solid var(--fg); user-select: none; position: relative; }
+.sq { position: relative; display: flex; align-items: center; justify-content: center; }
+.sq.l { background: var(--sq-light); } .sq.d { background: var(--sq-dark); }
+.sq.from { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--sq-from) 55%, transparent); }
+.sq.to { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--sq-to) 70%, transparent); }
+.sq.mark::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; border: 3px solid var(--lose); }
+.pc { font-size: clamp(18px, 4.6vw, 42px); line-height: 1; font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", sans-serif; }
+.pc.w { color: #fbfbf6; text-shadow: 0 0 1px #111, 0 0 1px #111, 0 0 2px #111, 1px 1px 0 #111, -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111; }
+.pc.b { color: #151515; text-shadow: 0 0 1px #f5f5f0; }
+.coord { position: absolute; font-family: var(--mono); font-size: 9px; opacity: 0.75; color: #1d2a1f; }
+.coord.f { right: 3px; bottom: 1px; } .coord.r { left: 3px; top: 1px; }
+.hero-board .pc { font-size: clamp(22px, 5.4vw, 44px); }
+
+/* line explorer */
+.explorer { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.explorer .side { display: grid; gap: 14px; min-width: 0; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button { font-family: var(--display); font-size: 0.95rem; font-weight: 600; border: 1px solid var(--rule); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 5px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.movelist { display: grid; grid-template-columns: 2.4em 1fr 1fr; font-family: var(--mono); font-size: 0.88rem; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.movelist > div { padding: 3px 8px; border-bottom: 1px solid var(--rule); }
+.movelist .no { color: var(--muted); background: var(--surface); }
+.movelist .mv { cursor: pointer; display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.movelist .mv:hover { background: var(--surface); }
+.movelist .mv.cur { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--display); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.02em; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; }
+.s-proved { color: var(--win); } .s-proved.dot, .dot.s-proved { background: var(--win); }
+.s-unique { color: var(--accent); }
+.dot.s-unique { background: transparent; border: 2px solid var(--win); }
+.s-draw { color: var(--draw); } .dot.s-draw { background: var(--draw); }
+.s-dual { color: var(--warn); } .dot.s-dual { background: var(--warn); }
+.dot.s-white { background: var(--muted); opacity: 0.5; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; }
+.panel p { font-size: 0.95rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+.alts { display: flex; flex-wrap: wrap; gap: 6px; }
+.alts button { font-family: var(--mono); font-weight: 500; font-size: 0.8rem; padding: 3px 8px; }
+.alts button .n { color: var(--lose); margin-left: 4px; }
+.alts button.best .n { color: var(--win); }
+.alts button.cur { background: var(--fg); color: var(--bg); }
+.alts button.cur .n { color: inherit; }
+.pv { font-family: var(--mono); font-size: 0.86rem; line-height: 1.8; }
+.pv span { cursor: pointer; padding: 1px 3px; border-radius: 3px; }
+.pv span.cur { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* ladder */
+.ladder { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.rung { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--rule); }
+.rung:last-child { border-bottom: 0; }
+.rung:nth-child(odd) { background: var(--surface); }
+.rung h3 { font-size: 1.05rem; }
+.rung .q { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.rung p { font-size: 0.92rem; }
+.tag { font-family: var(--display); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 600; background: var(--surface); }
+td:first-child { font-family: var(--display); font-weight: 600; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* pipeline */
+.pipe { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; }
+.stage { padding: 12px 14px; border: 1px solid var(--rule); background: var(--bg); display: grid; gap: 4px; align-content: start; position: relative; }
+.stage + .stage { border-left: 0; }
+.stage .tag { color: var(--muted); }
+.stage.trusted { background: color-mix(in srgb, var(--accent) 12%, var(--bg)); border-color: var(--accent); }
+.stage.trusted .tag { color: var(--accent); }
+.stage p { font-size: 0.86rem; }
+.stage h3 { font-size: 1rem; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card { border-top: 2px solid var(--fg); padding-top: 10px; display: grid; gap: 6px; align-content: start; }
+.card p { font-size: 0.94rem; }
+ol.refs { padding-left: 1.2em; display: grid; gap: 8px; font-size: 0.92rem; margin: 0; }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.demo { font-family: var(--mono); font-size: 0.8rem; background: var(--code-bg); border-left: 3px solid var(--lose); padding: 10px 14px; border-radius: 0 6px 6px 0; overflow-x: auto; }
+
+@media (max-width: 860px) {
+  header { grid-template-columns: minmax(0, 1fr); }
+  .explorer { grid-template-columns: minmax(0, 1fr); }
+  .pipe { grid-template-columns: minmax(0, 1fr); }
+  .stage + .stage { border-left: 1px solid var(--rule); border-top: 0; }
+  .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); }
+  .rung { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pc { transition: opacity 120ms ease; }
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="text">
+    <span class="eyebrow">Research notes · November 2026</span>
+    <h1>Proving a chess move is the only move</h1>
+    <p class="lede">White threatens <code>Rh8#</code> and Black cannot stop it, except by starting a mate in 11 with <code>1…Rxb2+</code>. This page explains how to state that as a Lean theorem, how two earlier Lean chess projects approached the problem, and what a working prototype in Lean proves.</p>
+    <div class="verdict" aria-label="Lean theorem">-- kernel-checked, axioms: propext, Classical.choice, Quot.sound
+theorem only_move :
+    ∀ m ∈ legal gotham, (Wins .black (play gotham m) ↔ m = uci "b7b2")</div>
+    <nav aria-label="Sections">
+      <a href="#best">What "best" means</a><a href="#puzzle">The puzzle</a><a href="#projects">Two projects</a><a href="#prototype">The prototype</a><a href="#backwards">Working backwards</a><a href="#engines">Programmatic chess</a><a href="#next">Next steps</a><a href="#refs">Related work</a>
+    </nav>
+  </div>
+  <div>
+    <div class="board hero-board" id="heroBoard" role="img" aria-label="Gotham puzzle start position, Black to move"></div>
+    <p class="muted" style="font-size:0.85rem;margin-top:8px">Black to move. Leo (1427) vs. Casim (1524), from the GothamChess Short <a href="https://youtube.com/shorts/KqSqHs6QYJE">“Brilliant checkmate in 11 moves”</a>. The ringed square is h8.</p>
+  </div>
+</header>
+
+<section id="best">
+  <div class="col">
+    <span class="eyebrow">1 · Definitions</span>
+    <h2>What it means to prove a move is best</h2>
+    <p>Engines don't prove anything. Stockfish reports “#11” after a search with heuristics, pruning and a hash table that can be wrong. A proof has to say exactly which claim it establishes, because “best move” covers several claims of very different difficulty.</p>
+    <p>The base notion is a <em>forced win</em>. Side <code>a</code> wins from position <code>p</code> within <code>n</code> moves if one of these holds: the defender is to move and is checkmated; the attacker has some legal move after which it still wins within <code>n − 1</code>; or the defender has at least one legal move and every one of them still loses. This is an inductive predicate, so every proof of it is a finite tree, and that is why a forced mate can be certified at all.</p>
+  </div>
+  <pre><code>inductive WinsIn (a : Side) : Nat → Pos → Prop where
+  | mate {n p} : p.turn = a.other → mated p = true → WinsIn a n p
+  | att  {n p} (m : Move) : p.turn = a → m ∈ legal p →
+           WinsIn a n (play p m) → WinsIn a (n + 1) p
+  | dfd  {n p} : p.turn = a.other → legal p ≠ [] →        -- stalemate is not a win
+           (∀ m ∈ legal p, WinsIn a n (play p m)) → WinsIn a n p
+
+theorem not_both (h₁ : WinsIn a n p) (h₂ : WinsIn a.other k p) : False</code></pre>
+  <div class="col">
+    <p><code>not_both</code> turns “this move wins” into “this move is optimal”. Once Black's forced win after <code>Rxb2+</code> is proved, any alternative after which <em>White</em> has a forced win cannot also be a Black win. So the claim “<code>Rxb2+</code> is the only move” needs one winning tree for Black plus one winning tree for White after each of the other 33 moves. Each claim further down this ladder needs a bigger kind of evidence:</p>
+  </div>
+  <div class="ladder">
+    <div class="rung"><div><span class="tag s-proved">Proved here</span><h3>The move wins</h3><div class="q">∃ strategy ∀ replies …</div></div><p>A strategy tree: one attacker move per node, every defender reply enumerated. Its size is the sum, over the attacker's moves, of the defender's reply count, which is small when the attacker keeps giving check.</p><p class="muted">Gotham: 157 Black decisions, 315 nodes.</p></div>
+    <div class="rung"><div><span class="tag s-proved">Proved here</span><h3>It is the only winning move</h3><div class="q">win tree + a refutation per alternative</div></div><p>For each other legal move, a winning tree for the opponent, then <code>not_both</code>. This works only when every alternative loses outright. If an alternative draws, a mate tree can't refute it.</p><p class="muted">Gotham move 1: 33 refutations, longest a White mate in 5.</p></div>
+    <div class="rung"><div><span class="tag s-dual">Harder</span><h3>It is the fastest mate</h3><div class="q">¬ WinsIn a (n−1) p</div></div><p>Shows that no shorter mate exists. The evidence is a defender strategy that survives n−1 moves against <em>every</em> attacker try, so the tree branches on the attacker's ~30 moves per turn. A verified bounded search (alpha-beta with a soundness proof) fits this better than a certificate.</p><p class="muted">Not attempted. It decides whether move 8 has “duals”.</p></div>
+    <div class="rung"><div><span class="tag s-draw">Research</span><h3>The alternative only draws</h3><div class="q">¬ Wins a p, with no mate for either side</div></div><p>Draws have no finite strategy tree, since play can go on indefinitely. The evidence would be an invariant: a set of positions closed under the defender's replies and containing no mate (a fortress), or a retrograde tablebase computation proved correct, as Hurd did in HOL4 for four-piece endings.</p><p class="muted">Needed for move 2: <code>2…Rxc2+</code> evaluates as 0.00.</p></div>
+    <div class="rung"><div><span class="tag muted">Not a theorem</span><h3>It is the engine's best move</h3><div class="q">eval(m) = max eval</div></div><p>In positions that are neither forced wins nor provably drawn, “best” means best by a heuristic evaluation. The evaluation function isn't a mathematical object you can prove things about. You can prove facts about the search (Nipkow verified alpha-beta in Isabelle), but not that its answer is good chess.</p><p class="muted">Most real middlegame moves are here.</p></div>
+  </div>
+</section>
+
+<section id="puzzle">
+  <div class="col">
+    <span class="eyebrow">2 · The gold-star puzzle</span>
+    <h2>Rxb2+, and what is actually forced after it</h2>
+    <p>The Short says Black “cannot prevent White's mate unless Black finds checkmate in 11. Everything else doesn't work.” I transcribed the position from the video, confirmed it with Stockfish, and proved the first-move version of that sentence in Lean. Step through the line below. The dot next to each Black move shows how strong a claim holds at that point.</p>
+  </div>
+  <div class="explorer">
+    <div class="stack">
+      <div class="board" id="lineBoard" role="img" aria-label="Main line board"></div>
+      <div class="controls">
+        <button id="first" aria-label="First position">⏮</button>
+        <button id="prev" aria-label="Previous move">◀</button>
+        <button id="next" class="primary" aria-label="Next move">▶</button>
+        <button id="last" aria-label="Last position">⏭</button>
+        <span class="muted" id="plyLabel" style="font-family:var(--mono);font-size:0.85rem"></span>
+      </div>
+    </div>
+    <div class="side">
+      <div class="movelist" id="moveList"></div>
+      <div class="panel" id="plyPanel" aria-live="polite"></div>
+      <div class="legend">
+        <span><i class="dot s-proved"></i>Only move, proved in Lean</span>
+        <span><i class="dot s-unique"></i>Only mating move per Stockfish; an alternative isn't lost</span>
+        <span><i class="dot s-dual"></i>Other mates exist (duals)</span>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p>The full claim “only this exact 11-move sequence works” is false as stated. At moves 8, 10 and 11 Black has other mates, slower ones or a second mate in one. In problem terms these are <em>duals</em>. At moves 2, 7 and 9 Stockfish finds an alternative that doesn't mate but doesn't lose either. <code>2…Rxc2+</code> scores 0.00 (a perpetual check), which is why Levy calls <code>Rb1</code> “better than Rook c2”. <code>7…Qb5+</code> scores about +6 for Black with no mate inside the search horizon, so it might even be a slower forced win. That is exactly where a heuristic “best” and a provable “best” separate.</p>
+  </div>
+  <div class="col"><h3>The 33 ways to lose</h3><p>Pick any Black first move to see the White mate that refutes it. Every one of these lines is a branch of the certificate the Lean kernel checked.</p></div>
+  <div class="explorer">
+    <div class="stack">
+      <div class="board" id="altBoard" role="img" aria-label="Refutation board"></div>
+    </div>
+    <div class="side">
+      <div class="alts" id="altButtons"></div>
+      <div class="panel"><div class="pv" id="altPv"></div><p class="muted" id="altNote"></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="projects">
+  <div class="col">
+    <span class="eyebrow">3 · Prior work</span>
+    <h2>Two Lean chess projects, side by side</h2>
+    <p><a href="https://github.com/dwrensha/Chess.lean">dwrensha/Chess.lean</a> (David Renshaw, September 2024, spun out of his animate-lean-proofs project) proves forced wins in specific positions with tactics. <a href="https://github.com/aastha-guptaa/Lean-Hackathon">aastha-guptaa/Lean-Hackathon</a> was built at the LeanLang for Verified Autonomy hackathon at IISc Bangalore (April 2026) by Saachi Kaup, Malhar Patel, Aastha Gupta and Rajlakshmi Chavan, and was proposed as the IndiaFOSS 2026 talk <a href="https://fossunited.org/c/indiafoss/2026/cfp/4bnl18cear">“Checkmate by Proof”</a> (not accepted). I cloned and built both.</p>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>Chess.lean (Renshaw)</th><th>Lean-Hackathon (Kaup, Patel, Gupta, Chavan)</th><th>This prototype</th></tr></thead>
+    <tbody>
+      <tr><td>Main claim</td><td><code>ForcedWin side pos</code>: an inductive Prop where the opponent's step quantifies over <em>all</em> legal replies</td><td><code>isValidMoves</code> and <code>isAnyCheckmate</code>: Booleans saying one given line is legal and ends in mate</td><td><code>WinsIn a n p</code>, with the move budget as an index, plus <code>not_both</code></td></tr>
+      <tr><td>Who picks moves</td><td>You, through tactics <code>move "Qb8"</code> / <code>opponent_move</code> / <code>checkmate</code>; <code>guess_next_move</code> asks Stockfish inside the tactic</td><td>GPT-5 returns the whole line as JSON, for both colors</td><td>Stockfish, offline; a script turns its choices into a certificate tree</td></tr>
+      <tr><td>How it is checked</td><td>Each tactic step closes a <code>decide</code> goal on the kernel</td><td>A compiled program run at runtime (<code>lake exe chess</code>). Nothing about a given puzzle becomes a theorem</td><td>A verified checker (<code>check_sound</code>): kernel-only per-node proofs, or <code>native_decide</code></td></tr>
+      <tr><td>Theorems about the rules</td><td><code>IsReachable</code> from the start position</td><td><code>no_friendly_fire</code>, <code>bishop_stays_on_colour</code>, legal ⇒ pseudo-legal, mate ⇒ check, castling path safety</td><td>Soundness of the checker and consistency of the semantics</td></tr>
+      <tr><td>Rules covered</td><td>Moves, captures, promotion, en passant. Castling is parsed but never generated</td><td>Full move rules including castling, en passant and promotion</td><td>Full move rules; matches python-chess on the standard perft suite</td></tr>
+      <tr><td>Board</td><td><code>List (List (Option (Piece × Side)))</code>. Lists rather than arrays, because arrays wrap lists for the kernel</td><td><code>Vector (Vector Square 8) 8</code> with a game-state record (history, validity flag)</td><td>One <code>Nat</code> of 64 four-bit nibbles; the kernel does bignum shifts with GMP</td></tr>
+      <tr><td>Known gaps</td><td>Stalemate counts as a win (a <code>FIXME</code> in the source). The ambiguity of SAN notation is handled only loosely</td><td>Accepts lines where the defender cooperates, which is not a forced mate (demo below)</td><td>Move generation is tested, not proved, against the rules. No 50-move or repetition rules</td></tr>
+      <tr><td>Largest example</td><td>A mate in 4 (Timman–Short smothered mate). Larger puzzles are commented out, with <code>maxHeartbeats 3000000</code></td><td>Mate-in-N puzzles checked one line at a time</td><td>Mate in 11, with the only-move claim over 34 legal moves</td></tr>
+      <tr><td>Toolchain</td><td>Lean v4.15.0 + Mathlib</td><td>Lean v4.30.0-rc2, no dependencies</td><td>Lean v4.28.0, no dependencies</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>What they share</h3><p>Both write the move generator as a Lean function and define checkmate as “in check with no legal moves”. Both put an untrusted oracle (Stockfish, or an LLM) next to a Lean checker, and both leave out the draw rules. Each also trusts its own move generator as the definition of chess: no proof connects it to the FIDE rulebook.</p></div>
+    <div class="card"><h3>Where they differ</h3><p>The difference is the quantifier. Renshaw's <code>Opponent</code> constructor makes you handle every defender reply, so a proof is a forced win. The hackathon pipeline checks one line in which the LLM also picks White's moves, so it confirms that a game <em>can</em> end in mate. That is ∃∃ rather than ∃∀. Its theorems are general facts about the rules, which Renshaw's project doesn't have.</p></div>
+  </div>
+  <div class="col"><p>To make that difference concrete, I fed the hackathon executable a stand-in for the LLM (the README's own mock pattern) that answers the Gotham position with a <em>losing</em> first move:</p></div>
+  <div class="demo">$ lake exe chess "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1 b - - 0 1"
+Output from LLM: {"moves":[ Qa5-b6, Rh6-h7, Qb6-b2 ]}      # 1…Qb6?? 2.Rh7?? Qxb2#
+=================================
+Puzzle Successfully Solved!</div>
+  <div class="col"><p>White simply had <code>2.Rh8#</code>. Under the <code>WinsIn</code> semantics, <code>1…Qb6</code> is one of the 33 moves the kernel proved to lose.</p></div>
+</section>
+
+<section id="prototype">
+  <div class="col">
+    <span class="eyebrow">4 · What I built</span>
+    <h2>A certificate checker the kernel can run</h2>
+    <p>The prototype lives in <code>chess-lean/</code> in this worktree: about 650 hand-written lines of Lean with no dependencies, plus two Python scripts. The design rule is that search is untrusted and checking is verified. Stockfish never has to be right, because the kernel re-derives every legal move and every mate itself.</p>
+  </div>
+  <div class="pipe">
+    <div class="stage"><span class="tag">Untrusted</span><h3>Search</h3><p>Stockfish chooses one attacker move per node; python-chess lists every defender reply.</p></div>
+    <div class="stage"><span class="tag">Untrusted</span><h3>Certificate</h3><p><code>Cert</code> = <code>mate</code> | <code>att m k</code> | <code>dfd [(reply, k)]</code>, emitted as Lean source.</p></div>
+    <div class="stage trusted"><span class="tag">Verified</span><h3>Checker</h3><p><code>check : Nat → Side → Nat → Pos → Cert → Bool</code>, structural on fuel.</p></div>
+    <div class="stage trusted"><span class="tag">Proved once</span><h3>Soundness</h3><p><code>check … = true → WinsIn a n p</code>, for every position and certificate.</p></div>
+    <div class="stage trusted"><span class="tag">Kernel</span><h3>Theorem</h3><p>Evaluate <code>check</code> on the concrete position; the result is a theorem about chess.</p></div>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>Move generator, tested</h3><p>Legal-move counts (perft) match python-chess on the 7 standard chessprogramming positions plus the puzzle position: 3,617,785 leaf nodes in total, 0 mismatches. That is differential testing, which is evidence and not proof.</p></div>
+    <div class="card"><h3>Kernel cost</h3><p>One move generation costs about 0.6 s in the kernel. Running <code>decide +kernel</code> over the whole 315-node tree in one term filled memory until the machine swapped, and I stopped it after ten minutes. Generating one small theorem per node (320 theorems, each position written out as a literal) passes in 79 s.</p></div>
+    <div class="card"><h3>Trust levels</h3><p><code>native_decide</code> checks the same certificate in under a second but adds <code>Lean.ofReduceBool</code> (it trusts the compiler). The per-node file uses only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>.</p></div>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Lean theorem</th><th>Statement (paraphrased)</th><th>Checked by</th></tr></thead>
+      <tbody>
+        <tr><td>check_sound</td><td>A passing certificate proves <code>WinsIn</code></td><td>Proof, no computation</td></tr>
+        <tr><td>not_both</td><td>No position is a forced win for both sides</td><td>Proof by induction on the win</td></tr>
+        <tr><td>onlyMove_sound</td><td>If <code>onlyMove</code> passes, then after any legal move m the mover still wins ↔ m = best</td><td>Proof</td></tr>
+        <tr><td>GothamKernel.mate_in_11</td><td><code>WinsIn .black 11 gotham</code></td><td>Kernel, per node</td></tr>
+        <tr><td>GothamKernel.only_move</td><td>Of the 34 legal moves, only <code>b7b2</code> keeps a Black win</td><td>Kernel, per node</td></tr>
+        <tr><td>gotham_white_cannot_win</td><td><code>¬ Wins .white gotham</code></td><td>From <code>not_both</code></td></tr>
+        <tr id="plyRow"><td>line3/5/6_only</td><td><code>3…Qb5+</code>, <code>5…Qb2+</code> and <code>6…Qb1+</code> are each Black's only move that keeps a forced win (mates within 9, 7 and 6)</td><td><code>native_decide</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="backwards">
+  <div class="col">
+    <span class="eyebrow">5 · Generating puzzles</span>
+    <h2>Working backwards</h2>
+    <p>The certificate view suggests making puzzles where the proof comes first and the puzzle second. A puzzle is <em>sound</em> in the problemist's sense when it has exactly one key move. A key that works and is unintended is a <em>cook</em>; an alternative later in the solution is a <em>dual</em>. <code>onlyMove</code> is a machine-checkable soundness test for the key, and you can apply it at each of the solver's turns to measure how forced a line is.</p>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Forward: mine and certify</h3><p>Lichess's puzzler scans rated games with Stockfish and calls a move an “only move” if the second-best line's win chance is more than 0.7 lower, if no second line exists, or if a tablebase says so. Replace that threshold with <code>onlyMove</code> and each published mate puzzle comes with a proof that its key is unique, plus a per-move forcedness profile like the dots above.</p></div>
+    <div class="card"><h3>Backward: unmove from mate</h3><p>Retrograde analysis starts from mated positions and un-plays moves, which is how tablebases are built. For puzzles: pick a mating pattern, un-move the attacker's last move, keep only predecessors where the attacker's move is unique, and repeat. Uniqueness is a local check at each step, and the certificate builds up as you go, so the proof grows backwards along with the puzzle.</p></div>
+    <div class="card"><h3>Reachability</h3><p>Renshaw's <code>IsReachable</code> asks whether a legal game could ever reach a position. That is the formal home for retro puzzles and proof games (“the game started normally; what was the last move?”). Such proofs are existential: one game reaching the position is the certificate. Proving a position <em>unreachable</em> needs invariants such as pawn structure, piece counts and bishop colors, which is the hackathon project's <code>bishop_stays_on_colour</code> put to real use.</p></div>
+    <div class="card"><h3>Difficulty you can measure</h3><p>A certificate's size and shape give an objective difficulty measure: how many defender branches there are, how many quiet (non-checking) attacker moves, how deep the longest branch goes. The Gotham tree is all checks, which is why 11 moves fit in 315 nodes. A mate in 5 with a quiet key move is usually much bushier.</p></div>
+  </div>
+</section>
+
+<section id="engines">
+  <div class="col">
+    <span class="eyebrow">6 · Beyond puzzles</span>
+    <h2>What this says about programmatic chess</h2>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Proof-carrying engine output</h3><p>An engine that says “#11” could emit the tree instead, and anyone could check it with a small verified checker. The checker is the only trusted code. That is the same split as SAT solvers emitting DRAT proofs, applied to game trees.</p></div>
+    <div class="card"><h3>LLM proposes, Lean disposes, with the right quantifier</h3><p>The hackathon's loop is the right architecture with the wrong claim. Keep the LLM as proposer, but have it propose only the attacker's moves, let Lean enumerate the defense, and check <code>WinsIn</code>. Failed branches show exactly which defense breaks the idea, which is useful feedback for the next proposal.</p></div>
+    <div class="card"><h3>Verifiable reward signal</h3><p>For training models on tactics, a kernel-checked forced mate is a reward that can't be gamed. A plausible line that only works if the defender cooperates earns nothing. That reward is binary and sparse, but for mate puzzles it is exact.</p></div>
+    <div class="card"><h3>Move generators as a proof target</h3><p>All three projects trust their move generator. A declarative definition of legal moves (relations, with no search) and a proof that the fast generator matches it would replace perft testing. The hackathon's lemmas about the rules are the first steps in that direction.</p></div>
+  </div>
+</section>
+
+<section id="next">
+  <div class="col">
+    <span class="eyebrow">7 · Open threads</span>
+    <h2>Next steps, ordered by payoff</h2>
+    <ol class="refs">
+      <li><strong>Tactics on top of the checker.</strong> Combine Renshaw's interactive <code>move</code> / <code>opponent_move</code> experience and its board widget with this checker, so a human can write a proof step by step and let the certificate fill in the routine branches.</li>
+      <li><strong>Remaining only-move claims in the line.</strong> Moves 1, 3, 5 and 6 are certified. Move 4 needs the same procedure with a longer refutation (White mates in up to 10). Moves 2, 7 and 9 need a proof that the alternative is <em>not</em> a Black win, which is a draw proof.</li>
+      <li><strong>A draw certificate.</strong> Start with a known fortress, such as king, bishop and rook pawn against king where the bishop doesn't control the promotion square. State the drawing invariant and prove it is closed under the attacker's moves.</li>
+      <li><strong>Shortest-mate proofs.</strong> A verified depth-bounded minimax that proves <code>¬ WinsIn a (n−1) p</code>, with alpha-beta and transposition tables, needed to show that a mate in 11 is not secretly a mate in 10.</li>
+      <li><strong>A small certified puzzle set.</strong> Run the pipeline over a few hundred Lichess mate puzzles. Report how many have provably unique keys and how many have duals the puzzle-generation threshold missed.</li>
+      <li><strong>A legality spec.</strong> Write the rules as relations and prove the nibble-board generator correct for one piece type at a time, starting with knights.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="refs">
+  <div class="col">
+    <span class="eyebrow">8 · Related work</span>
+    <h2>What exists already</h2>
+    <p class="muted">Gathered by a research pass that opened each source. I marked the few items it couldn't fully confirm.</p>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Verified endgames and retrograde analysis</h3><ol class="refs">
+      <li>J. Hurd, <a href="https://gilith.com/papers/chess.pdf">Formal Verification of Chess Endgame Databases</a>, TPHOLs 2005 Emerging Trends. HOL4 with BDDs; four-piece pawnless endings computed as theorems.</li>
+      <li>E. Marzion, <a href="https://github.com/emarzion/coqtbgen">coqtbgen</a> (2023–25). A Coq tablebase generator for finite games, proved correct. The demo game is not chess.</li>
+      <li>Maliković et al., <a href="https://archive.ceciis.foi.hr/index.php/ceciis/2008/paper/view/174.html">retrograde chess problems in Coq</a> (2008) and <a href="https://archive.ceciis.foi.hr/index.php/ceciis/2010/paper/view/293.html">shortest proof games</a> (2010).</li>
+    </ol></div>
+    <div class="card"><h3>Strategies proved correct</h3><ol class="refs">
+      <li>Marić, Janičić, Maliković, <a href="https://research.matf.bg.ac.rs/handle/123456789/515">KRK strategy correctness in Isabelle/HOL + Z3</a>, CADE-25, 2015.</li>
+      <li>Janičić, Marić, Maliković, <a href="https://arxiv.org/abs/1801.07528">a KRK chess conjecture on n×n boards</a>, LMCS 2019.</li>
+      <li>T. Nipkow, <a href="https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ITP.2024.1">Alpha-Beta Pruning Verified</a>, ITP 2024 (Isabelle).</li>
+      <li>L. Koller, <a href="https://www.isa-afp.org/entries/Knights_Tour.html">Knight's Tour Revisited Revisited</a>, Isabelle AFP 2022.</li>
+    </ol></div>
+    <div class="card"><h3>Solved games (proofs by search, not checked in a proof assistant)</h3><ol class="refs">
+      <li>Schaeffer et al., Checkers Is Solved, <em>Science</em> 317, 2007.</li>
+      <li>L. V. Allis, <a href="https://cris.maastrichtuniversity.nl/en/publications/5fc9fc42-3dcb-4420-b49e-ffb13672c6c6">Searching for Solutions in Games and AI</a>, 1994 (proof-number search).</li>
+      <li>H. Takizawa, <a href="https://arxiv.org/abs/2310.19387">Othello is Solved</a>, 2023 preprint.</li>
+      <li>Brumleve, Hamkins, Schlicht, <a href="https://arxiv.org/abs/1201.5597">The mate-in-n problem of infinite chess is decidable</a>, 2012.</li>
+    </ol></div>
+    <div class="card"><h3>Puzzles and problem solvers</h3><ol class="refs">
+      <li><a href="https://github.com/ornicar/lichess-puzzler">lichess-puzzler</a>: Stockfish mining with an only-move heuristic.</li>
+      <li>Feng et al., <a href="https://arxiv.org/abs/2510.23881">Generating Creative Chess Puzzles</a>, 2025 (RL-tuned generators rewarded for uniqueness).</li>
+      <li>Problem solvers such as Popeye, Natch and Jacobi (<a href="https://en.wikipedia.org/wiki/Software_for_handling_chess_problems">overview</a>). None is formally verified.</li>
+      <li><a href="https://www.chessprogramming.org/Perft">Perft</a>, the standard way to test a move generator.</li>
+    </ol></div>
+  </div>
+</section>
+</div>
+
+<script id="data" type="application/json">{"start": "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1", "line": [{"fen": "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1", "san": null, "from": null, "to": null}, {"fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PrP4P/1K4R1", "san": "Rxb2+", "from": "b7", "to": "b2", "legal": 34, "mates": [["Rxb2+", 11]], "whiteMates": 33, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PrP4P/2K3R1", "san": "Kc1", "from": "b1", "to": "c1", "replies": ["Kc1", "Ka1"]}, {"fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/P1P4P/1rK3R1", "san": "Rb1+", "from": "b2", "to": "b1", "legal": 35, "mates": [["Rb1+", 10]], "whiteMates": 33, "other": [["Rxc2+", 0]]}, {"fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/P1P4P/1K4R1", "san": "Kxb1", "from": "c1", "to": "b1", "replies": ["Kxb1"]}, {"fen": "2b2bk1/5rp1/p2p3R/1q1Np2Q/4Pp1B/2p2P2/P1P4P/1K4R1", "san": "Qb5+", "from": "a5", "to": "b5", "legal": 26, "mates": [["Qb5+", 9]], "whiteMates": 25, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/1q2p2Q/1N2Pp1B/2p2P2/P1P4P/1K4R1", "san": "Nb4", "from": "d5", "to": "b4", "replies": ["Kc1", "Ka1", "Nb4"]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/1q2Pp1B/2p2P2/P1P4P/1K4R1", "san": "Qxb4+", "from": "b5", "to": "b4", "legal": 33, "mates": [["Qxb4+", 8]], "whiteMates": 32, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/1q2Pp1B/2p2P2/P1P4P/2K3R1", "san": "Kc1", "from": "b1", "to": "c1", "replies": ["Kc1", "Ka1"]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/PqP4P/2K3R1", "san": "Qb2+", "from": "b4", "to": "b2", "legal": 32, "mates": [["Qb2+", 7]], "whiteMates": 31, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/PqP4P/3K2R1", "san": "Kd1", "from": "c1", "to": "d1", "replies": ["Kd1"]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1P4P/1q1K2R1", "san": "Qb1+", "from": "b2", "to": "b1", "legal": 30, "mates": [["Qb1+", 6]], "whiteMates": 29, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1P1K2P/1q4R1", "san": "Ke2", "from": "d1", "to": "e2", "replies": ["Ke2"]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1q1K2P/6R1", "san": "Qxc2+", "from": "b1", "to": "c2", "legal": 33, "mates": [["Qxc2+", 5]], "whiteMates": 31, "other": [["Qb5+", 606]]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1q4P/4K1R1", "san": "Ke1", "from": "e2", "to": "e1", "replies": ["Kf1", "Ke1"]}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P2q3P/4K1R1", "san": "Qd2+", "from": "c2", "to": "d2", "legal": 32, "mates": [["Qd2+", 4], ["Qc1+", 5], ["Qb1+", 6]], "whiteMates": 29, "other": []}, {"fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P2q3P/5KR1", "san": "Kf1", "from": "e1", "to": "f1", "replies": ["Kf1"]}, {"fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q3P/5KR1", "san": "Bh3+", "from": "c8", "to": "h3", "legal": 33, "mates": [["Bh3+", 3]], "whiteMates": 30, "other": [["Qd3+", 933], ["Qd1+", 0]]}, {"fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q2RP/5K2", "san": "Rg2", "from": "g1", "to": "g2", "replies": ["Rg2"]}, {"fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P5qP/5K2", "san": "Qxg2+", "from": "d2", "to": "g2", "legal": 32, "mates": [["Qxg2+", 2], ["Qd3+", 7], ["Bxg2+", 11]], "whiteMates": 27, "other": [["Qd1+", 1439], ["Qc1+", 1372]]}, {"fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P5qP/4K3", "san": "Ke1", "from": "f1", "to": "e1", "replies": ["Ke1"]}, {"fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q3P/4K3", "san": "Qd2#", "from": "g2", "to": "d2", "legal": 34, "mates": [["Qd2#", 1], ["Qf1#", 1], ["Qg1+", 2], ["Qh1+", 2], ["gxh6", 8]], "whiteMates": 26, "other": [["Qg3+", -49], ["Qe2+", -112], ["Qf2+", -642]]}], "alts": [{"move": "Rxb2+", "mate": 11, "frames": [{"san": "Rxb2+", "from": "b7", "to": "b2", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PrP4P/1K4R1"}, {"san": "Kc1", "from": "b1", "to": "c1", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PrP4P/2K3R1"}, {"san": "Rb1+", "from": "b2", "to": "b1", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/P1P4P/1rK3R1"}, {"san": "Kxb1", "from": "c1", "to": "b1", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/P1P4P/1K4R1"}, {"san": "Qb5+", "from": "a5", "to": "b5", "fen": "2b2bk1/5rp1/p2p3R/1q1Np2Q/4Pp1B/2p2P2/P1P4P/1K4R1"}, {"san": "Nb4", "from": "d5", "to": "b4", "fen": "2b2bk1/5rp1/p2p3R/1q2p2Q/1N2Pp1B/2p2P2/P1P4P/1K4R1"}, {"san": "Qxb4+", "from": "b5", "to": "b4", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/1q2Pp1B/2p2P2/P1P4P/1K4R1"}, {"san": "Kc1", "from": "b1", "to": "c1", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/1q2Pp1B/2p2P2/P1P4P/2K3R1"}, {"san": "Qb2+", "from": "b4", "to": "b2", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/PqP4P/2K3R1"}, {"san": "Kd1", "from": "c1", "to": "d1", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/PqP4P/3K2R1"}, {"san": "Qb1+", "from": "b2", "to": "b1", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1P4P/1q1K2R1"}, {"san": "Ke2", "from": "d1", "to": "e2", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1P1K2P/1q4R1"}, {"san": "Qxc2+", "from": "b1", "to": "c2", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1q1K2P/6R1"}, {"san": "Ke1", "from": "e2", "to": "e1", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P1q4P/4K1R1"}, {"san": "Qd2+", "from": "c2", "to": "d2", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P2q3P/4K1R1"}, {"san": "Kf1", "from": "e1", "to": "f1", "fen": "2b2bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P2/P2q3P/5KR1"}, {"san": "Bh3+", "from": "c8", "to": "h3", "fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q3P/5KR1"}, {"san": "Rg2", "from": "g1", "to": "g2", "fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q2RP/5K2"}, {"san": "Qxg2+", "from": "d2", "to": "g2", "fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P5qP/5K2"}, {"san": "Ke1", "from": "f1", "to": "e1", "fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P5qP/4K3"}, {"san": "Qd2#", "from": "g2", "to": "d2", "fen": "5bk1/5rp1/p2p3R/4p2Q/4Pp1B/2p2P1b/P2q3P/4K3"}]}, {"move": "Qxa2+", "mate": -5, "frames": [{"san": "Qxa2+", "from": "a5", "to": "a2", "fen": "2b2bk1/1r3rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/qPP4P/1K4R1"}, {"san": "Kxa2", "from": "b1", "to": "a2", "fen": "2b2bk1/1r3rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/KPP4P/6R1"}, {"san": "Rxb2+", "from": "b7", "to": "b2", "fen": "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/KrP4P/6R1"}, {"san": "Ka3", "from": "a2", "to": "a3", "fen": "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/K1p2P2/1rP4P/6R1"}, {"san": "Ra2+", "from": "b2", "to": "a2", "fen": "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/K1p2P2/r1P4P/6R1"}, {"san": "Kxa2", "from": "a3", "to": "a2", "fen": "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1"}, {"san": "g6", "from": "g7", "to": "g6", "fen": "2b2bk1/5r2/p2p2pR/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1"}, {"san": "Rh8+", "from": "h6", "to": "h8", "fen": "2b2bkR/5r2/p2p2p1/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1"}, {"san": "Kg7", "from": "g8", "to": "g7", "fen": "2b2b1R/5rk1/p2p2p1/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1"}, {"san": "Rxg6#", "from": "g1", "to": "g6", "fen": "2b2b1R/5rk1/p2p2R1/3Np2Q/4Pp1B/2p2P2/K1P4P/8"}]}, {"move": "g6", "mate": -2, "frames": [{"san": "g6", "from": "g7", "to": "g6", "fen": "2b2bk1/1r3r2/p2p2pR/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8+", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3r2/p2p2p1/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Kg7", "from": "g8", "to": "g7", "fen": "2b2b1R/1r3rk1/p2p2p1/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rxg6#", "from": "g1", "to": "g6", "fen": "2b2b1R/1r3rk1/p2p2R1/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K6"}]}, {"move": "g5", "mate": -2, "frames": [{"san": "g5", "from": "g7", "to": "g5", "fen": "2b2bk1/1r3r2/p2p3R/q2Np1pQ/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rxg5+", "from": "g1", "to": "g5", "fen": "2b2bk1/1r3r2/p2p3R/q2Np1RQ/4Pp1B/2p2P2/PPP4P/1K6"}, {"san": "Bg7", "from": "f8", "to": "g7", "fen": "2b3k1/1r3rb1/p2p3R/q2Np1RQ/4Pp1B/2p2P2/PPP4P/1K6"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b3kR/1r3rb1/p2p4/q2Np1RQ/4Pp1B/2p2P2/PPP4P/1K6"}]}, {"move": "Qa4", "mate": -1, "frames": [{"san": "Qa4", "from": "a5", "to": "a4", "fen": "2b2bk1/1r3rp1/p2p3R/3Np2Q/q3Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/3Np2Q/q3Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Be7", "mate": -1, "frames": [{"san": "Be7", "from": "f8", "to": "e7", "fen": "2b3k1/1r2brp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b3kR/1r2brp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rb3", "mate": -1, "frames": [{"san": "Rb3", "from": "b7", "to": "b3", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/1rp2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/5rp1/p2p4/q2Np2Q/4Pp1B/1rp2P2/PPP4P/1K4R1"}]}, {"move": "Bg4", "mate": -1, "frames": [{"san": "Bg4", "from": "c8", "to": "g4", "fen": "5bk1/1r3rp1/p2p3R/q2Np2Q/4PpbB/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "5bkR/1r3rp1/p2p4/q2Np2Q/4PpbB/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rbe7", "mate": -1, "frames": [{"san": "Rbe7", "from": "b7", "to": "e7", "fen": "2b2bk1/4rrp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/4rrp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qa3", "mate": -1, "frames": [{"san": "Qa3", "from": "a5", "to": "a3", "fen": "2b2bk1/1r3rp1/p2p3R/3Np2Q/4Pp1B/q1p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/3Np2Q/4Pp1B/q1p2P2/PPP4P/1K4R1"}]}, {"move": "Qxd5", "mate": -1, "frames": [{"san": "Qxd5", "from": "a5", "to": "d5", "fen": "2b2bk1/1r3rp1/p2p3R/3qp2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/3qp2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Be6", "mate": -1, "frames": [{"san": "Be6", "from": "c8", "to": "e6", "fen": "5bk1/1r3rp1/p2pb2R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "5bkR/1r3rp1/p2pb3/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rf5", "mate": -1, "frames": [{"san": "Rf5", "from": "f7", "to": "f5", "fen": "2b2bk1/1r4p1/p2p3R/q2Npr1Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r4p1/p2p4/q2Npr1Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qc5", "mate": -1, "frames": [{"san": "Qc5", "from": "a5", "to": "c5", "fen": "2b2bk1/1r3rp1/p2p3R/2qNp2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/2qNp2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qb5", "mate": -1, "frames": [{"san": "Qb5", "from": "a5", "to": "b5", "fen": "2b2bk1/1r3rp1/p2p3R/1q1Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/1q1Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Bf5", "mate": -1, "frames": [{"san": "Bf5", "from": "c8", "to": "f5", "fen": "5bk1/1r3rp1/p2p3R/q2Npb1Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "5bkR/1r3rp1/p2p4/q2Npb1Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Bh3", "mate": -1, "frames": [{"san": "Bh3", "from": "c8", "to": "h3", "fen": "5bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P1b/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "5bkR/1r3rp1/p2p4/q2Np2Q/4Pp1B/2p2P1b/PPP4P/1K4R1"}]}, {"move": "Rb5", "mate": -1, "frames": [{"san": "Rb5", "from": "b7", "to": "b5", "fen": "2b2bk1/5rp1/p2p3R/qr1Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/5rp1/p2p4/qr1Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rfc7", "mate": -1, "frames": [{"san": "Rfc7", "from": "f7", "to": "c7", "fen": "2b2bk1/1rr3p1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1rr3p1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rb6", "mate": -1, "frames": [{"san": "Rb6", "from": "b7", "to": "b6", "fen": "2b2bk1/5rp1/pr1p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/5rp1/pr1p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Bd7", "mate": -1, "frames": [{"san": "Bd7", "from": "c8", "to": "d7", "fen": "5bk1/1r1b1rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "5bkR/1r1b1rp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rb4", "mate": -1, "frames": [{"san": "Rb4", "from": "b7", "to": "b4", "fen": "2b2bk1/5rp1/p2p3R/q2Np2Q/1r2Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/5rp1/p2p4/q2Np2Q/1r2Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qb4", "mate": -1, "frames": [{"san": "Qb4", "from": "a5", "to": "b4", "fen": "2b2bk1/1r3rp1/p2p3R/3Np2Q/1q2Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/3Np2Q/1q2Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rb8", "mate": -1, "frames": [{"san": "Rb8", "from": "b7", "to": "b8", "fen": "1rb2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "1rb2bkR/5rp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rfe7", "mate": -1, "frames": [{"san": "Rfe7", "from": "f7", "to": "e7", "fen": "2b2bk1/1r2r1p1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r2r1p1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rfd7", "mate": -1, "frames": [{"san": "Rfd7", "from": "f7", "to": "d7", "fen": "2b2bk1/1r1r2p1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r1r2p1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qb6", "mate": -1, "frames": [{"san": "Qb6", "from": "a5", "to": "b6", "fen": "2b2bk1/1r3rp1/pq1p3R/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/pq1p4/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rbc7", "mate": -1, "frames": [{"san": "Rbc7", "from": "b7", "to": "c7", "fen": "2b2bk1/2r2rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/2r2rp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "cxb2", "mate": -1, "frames": [{"san": "cxb2", "from": "c3", "to": "b2", "fen": "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/5P2/PpP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1r3rp1/p2p4/q2Np2Q/4Pp1B/5P2/PpP4P/1K4R1"}]}, {"move": "Qc7", "mate": -1, "frames": [{"san": "Qc7", "from": "a5", "to": "c7", "fen": "2b2bk1/1rq2rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/1rq2rp1/p2p4/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Qd8", "mate": -1, "frames": [{"san": "Qd8", "from": "a5", "to": "d8", "fen": "2bq1bk1/1r3rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2bq1bkR/1r3rp1/p2p4/3Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Ra7", "mate": -1, "frames": [{"san": "Ra7", "from": "b7", "to": "a7", "fen": "2b2bk1/r4rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/r4rp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rbd7", "mate": -1, "frames": [{"san": "Rbd7", "from": "b7", "to": "d7", "fen": "2b2bk1/3r1rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Rh8#", "from": "h6", "to": "h8", "fen": "2b2bkR/3r1rp1/p2p4/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}, {"move": "Rf6", "mate": -1, "frames": [{"san": "Rf6", "from": "f7", "to": "f6", "fen": "2b2bk1/1r4p1/p2p1r1R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}, {"san": "Nxf6#", "from": "d5", "to": "f6", "fen": "2b2bk1/1r4p1/p2p1N1R/q3p2Q/4Pp1B/2p2P2/PPP4P/1K4R1"}]}]}</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById("data").textContent);
+  const GLYPH = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
+  const FILES = "abcdefgh";
+
+  function parse(fen) {
+    const rows = fen.split("/"), out = {};
+    rows.forEach((row, i) => {
+      let f = 0;
+      for (const ch of row) {
+        if (/\d/.test(ch)) f += +ch;
+        else { out[FILES[f] + (8 - i)] = ch; f++; }
+      }
+    });
+    return out;
+  }
+
+  function draw(el, fen, opts) {
+    opts = opts || {};
+    const pos = parse(fen);
+    const frag = document.createDocumentFragment();
+    for (let r = 8; r >= 1; r--) {
+      for (let f = 0; f < 8; f++) {
+        const sq = FILES[f] + r;
+        const d = document.createElement("div");
+        d.className = "sq " + ((f + r) % 2 === 1 ? "d" : "l");
+        if (sq === opts.from) d.classList.add("from");
+        if (sq === opts.to) d.classList.add("to");
+        if (opts.mark === sq) d.classList.add("mark");
+        const pc = pos[sq];
+        if (pc) {
+          const s = document.createElement("span");
+          s.className = "pc " + (pc === pc.toUpperCase() ? "w" : "b");
+          s.textContent = GLYPH[pc.toLowerCase()] + "︎";
+          d.appendChild(s);
+        }
+        if (f === 0) { const c = document.createElement("span"); c.className = "coord r"; c.textContent = r; d.appendChild(c); }
+        if (r === 1) { const c = document.createElement("span"); c.className = "coord f"; c.textContent = FILES[f]; d.appendChild(c); }
+        frag.appendChild(d);
+      }
+    }
+    el.replaceChildren(frag);
+  }
+
+  draw(document.getElementById("heroBoard"), DATA.start, { mark: "h8" });
+
+  // Main line explorer
+  const PROVED = new Set([1, 3, 5, 6]);
+  const line = DATA.line;
+  let cur = 0;
+  function status(i) {
+    const e = line[i]; const blackMove = (i % 2) === 1; const n = (i + 1) / 2;
+    if (!blackMove) return null;
+    if (PROVED.has(n)) return "s-proved";
+    if (e.mates.length > 1) return "s-dual";
+    return "s-unique";
+  }
+  const listEl = document.getElementById("moveList");
+  function buildList() {
+    const parts = [];
+    for (let i = 1; i < line.length; i += 2) {
+      const n = (i + 1) / 2;
+      parts.push(`<div class="no">${n}</div>`);
+      parts.push(`<div class="mv" data-i="${i}"><span>…${line[i].san}</span><i class="dot ${status(i)}"></i></div>`);
+      parts.push(line[i + 1] ? `<div class="mv" data-i="${i + 1}"><span>${line[i + 1].san}</span></div>` : `<div></div>`);
+    }
+    listEl.innerHTML = parts.join("");
+    listEl.querySelectorAll(".mv").forEach(el => el.addEventListener("click", () => go(+el.dataset.i)));
+  }
+  function describe(i) {
+    if (i === 0) return `<h3>Start</h3><p>Black to move with 34 legal moves. White threatens <code>Rh8#</code>, defended by the queen on h5 along the h-file. Press ▶ to play the line.</p>`;
+    const e = line[i]; const n = Math.ceil(i / 2);
+    if (i % 2 === 0) return `<h3>${n}. ${e.san}</h3><p>White had ${e.replies.length} legal ${e.replies.length === 1 ? "reply" : "replies"}: <code>${e.replies.join(", ")}</code>. The certificate covers all of them.</p>`;
+    const st = status(i);
+    const chip = st === "s-proved" ? `<span class="chip s-proved">Proved only move</span>` : st === "s-dual" ? `<span class="chip s-dual">Duals</span>` : `<span class="chip s-unique">Only mating move (engine)</span>`;
+    let body = `<p>${e.legal} legal moves. Mating moves: ${e.mates.map(m => `<code>${m[0]}</code> (#${m[1]})`).join(", ")}. ${e.whiteMates} moves lose to a forced White mate.`;
+    if (e.other.length) body += ` Not lost and not mating: ${e.other.map(o => `<code>${o[0]}</code> (${o[1] === 0 ? "0.00, a draw" : (o[1] > 0 ? "+" : "") + (o[1] / 100).toFixed(2)})`).join(", ")}.`;
+    body += `</p>`;
+    if (st === "s-proved") body += `<p>Lean proves this is the only move after which Black still has a forced win.</p>`;
+    else if (e.other.length && st !== "s-dual") body += `<p>A uniqueness proof would need to show these alternatives are not Black wins. A mate tree can't do that.</p>`;
+    return `<h3>${n}… ${e.san} ${chip}</h3>${body}`;
+  }
+  function go(i) {
+    cur = Math.max(0, Math.min(line.length - 1, i));
+    const e = line[cur];
+    draw(document.getElementById("lineBoard"), e.fen, { from: e.from, to: e.to });
+    listEl.querySelectorAll(".mv").forEach(el => el.classList.toggle("cur", +el.dataset.i === cur));
+    document.getElementById("plyPanel").innerHTML = describe(cur);
+    document.getElementById("plyLabel").textContent = `ply ${cur} / ${line.length - 1}`;
+  }
+  document.getElementById("first").onclick = () => go(0);
+  document.getElementById("prev").onclick = () => go(cur - 1);
+  document.getElementById("next").onclick = () => go(cur + 1);
+  document.getElementById("last").onclick = () => go(line.length - 1);
+  buildList(); go(0);
+
+  // Refutation explorer
+  const alts = DATA.alts.slice().sort((a, b) => (b.mate > 0) - (a.mate > 0) || Math.abs(b.mate) - Math.abs(a.mate));
+  const btns = document.getElementById("altButtons");
+  let altSel = 0, altPly = 0;
+  btns.innerHTML = alts.map((a, i) => `<button data-i="${i}" class="${a.mate > 0 ? "best" : ""}">${a.move}<span class="n">${a.mate > 0 ? "#" + a.mate : "#" + (-a.mate)}</span></button>`).join("");
+  btns.querySelectorAll("button").forEach(b => b.addEventListener("click", () => pickAlt(+b.dataset.i)));
+  function showAltPly(k) {
+    const a = alts[altSel]; altPly = k;
+    const fr = a.frames[k];
+    draw(document.getElementById("altBoard"), fr.fen, { from: fr.from, to: fr.to });
+    document.querySelectorAll("#altPv span").forEach(s => s.classList.toggle("cur", +s.dataset.k === k));
+  }
+  function pickAlt(i) {
+    altSel = i; const a = alts[i];
+    btns.querySelectorAll("button").forEach(b => b.classList.toggle("cur", +b.dataset.i === i));
+    document.getElementById("altPv").innerHTML = a.frames.map((f, k) => {
+      const num = k % 2 === 0 ? `${Math.floor(k / 2) + 1}…` : `${Math.floor(k / 2) + 2}.`;
+      return `<span data-k="${k}">${num}${f.san}</span>`;
+    }).join(" ");
+    document.querySelectorAll("#altPv span").forEach(s => s.addEventListener("click", () => showAltPly(+s.dataset.k)));
+    document.getElementById("altNote").textContent = a.mate > 0
+      ? "The key. Black mates in 11; the certificate branches on every White reply."
+      : `White mates in ${-a.mate}. This is the engine's main line; the Lean certificate covers every Black defense along the way.`;
+    showAltPly(a.frames.length - 1);
+  }
+  pickAlt(alts.findIndex(a => a.move === "Qb6"));
+})();
+</script>
