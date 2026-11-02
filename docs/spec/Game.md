@@ -1,22 +1,33 @@
 # Specification of `Chess.Game`
 
-Role: English specification writer (Round 1); translator (Rounds 2–3); refiner (Round 4).
-Date: 2026-11-01.
-Status: Round 4. The English was revised after the Round 1 critique (Round 2), where the
+Role: English specification writer (Round 1); translator (Rounds 2–3); refiner (Round 4);
+interface round (Round 5, ROADMAP step 5); review fixes of Round 5 (Round 6).
+Date: 2026-11-01 (Rounds 1–4); 2026-11-02 (Rounds 5–6).
+Status: Round 7 (2026-11-02: the only-move root glue L4.19–L4.22, and §4.1/§4.3 on what a generated file must write; documentation fixes from its review, the same day, in §4.1 and §4.3 only; then two docstring fixes, the same day: the `Forces` docstring in §1 and the interface paragraph of the `Cert` module docstring). The English was revised after the Round 1 critique (Round 2), where the
 translation into `Chess/Game.lean` forced a decision (Round 3), and after the Round 3 critique of
-the Lean (Round 4); `docs/process/Game.md` lists every change. Items marked *(checked)* were elaborated in Lean 4.28; since Round 3 every item of this spec
-is in the library file and builds.
+the Lean (Round 4); `docs/process/Game.md` lists every change. Items marked *(checked)* were
+elaborated in Lean 4.28; since Round 3 every item of this spec is in the library and builds.
+Round 5 split the file at the trust boundary (Game review C2), gave the only-move checker a
+certificate structure, froze the interface of generated certificate files, and added diagnostics
+for rejected certificates (Game review C3). Round 6 fixed the review of Round 5: two glue lemmas
+for defender nodes (L4.17, L4.18), so that the frozen interface needs no lemma of core, and a
+per-node test of the glue (T20).
 
-File: `Chess/Game.lean`. Depends on: `Chess.Basic`, and only for `Color`, `Color.other` and the
+Files (since Round 5): `Chess/Game.lean`, which only imports the five files of the module and
+carries the module docstring; `Chess/Game/Defs.lean` (§1), `Chess/Game/Laws.lean` (§2),
+`Chess/Game/Search.lean` (§3), `Chess/Game/Cert.lean` (§4) and `Chess/Game/Examples.lean` (§5).
+Depends on: `Chess.Basic`, and only for `Color`, `Color.other` and the
 lemmas `Color.other_other`, `Color.self_ne_other`, `Color.eq_other_iff_ne` (Basic §1). Core only.
 Refines DESIGN §6.1–§6.3, §7.2, §7.4 and §8.5. Theorem targets: **G1** (the interface; the chess
 instance is `ChessGame`'s), **G2**, **G3**, **G4**, **G5**, **G6**, **O2** (`wins_iff`), **C1**,
 **C2**, **C3**, **C7** (THEOREMS §4–§6), and the definition of O8 (`Forces`, with `Forces.trans`).
 
 What a reader must trust from this module: the definitions of §1 only (`Game`, `DefenderMated`,
-`Forces`, `WinsIn`, `Wins`, `MateIn`, `OnlyWinningMove`). Everything in §2–§4 is either a theorem
-or an executable function with a soundness theorem (and, for `searchForces` and `checkForces`,
-completeness).
+`Forces`, `WinsIn`, `Wins`, `MateIn`, `OnlyWinningMove`), which are exactly the file
+`Chess/Game/Defs.lean`. Everything in §2–§4 is either a theorem or an executable function with a
+soundness theorem (and, for `searchForces` and `checkForces`, completeness); the diagnostics of
+§4.2 are executable functions that no theorem about a game uses. For chess, since G8, a headline
+can be read through `Chess.Spec.Winning` instead, and then not even §1 is trusted.
 
 ---
 
@@ -36,7 +47,8 @@ The conventions of `docs/spec/Basic.md` §0 apply, with these specifics:
   `propext`, `Classical.choice`, `Quot.sound`.
 - The Lean docstring of a lemma is its English column. A leading tag such as "(G3)" or "(O8)",
   naming the THEOREMS entry the lemma realizes, is moved to the end of the docstring as
-  "THEOREMS G3." (so the docstring opens with the claim).
+  "THEOREMS G3." (so the docstring opens with the claim). A qualifier inside the tag is dropped:
+  "(C1, general)" becomes "THEOREMS C1." (L4.1, L4.4).
 - **Lemma IDs are stable labels, not positions.** A lemma added in a later round gets the next
   free number of its section and is placed where it reads best; L2.19–L2.25 are such.
 - **Binding rule.** Every name a docstring mentions is bound in the signature before the colon,
@@ -50,14 +62,17 @@ The conventions of `docs/spec/Basic.md` §0 apply, with these specifics:
   only that line, immediately before its first lemma. In `section Search` the definitions D3.1–D3.4
   come first (they bind every argument explicitly), then the `variable` line, then the lemmas and
   instances. In particular `[DecidablePred T]` appears only in the sections that need it
-  (Search, Certificates): Lean includes an instance variable in every theorem that mentions `T`,
+  (Search, Certificates, Diagnostics): Lean includes an instance variable in every theorem that mentions `T`,
   and warns when it is unused *(checked)*.
 - Namespaces: everything lives in `namespace Chess`. `Game` and everything about games live in
-  `namespace Chess.Game`; the certificate type is `Chess.Cert`. Names below are given relative to
-  `Chess`. `namespace Game` opens right after D1.2 and closes before D4.1 (`Cert`); a second
-  `namespace Game` opens after D4.1 and holds the rest of the file. `section Laws`,
-  `section Search`, `section Certificates`, `section PerNode` and `namespace Toy` sit inside
-  `namespace Game`.
+  `namespace Chess.Game`; the certificate types are `Chess.Cert`, `Chess.OnlyMoveCert` and
+  `Chess.Cert.Rejection`. Names below are given relative to `Chess`. Every file opens
+  `namespace Chess`. In `Defs.lean`, `namespace Game` opens right after D1.2. `Laws.lean`,
+  `Search.lean` and `Examples.lean` open `namespace Game` at once. `Cert.lean` declares D4.1 and
+  D4.5 in `namespace Chess`, opens `namespace Game` for D4.2–D4.4 and the sections Certificates
+  and PerNode, closes it to declare D4.6 (`Cert.Rejection`), and opens it again for D4.7–D4.9 and
+  the section Diagnostics. `section Laws`, `section Search`, `section Certificates`,
+  `section PerNode`, `section Diagnostics` and `namespace Toy` sit inside `namespace Game`.
 - **The game is always the first explicit argument of a definition** (`G.WinsIn a n x`), so dot
   notation reads naturally and `G` is never inferred from a state (DESIGN §6.1). In theorems `G` is
   implicit, from the `variable` line.
@@ -71,7 +86,7 @@ Letters (used consistently in every statement):
   used.
 - `T U` targets (`G.State → Prop`); `n n' k` budgets (`Nat`).
 - `c next` certificates (`Cert G.Move`); `rs refs` lists of pairs `(move, certificate)`; `r` one
-  such pair.
+  such pair; `oc` an only-move certificate (`OnlyMoveCert G.Move`).
 - `atk` a Boolean test on states (`G.State → Bool`), the argument of the defender rule of §3.
 - `h …` hypotheses: `ht` about a turn, `hm` about membership in a move list, `hne` non-emptiness,
   `hdiff` that two moves differ (`m' ≠ m`), `hnm` that a state is not mated, `hl` a move-list
@@ -98,28 +113,84 @@ stalemated side has not lost, a bounded search that decides forcing, and a certi
 mirroring the three rules, whose acceptance proves forcing. Chess is one instance, defined in
 `Chess.ChessGame`; nothing here mentions a piece.
 
-### Contents of the file, in order
+### Files and their contents, in order
 
-1. Module docstring, text below.
-2. `/-! ## Games -/` (trusted): D1.1–D1.9.
-3. `/-! ## Laws -/`, `section Laws`: L2.1–L2.25, under the subheadings `/-! ### … -/` of §2.1–§2.5
-   ("One step of forcing, read backwards", "Budgets and targets", "Winning", "Exact distance", "The
-   only winning move").
-4. `/-! ## Search -/`, `section Search`: D3.1–D3.4, L3.1–L3.5, the instances D3.5–D3.6.
-5. `/-! ## Certificates -/`: D4.1 (outside `namespace Game`), D4.2–D4.4, then
-   `section Certificates` (L4.1–L4.7) and, under `/-! ### Lemmas for per-node kernel proofs -/`,
-   `section PerNode` (L4.8–L4.10).
-6. `/-! ## Examples -/`, `namespace Toy`: D5.1–D5.2 and the tests T1–T14.
+Since Round 5 the module is six files, split at the trust boundary as Game review C2 proposed.
+Every declaration kept its name, its docstring and its place relative to its neighbours; only the
+module docstrings are new.
 
-### The module docstring, word for word
+1. `Chess/Game.lean`: `import` of the five files below, and the module docstring of `Chess.Game`.
+   Downstream code imports `Chess.Game` as before.
+2. `Chess/Game/Defs.lean` (imports `Chess.Basic`): its module docstring; `/-! ## Games -/`
+   (trusted): D1.1–D1.9.
+3. `Chess/Game/Laws.lean` (imports `Defs`): its module docstring; `/-! ## Laws -/`,
+   `section Laws`: L2.1–L2.25, under the subheadings `/-! ### … -/` of §2.1–§2.5 ("One step of
+   forcing, read backwards", "Budgets and targets", "Winning", "Exact distance", "The only winning
+   move").
+4. `Chess/Game/Search.lean` (imports `Laws`): its module docstring; `/-! ## Search -/`,
+   `section Search`: D3.1–D3.4, L3.1–L3.5, the instances D3.5–D3.6.
+5. `Chess/Game/Cert.lean` (imports `Laws`, and **not** `Search`): its module docstring;
+   `/-! ## Certificates -/`: D4.1 and D4.5 (outside `namespace Game`), D4.2–D4.4, then
+   `section Certificates` (L4.1–L4.3, L4.15, L4.4–L4.7) and, under
+   `/-! ### Lemmas for per-node kernel proofs -/`, `section PerNode` (L4.8–L4.10, L4.12,
+   L4.17–L4.22); `/-! ## Diagnostics -/`: D4.6 (outside `namespace Game`), D4.7–D4.9, then
+   `section Diagnostics` (L4.13–L4.14, L4.16).
+6. `Chess/Game/Examples.lean` (imports `Search` and `Cert`): its module docstring;
+   `/-! ## Examples -/`, `namespace Toy`: D5.1–D5.2 and the tests T1–T20.
+
+`Search` and `Cert` do not import each other: a certificate is checked without the search, and the
+search is not needed to state or check any certificate. `Examples` is imported by `Chess/Game.lean`,
+so the toy tests still run on every library build (they cost well under a second).
+
+### The module docstrings, word for word
+
+`Chess/Game.lean`:
 
 ```
 # Game
 
 Two-player games with alternating turns, forced play into a target, forced wins, a bounded search
 that decides them, and a certificate checker whose acceptance proves them. Chess is one instance
-(`Chess.ChessGame`); nothing here mentions a piece. Specification: `docs/spec/Game.md`; every
-definition below carries the docstring given there.
+(`Chess.ChessGame`); nothing here mentions a piece. This file imports the five files of the
+module, which follow the trust boundary. Specification: `docs/spec/Game.md`; every definition
+carries the docstring given there.
+
+## Main definitions
+
+* `Game`, `Game.Forces`, `Game.WinsIn`, `Game.Wins`, `Game.MateIn`, `Game.OnlyWinningMove`: games,
+  forcing and winning (`Chess.Game.Defs`).
+* `Game.searchForces`: bounded search, by structural recursion on the budget
+  (`Chess.Game.Search`).
+* `Cert`, `OnlyMoveCert`, `Game.checkWin`, `Game.checkOnlyMove`: certificates proposed by an
+  untrusted search, and their checkers; `Game.firstFailure` and its variants say where a rejected
+  certificate fails (`Chess.Game.Cert`).
+
+## Main statements
+
+* The laws G2–G4, G6, O2 and O8 (`Chess.Game.Laws`).
+* `searchForces_iff` (G5): the search decides forcing.
+* `checkWin_sound`, `checkOnlyMove_sound` (C1, C7), and the glue for proofs that check one node at
+  a time (C3).
+
+## Implementation notes
+
+* Only `Chess.Game.Defs` is trusted. `Chess.Game.Laws` proves facts about its definitions;
+  `Chess.Game.Search` and `Chess.Game.Cert` are executable, each with a soundness theorem, and
+  import `Laws` but not each other; `Chess.Game.Examples` holds two toy games and the tests.
+* `Chess.Game.Cert` is the interface of generated certificate files; its module docstring says
+  which names they may use.
+```
+
+`Chess/Game/Defs.lean`:
+
+```
+# Game: definitions
+
+The trusted part of `Chess.Game`: two-player games with alternating turns, forcing play into a
+target within a budget, and the notions of winning built on it. The other files of `Chess.Game`
+prove laws about these definitions, decide them, or check claims about them; none of them is
+trusted. Specification: `docs/spec/Game.md` §1; every definition below carries the docstring given
+there.
 
 ## Main definitions
 
@@ -133,20 +204,6 @@ definition below carries the docstring given there.
   within some budget, and in exactly a budget.
 * `Game.OnlyWinningMove x m`: `m` is available, the side to move wins after it, and after no other
   available move.
-* `Game.searchForces`: bounded search, by structural recursion on the budget.
-* `Cert`, `Game.checkForces`, `Game.checkWin`, `Game.checkOnlyMove`: certificates proposed by an
-  untrusted search, and their checkers.
-
-## Main statements
-
-* `Forces.mono` (G3), `WinsIn.not_both` and `Wins.not_both` (G4), `winsIn_zero_iff` and
-  `not_wins_of_stalemate` (G2), `MateIn.unique` (G6), `OnlyWinningMove.wins_iff` (O2).
-* `wins_attacker_iff`, `wins_defender_iff`: one step of winning, read backwards (for G9, G10).
-* `searchForces_iff` (G5): the search decides forcing; hence `Forces` and `MateIn` are decidable.
-* `checkForces_sound`, `checkForces_complete`, `checkWin_sound`, `checkWin_complete` (C1, C2), and
-  `checkOnlyMove_sound` (C7).
-* `Forces.move_of_play_eq`, `Forces.replies_of_moves_eq`, `Forces.of_play_eq` (C3): the glue for
-  proofs that check one node at a time.
 
 ## Implementation notes
 
@@ -156,16 +213,134 @@ definition below carries the docstring given there.
 * The defender rule demands at least one available move, so a stalemated defender has not lost.
 * Budgets count attacker moves only, the mating move included, and are always counted at the state
   of the claim.
-* Only the definitions of the section "Games" are trusted. The search and the checkers are
-  executable Boolean functions, each with a soundness theorem; the search and `checkForces` are
-  also complete.
+* For chess, `Chess.Spec.Winning` states the same notions with the rules alone, and
+  `Chess.ChessGame.Fide` proves the two readings equivalent (THEOREMS G8), so a chess headline can
+  be read without this file.
+```
+
+`Chess/Game/Laws.lean`:
+
+```
+# Game: laws
+
+What follows from the definitions of `Chess.Game.Defs`: one step of forcing read backwards,
+monotonicity in the budget and composition of forcing, that no state is won by both sides, that
+stalemate is no loss, exact distance to mate, and the only winning move. Specification:
+`docs/spec/Game.md` §2.
+
+## Main statements
+
+* `Forces.mono` (G3), `Forces.trans` (O8), `WinsIn.not_both` and `Wins.not_both` (G4),
+  `winsIn_zero_iff` and `not_wins_of_stalemate` (G2), `MateIn.unique` (G6),
+  `OnlyWinningMove.wins_iff` (O2).
+* `forces_attacker_zero_iff`, `forces_attacker_succ_iff`, `forces_defender_iff`: one step of
+  forcing, read backwards.
+* `wins_attacker_iff`, `wins_defender_iff`: one step of winning, read backwards (for G9, G10).
+* `OnlyWinningMove.of_refuted`: a move is the only winning move when it wins and the opponent wins
+  after every other move. `OnlyWinningMove.winsIn_play`: a fastest win starts with it.
+
+## Implementation notes
+
+* Every proof goes by cases or induction on `Forces`; nothing here computes.
+```
+
+`Chess/Game/Search.lean`:
+
+```
+# Game: search
+
+A bounded search that decides forcing for any decidable target, by structural recursion on the
+budget, and its correctness. Specification: `docs/spec/Game.md` §3.
+
+## Main definitions
+
+* `Game.defenderStep`: the defender rule, given a test for the attacker nodes below it.
+* `Game.attackerForces`, `Game.defenderForced`: the search for the side to move, as attacker and
+  as defender.
+* `Game.searchForces`: the search for a given attacker.
+
+## Main statements
+
+* `searchForces_iff` (G5): the search decides forcing.
+* `Forces.decidable`, `MateIn.decidable`: hence forcing within a budget, and mating in exactly a
+  budget, are decidable, and `decide` proves small claims.
+
+## Implementation notes
+
+* The search branches over every attacker move at every attacker node, so it is feasible only for
+  small budgets. Long wins are proved by certificates (`Chess.Game.Cert`), which do not depend on
+  this file.
+```
+
+`Chess/Game/Cert.lean`:
+
+```
+# Game: certificates
+
+Certificates for forcing claims, proposed by an untrusted search; the Boolean checkers that replay
+them against the rules of the game; the lemmas that turn acceptance into the claim; and diagnostics
+that say where a rejected certificate fails. This file is the interface of generated certificate
+files. Specification: `docs/spec/Game.md` §4; every definition below carries the docstring given
+there.
+
+## Main definitions
+
+* `Cert`: a finite strategy tree for the attacker.
+* `OnlyMoveCert`: the evidence for an only-move claim, a win certificate after the best move and
+  refutations of the other moves.
+* `Game.checkForces`, `Game.checkWin`, `Game.checkOnlyMove`: the checkers.
+* `Game.firstFailure`, `Game.firstFailureWin`, `Game.firstFailureOnlyMove`: the path to the first
+  node a checker rejects, and the condition that fails there (`Cert.Rejection`).
+
+## Main statements
+
+* `checkForces_sound`, `checkForces_complete`, `checkWin_sound`, `checkWin_complete` (C1, C2), and
+  `checkOnlyMove_sound` (C7).
+* `Forces.of_play_eq`, `Forces.move_of_play_eq`, `Forces.replies_of_moves_eq`,
+  `Forces.forall_mem_cons`, `Forces.forall_mem_nil`, `WinsIn.of_mated`, and for the root of an
+  only-move claim `OnlyWinningMove.of_moves_eq`, `.refuted_nil`, `.refuted_cons_self`,
+  `.refuted_cons` (C3): the glue for proofs that check one node at a time.
+* `firstFailure_eq_none_iff`, `firstFailureOnlyMove_eq_none_iff`: the diagnostics find a failure
+  exactly when the checkers reject.
+
+## Implementation notes
+
+* Nothing here is trusted. The checkers are executable Boolean functions with soundness theorems,
+  and `checkForces` is also complete. The diagnostics are for reading a rejected certificate; no
+  theorem about a game depends on them.
+* The generated-file interface (`docs/spec/Game.md` §4.3). A generated certificate file states its
+  claims with the definitions of `Chess.Game.Defs` (for chess, their abbreviations in
+  `Chess.ChessGame`), writes its certificates as values of `Cert` and `OnlyMoveCert`, and proves
+  its claims only through `checkWin_sound`, `checkOnlyMove_sound`, the glue lemmas above,
+  `OnlyWinningMove.of_refuted`, literal checkpoint equations for `Position.play` and
+  `Game.chess.moves` proved by `decide +kernel`, and for chess `mem_chess_moves`. It never applies
+  a constructor of `Forces`, so the constructors may change. The test file `ChessTest.Interface`
+  records the signatures of these names.
+```
+
+`Chess/Game/Examples.lean`:
+
+```
+# Game: examples
+
+Two take-away games on which every definition of `Chess.Game` runs instantly under `decide`, and
+tests of the search, the checkers and the diagnostics on them. Specification: `docs/spec/Game.md`
+§5.
+
+## Main definitions
+
+* `Game.Toy.takeAway`, `Game.Toy.takeAwayStalemate`: take one or two counters from a pile.
+
+## Main statements
+
+* `Game.Toy.takeAway_onlyWinningMove`: an only winning move, proved through the only-move checker.
 ```
 
 ---
 
 ## 1. Section "Games" (trusted)
 
-No `variable` line: every definition binds its arguments explicitly.
+File `Chess/Game/Defs.lean`. No `variable` line: every definition binds its arguments explicitly.
 
 ### D1.1 `structure Game : Type 1`
 
@@ -256,7 +431,7 @@ inductive Forces (G : Game) (a : Color) (T : G.State → Prop) : Nat → G.State
 Docstring: "`G.Forces a T n x`: from state `x`, the attacker `a` can force play into the target `T`
 using at most `n` moves of its own, whatever the defender `a.other` does. Defender moves cost
 nothing. `T` is tested at every state, `x` included. A defender to move with no available move
-outside `T` escapes, and play that never reaches `T` is never forced."
+escapes unless the state is in `T`, and play that never reaches `T` is never forced."
 
 Constructor docstrings:
 
@@ -323,6 +498,8 @@ in particular there is none when two promotions both win."
 ---
 
 ## 2. Section "Laws"
+
+File `Chess/Game/Laws.lean`.
 
 ```lean
 variable {G : Game} {a : Color} {T U : G.State → Prop} {n n' k : Nat} {x y : G.State}
@@ -470,6 +647,8 @@ not a third conjunct of L4.7, because it holds of every only winning move, certi
 
 ## 3. Section "Search"
 
+File `Chess/Game/Search.lean`.
+
 The search decides `Forces` for a decidable target (G5). It is bounded minimax by **structural
 recursion on the budget**, with no fuel and no well-founded recursion, so `decide`, `decide +kernel`
 and `rfl` can all run it (lean-eng §7). It is feasible only for small budgets: a negative fact
@@ -581,6 +760,8 @@ dominated by the largest budget, so checking every `k < n` instead of only `n - 
 
 ## 4. Section "Certificates"
 
+File `Chess/Game/Cert.lean`, which imports `Chess.Game.Laws` but not `Chess.Game.Search`.
+
 An untrusted search (Stockfish through a script) proposes a **certificate**, a finite strategy tree.
 A Boolean checker replays it against the rules of the game; the soundness theorem turns acceptance
 into the forcing claim. If a certificate checks, the claim holds. No certificate for a false claim
@@ -607,7 +788,7 @@ Constructor docstrings:
   state after the defender's move `m`. Pairs for moves that are not available, and repeated moves,
   are allowed; every pair must check."
 
-`Cert` is declared after `end Game` and before a second `namespace Game` that holds the checkers.
+`Cert` is declared in `namespace Chess`, before the `namespace Game` that holds the checkers.
 No `Repr` is derived: certificates live in generated files and are never printed by Lean.
 
 ### D4.2 `Game.checkForces` and `Game.checkReplies`, by mutual structural recursion
@@ -658,43 +839,89 @@ is one `simp only [checkForces, Bool.and_eq_true, decide_eq_true_eq]` per node (
 `G.checkForces a (G.DefenderMated a) n x c`.
 Docstring: "Checks certificate `c` for the claim `G.WinsIn a n x`."
 
-### D4.4 `Game.checkOnlyMove (G : Game) (n k : Nat) (x : G.State) (best : G.Move) (next : Cert G.Move) (refs : List (G.Move × Cert G.Move)) : Bool`
+### D4.4 `Game.checkOnlyMove (G : Game) (n : Nat) (x : G.State) (best : G.Move) (oc : OnlyMoveCert G.Move) : Bool`
 
 ```lean
-G.checkWin (G.turn x) n x (.move best next) &&
-  decide (∀ m ∈ G.moves x, m ≠ best → m ∈ refs.map Prod.fst) &&
-  refs.all fun r => G.checkWin (G.turn x).other k (G.play x r.1) r.2
+G.checkWin (G.turn x) n x (.move best oc.next) &&
+  decide (∀ m ∈ G.moves x, m ≠ best → m ∈ oc.refs.map Prod.fst) &&
+  oc.refs.all fun r => G.checkWin (G.turn x).other oc.refBudget (G.play x r.1) r.2
 ```
 *(checked)*
 
 Docstring: "Accepts only if `best` is the only winning move at `x` and the side to move wins
 within `n` moves, counted at `x` with `best` included. Accepting proves both
-(`checkOnlyMove_sound`). `next` is the win certificate for the state after `best`; `refs` gives,
-for every other available move, a certificate that the opponent wins within `k` moves after it. It
-rejects true claims in which some alternative does not lose but only draws: this checker cannot
-certify those, and refutations by traps are future work."
+(`checkOnlyMove_sound`). `oc.next` is the win certificate for the state after `best`; `oc.refs`
+gives, for every other available move, a certificate that the opponent wins within `oc.refBudget`
+moves after it. It rejects true claims in which some alternative does not lose but only draws:
+this checker cannot certify those, and refutations by traps are future work."
 
 The budget convention is DESIGN §7.2's: **`n` is counted at `x`, before the best move**, like
 every budget in the library. So for the Gotham position the headline uses `n = 11` with no
 subtraction anywhere.
 
+**Arguments and certificate (Round 5).** The arguments are the claim: the state, the best move
+and the budget of the win, which all occur in the conclusion of `checkOnlyMove_sound`. The
+evidence is one `OnlyMoveCert` value (D4.5): the certificate after `best`, the refutation budget
+and the refutations. The refutation budget is not part of the claim (the conclusion only says that
+alternatives do not win), so it belongs to the certificate; this is the same principle as design
+choice 12, which keeps the claim's budget out of `Cert`. Until Round 5 the checker took six
+positional arguments, `checkOnlyMove n k x best next refs`, two of them adjacent budgets (Game
+review C3.3). A generated call now names every part of the evidence:
+
+```lean
+Game.chess.checkOnlyMove 11 gotham (uci "b7b2")
+  { next := …, refBudget := 10, refs := [(uci "a5a2", …), …] } = true
+```
+
+### D4.5 `structure OnlyMoveCert (M : Type) : Type` (namespace `Chess`, not `Chess.Game`)
+
+```lean
+structure OnlyMoveCert (M : Type) where
+  next : Cert M
+  refBudget : Nat
+  refs : List (M × Cert M)
+  deriving Inhabited
+```
+*(checked)*
+
+Docstring: "The evidence for an only-move claim, proposed by an untrusted search and checked by
+`Game.checkOnlyMove`: a win certificate for the state after the best move, and refutations of the
+other moves. The claim itself (the state, the best move and the budget of the win) is not part of
+it. It is data; it is never trusted."
+Field docstrings:
+
+- `next`: "The win certificate for the state after the best move."
+- `refBudget`: "The budget within which the opponent wins after each refuted move; one budget
+  serves them all."
+- `refs`: "For each refuted move `m`, a certificate that the opponent wins within `refBudget` after
+  `m`. Pairs for moves that are not available, and repeated moves, are allowed; every pair must
+  check."
+
+Declared right after D4.1, in `namespace Chess`. A future kind of refutation (spec open item 1:
+traps, Stage 3) can be a new field with a default value, so a file generated before it still
+elaborates.
+
 ### Lemmas of §4
 
 ```lean
 section Certificates
-variable {G : Game} {a : Color} {T : G.State → Prop} [DecidablePred T] {n k : Nat}
-  {x : G.State} {best : G.Move} {c next : Cert G.Move} {refs : List (G.Move × Cert G.Move)}
+variable {G : Game} {a : Color} {T : G.State → Prop} [DecidablePred T] {n : Nat}
+  {x : G.State} {best : G.Move} {c : Cert G.Move} {oc : OnlyMoveCert G.Move}
 ```
+
+(Round 5: `k`, `next` and `refs` left the line with the old signature of `checkOnlyMove`; `oc`
+joined it.)
 
 | ID | English | Lean | Tag |
 |---|---|---|---|
 | L4.1 | (C1, general) If the checker accepts a certificate, the attacker forces the target. | `theorem checkForces_sound : ∀ {n : Nat} {x : G.State} (c : Cert G.Move), G.checkForces a T n x c = true → G.Forces a T n x` | core *(checked)* |
 | L4.2 | If every pair of a reply list checks, the attacker forces the target after each listed move. | `theorem checkReplies_sound : ∀ {n : Nat} {x : G.State} (rs : List (G.Move × Cert G.Move)), G.checkReplies a T n x rs = true → ∀ r ∈ rs, G.Forces a T n (G.play x r.1)` | core *(checked)* |
 | L4.3 | If after each move of `ms` some certificate checks with budget `n`, then some reply list whose moves are exactly `ms`, in the same order, checks. | `theorem exists_checkReplies (ms : List G.Move) (h : ∀ m ∈ ms, ∃ c, G.checkForces a T n (G.play x m) c = true) : ∃ rs : List (G.Move × Cert G.Move), rs.map Prod.fst = ms ∧ G.checkReplies a T n x rs = true` | core |
+| L4.15 | Every pair of a reply list checks exactly when each certificate in it checks after its move. | `theorem checkReplies_eq_true_iff {rs : List (G.Move × Cert G.Move)} : G.checkReplies a T n x rs = true ↔ ∀ r ∈ rs, G.checkForces a T n (G.play x r.1) r.2 = true` | core (Round 5, for L4.16) *(checked)* |
 | L4.4 | (C2, general) Every true forcing claim has an accepted certificate: the format is not lossy. | `theorem checkForces_complete (w : G.Forces a T n x) : ∃ c, G.checkForces a T n x c = true` | core |
 | L4.5 | (C1) If the checker accepts a win certificate, the attacker wins within the budget. | `theorem checkWin_sound (h : G.checkWin a n x c = true) : G.WinsIn a n x` | core |
 | L4.6 | (C2) Every forced win has an accepted win certificate. | `theorem checkWin_complete (w : G.WinsIn a n x) : ∃ c, G.checkWin a n x c = true` | core |
-| L4.7 | (C7) If the only-move checker accepts, `best` is the only winning move at `x` and the side to move wins within `n`. | `theorem checkOnlyMove_sound (h : G.checkOnlyMove n k x best next refs = true) : G.OnlyWinningMove x best ∧ G.WinsIn (G.turn x) n x` | core |
+| L4.7 | (C7) If the only-move checker accepts, `best` is the only winning move at `x` and the side to move wins within `n`. | `theorem checkOnlyMove_sound (h : G.checkOnlyMove n x best oc = true) : G.OnlyWinningMove x best ∧ G.WinsIn (G.turn x) n x` | core |
 
 L4.1 and L4.2 are one `mutual … end` block of theorems by structural recursion on the certificate
 and on the list (not `induction`, which does not handle the nested inductive). Their binders are
@@ -712,6 +939,7 @@ Proofs.
   `(m, c) :: rs`, `List.mem_cons.1` and the two recursive calls.
 - L4.3: induction on `ms`. `[]`: `⟨[], rfl, rfl⟩`. `m :: ms`: from `h m` obtain `c`, from the
   induction hypothesis obtain `rs`, and take `(m, c) :: rs`.
+- L4.15: induction on `rs`, each case `simp [checkReplies]` (with the induction hypothesis).
 - L4.4: `induction w`. `goal`: `⟨.goal, by simp [checkForces, h]⟩`. `move`: from the induction
   hypothesis `⟨c, hc⟩`, take `.move m c`. `replies`: L4.3 on `G.moves x` with the induction
   hypothesis gives `rs` with `rs.map Prod.fst = G.moves x`; take `.replies rs`; coverage holds
@@ -721,8 +949,8 @@ Proofs.
   From the first conjunct: L4.5 gives `G.WinsIn (G.turn x) n x`; and `cases n` on it (budget 0
   makes `checkForces` false) with one more `simp only [checkWin, checkForces, …]` gives
   `best ∈ G.moves x` and the win after `best` with budget `n - 1`. For each other available move,
-  coverage finds its pair in `refs` and L4.5 gives the opponent's win after it. L2.19 assembles
-  `OnlyWinningMove x best`.
+  coverage finds its pair in `oc.refs` and L4.5 gives the opponent's win within `oc.refBudget`
+  after it. L2.19 assembles `OnlyWinningMove x best`.
 
 ### 4.1 Lemmas for per-node kernel proofs (C3)
 
@@ -739,42 +967,302 @@ variable {G : Game} {a : Color} {T : G.State → Prop} {n : Nat} {x y : G.State}
 
 | ID | English | Lean | Tag |
 |---|---|---|---|
-| L4.8 | If playing `m` at `x` gives `y`, every forcing fact about `y` holds after `m`. | `theorem Forces.of_play_eq (h : G.play x m = y) (w : G.Forces a T n y) : G.Forces a T n (G.play x m)` | core |
-| L4.9 | Attacker node: if the attacker is to move, `m` is available, playing it gives `y`, and `y` is forced within `n`, then `x` is forced within `n + 1`. | `theorem Forces.move_of_play_eq (ht : G.turn x = a) (hm : m ∈ G.moves x) (h : G.play x m = y) (w : G.Forces a T n y) : G.Forces a T (n + 1) x` | core |
-| L4.10 | Defender node: if the defender is to move, its available moves are the explicit non-empty list `m :: ms`, and each of them leads to a state forced within `n`, then `x` is forced within `n`. | `theorem Forces.replies_of_moves_eq (ht : G.turn x = a.other) (hl : G.moves x = m :: ms) (h : ∀ m' ∈ m :: ms, G.Forces a T n (G.play x m')) : G.Forces a T n x` | core |
+| L4.8 | (C3) If playing `m` at `x` gives `y`, every forcing fact about `y` holds after `m`. | `theorem Forces.of_play_eq (h : G.play x m = y) (w : G.Forces a T n y) : G.Forces a T n (G.play x m)` | core |
+| L4.9 | (C3) Attacker node: if the attacker is to move, `m` is available, playing it gives `y`, and `y` is forced within `n`, then `x` is forced within `n + 1`. | `theorem Forces.move_of_play_eq (ht : G.turn x = a) (hm : m ∈ G.moves x) (h : G.play x m = y) (w : G.Forces a T n y) : G.Forces a T (n + 1) x` | core |
+| L4.10 | (C3) Defender node: if the defender is to move, its available moves are the explicit non-empty list `m :: ms`, and each of them leads to a state forced within `n`, then `x` is forced within `n`. | `theorem Forces.replies_of_moves_eq (ht : G.turn x = a.other) (hl : G.moves x = m :: ms) (h : ∀ m' ∈ m :: ms, G.Forces a T n (G.play x m')) : G.Forces a T n x` | core |
+| L4.12 | (C3) Mate leaf: if the defender is to move and has been mated, the attacker wins within any budget. | `theorem WinsIn.of_mated (ht : G.turn x = a.other) (h : G.Mated x) : G.WinsIn a n x` | core (Round 5) *(checked)* |
+| L4.17 | (C3) The end of a defender's move list: every move of the empty list leads to a state forced within `n`. | `theorem Forces.forall_mem_nil : ∀ m' ∈ ([] : List G.Move), G.Forces a T n (G.play x m')` | core (Round 6) *(checked)* |
+| L4.18 | (C3) One move of a defender's move list: if `m` leads to a state forced within `n`, and so does every move of `ms`, then so does every move of `m :: ms`. | `theorem Forces.forall_mem_cons (h : G.Forces a T n (G.play x m)) (t : ∀ m' ∈ ms, G.Forces a T n (G.play x m')) : ∀ m' ∈ m :: ms, G.Forces a T n (G.play x m')` | core (Round 6) *(checked)* |
+| L4.19 | (C3) Only-move root: if `a` is to move, its available moves are the explicit list `ms`, `m` is one of them, `a` wins within `n` after `m`, and after every other move of `ms` the opponent wins within some budget, then `m` is the only winning move at `x`. | `theorem OnlyWinningMove.of_moves_eq (ht : G.turn x = a) (hl : G.moves x = ms) (hm : m ∈ ms) (w : G.WinsIn a n (G.play x m)) (hr : ∀ m' ∈ ms, m' ≠ m → ∃ k, G.WinsIn a.other k (G.play x m')) : G.OnlyWinningMove x m` | core (Round 7) *(checked)* |
+| L4.20 | (C3) The end of a list of alternatives: every move of the empty list other than `m` is refuted. | `theorem OnlyWinningMove.refuted_nil : ∀ m' ∈ ([] : List G.Move), m' ≠ m → ∃ k, G.WinsIn a k (G.play x m')` | core (Round 7) *(checked)* |
+| L4.21 | (C3) The move `m` itself in a list of alternatives: if every move of `ms` other than `m` is refuted, so is every move of `m :: ms` other than `m`. | `theorem OnlyWinningMove.refuted_cons_self (t : ∀ m' ∈ ms, m' ≠ m → ∃ k, G.WinsIn a k (G.play x m')) : ∀ m' ∈ m :: ms, m' ≠ m → ∃ k, G.WinsIn a k (G.play x m')` | core (Round 7) *(checked)* |
+| L4.22 | (C3) One refuted move in a list of alternatives: if the opponent `a` wins within `k` after `m'`, and every move of `ms` other than `m` is refuted, then so is every move of `m' :: ms` other than `m`. | `theorem OnlyWinningMove.refuted_cons {m' : G.Move} {k : Nat} (w : G.WinsIn a k (G.play x m')) (t : ∀ m'' ∈ ms, m'' ≠ m → ∃ k, G.WinsIn a k (G.play x m'')) : ∀ m'' ∈ m' :: ms, m'' ≠ m → ∃ k, G.WinsIn a k (G.play x m'')` | core (Round 7) *(checked)* |
 
 Proofs: L4.8 `h ▸ w`; L4.9 `.move m ht hm (h ▸ w)`; L4.10
-`.replies ht (by rw [hl]; exact List.cons_ne_nil _ _) (by rw [hl]; exact h)`.
+`.replies ht (by rw [hl]; exact List.cons_ne_nil _ _) (by rw [hl]; exact h)`; L4.12
+`.goal ⟨ht, h⟩`; L4.17 `fun _ h => nomatch h`; L4.18 `List.forall_mem_cons.2 ⟨h, t⟩`;
+L4.19 `subst ht hl` and L2.19; L4.20 `fun _ h => nomatch h`; L4.21
+`List.forall_mem_cons.2 ⟨fun h => (h rfl).elim, t⟩`; L4.22 `List.forall_mem_cons.2 ⟨fun _ => ⟨k, w⟩, t⟩`.
 `end PerNode`.
+
+L4.19–L4.22 (Round 7) close the last gap of the interface, at the root of an only-move claim. L2.19
+needs, for every available move other than the best, a win of the opponent; a per-node proof has
+these as separate theorems, one per alternative, and must gather them over the explicit move list
+without core's list lemmas, as L4.17 and L4.18 do at defender nodes. In L4.20–L4.22 `a` is the
+side that refutes, that is, the opponent of the side to move at `x`. L4.19 takes `ht : G.turn x =
+a` and states everything with `a` instead of `G.turn x`, so that a generated file's types say
+`.black` and `.white` and the elaborator never has to evaluate the turn of a position written
+`fen "…"`. The generated shape at the root, for chess (as in `ChessDemo/GothamCert.lean`):
+
+```lean
+theorem refutes_c3b2 : WinsIn .white 1 (Puzzles.gotham.play c3b2) :=
+  Game.Forces.of_play_eq (by decide +kernel : Puzzles.gotham.play c3b2 = p57) w62
+…
+theorem moves_root : Game.chess.moves Puzzles.gotham = [c3b2, …, b7b2, …] := by decide +kernel
+theorem refutations : ∀ m ∈ Game.chess.moves Puzzles.gotham, m ≠ b7b2 →
+    ∃ k, WinsIn .white k (Puzzles.gotham.play m) := by
+  rw [moves_root]
+  exact
+    Game.OnlyWinningMove.refuted_cons refutes_c3b2 <|
+    …
+    Game.OnlyWinningMove.refuted_cons_self <|
+    …
+    Game.OnlyWinningMove.refuted_nil
+theorem onlyWinningMove : OnlyWinningMove Puzzles.gotham b7b2 :=
+  Game.OnlyWinningMove.of_moves_eq (by decide +kernel) moves_root (by decide +kernel)
+    (Game.Forces.of_play_eq play_best w60) (moves_root ▸ refutations)
+```
+
+The refutations are a theorem of their own, stated over `Game.chess.moves`, because they say more
+than the only-move claim: a forced mate for the opponent after each alternative, where
+`OnlyWinningMove` says only that the side to move does not win (review of Round 7;
+`ChessDemo.gotham_refuted` restates it). The move-list equation `moves_root` carries them between
+`Game.chess.moves Puzzles.gotham` and the explicit list, with `rw` in one direction and `▸` in the
+other; neither names a lemma of core.
+
+L4.12 (Round 5) closes the gap at mate leaves: before it, a per-node proof of a mate leaf had to
+apply the constructor `Forces.goal` (the prototype's `WinsIn.mate`), which the frozen interface of
+§4.3 forbids. L4.17 and L4.18 (Round 6) close the gap at defender nodes, described below. Their tag
+"THEOREMS C3." follows L4.8–L4.10. (L4.11 is not reused: it was the Round 1 label of what is now
+L2.19.)
 
 L4.10 needs `G.moves x = m :: ms` **exactly**: the literal list the generator returns, in its order
 and with any repetitions, since `hl` is proved by evaluation. Choice 16's "order carries no
 meaning" is about the definitions; it does not let a per-node proof list the moves in another
 order. The only-move root of a per-node proof is L2.19.
 
-A per-node defender proof walks the explicit list with core's `List.forall_mem_cons`
-(`(∀ x ∈ a :: l, p x) ↔ p a ∧ ∀ x ∈ l, p x`) and `List.forall_mem_nil`
-(`∀ (p : α → Prop) (x : α), x ∈ [] → p x`) *(both checked to exist with these shapes)*, so this
-module needs no `all_cons`/`all_nil` of its own. The intended generated shape, for chess (names as
-in `ChessGame`), is:
+A per-node defender proof discharges the hypothesis `h` of L4.10 by walking the explicit list:
+L4.18 once per move, and L4.17 at the end, as the prototype did with its `all_cons` and `all_nil`
+(`chess-lean/ChessProof/Cert.lean`). Round 5 left this step to core's `List.forall_mem_cons` and
+`List.forall_mem_nil`, which the interface of §4.3 does not list. Round 6 added L4.17 and L4.18
+(review of Round 5) so that the interface is self-sufficient: a generated file names no lemma of
+core, whose names and shapes may change with the toolchain, and such a change is then absorbed by
+the two proofs above instead of by every generated file. The intended generated shape, for chess
+(names as in `ChessGame`), is:
 
 ```lean
+theorem w4 : Chess.WinsIn .black 9 p3 :=
+  Game.WinsIn.of_mated (by decide +kernel) (by decide +kernel)
 theorem w5 : Chess.WinsIn .black 10 p2 :=
-  Game.Forces.move_of_play_eq rfl (by decide) (by decide : p2.play m₁ = p3) w4
+  Game.Forces.move_of_play_eq (by decide +kernel) (mem_chess_moves.2 (by decide +kernel))
+    (by decide +kernel : p2.play m₁ = p3) w4
 theorem w6 : Chess.WinsIn .black 10 p1 :=
-  Game.Forces.replies_of_moves_eq rfl (by decide : legalMoves p1 = [m₂]) <|
-    List.forall_mem_cons.2 ⟨Game.Forces.of_play_eq (by decide : p1.play m₂ = p2) w5,
-      List.forall_mem_nil _⟩
+  Game.Forces.replies_of_moves_eq (by decide +kernel)
+    (by decide +kernel : Game.chess.moves p1 = [m₂]) <|
+    Game.Forces.forall_mem_cons (Game.Forces.of_play_eq
+      (by decide +kernel : p1.play m₂ = p2) w5) <|
+    Game.Forces.forall_mem_nil
 ```
 
-At an attacker node the membership `m ∈ G.moves x` may be proved by any means. For chess, once
-`mem_legalMoves` is proved, `mem_legalMoves.2 (by decide : Legal p m)` decides legality of one move
-(about 0.27 s) instead of generating all of them (about 3.2 s; MoveGen review C2). This is why
-`Game` has no `isLegal` field (design choice 13).
+(Round 7: this is the shape `scripts/gen_cert.py` emits. Two details of it are forced by the
+elaborator, not by the kernel. The move list is written `Game.chess.moves p1`, not `legalMoves p1`,
+and an attacker's move is shown available with `mem_chess_moves` (`Chess.ChessGame.Fide`), not
+`mem_legalMoves`: the hypotheses of L4.9 and L4.10 then match the proofs' types syntactically.
+Written with `legalMoves`, the two sides are equal only after unfolding the projection
+`Game.chess.moves`, and the elaborator's unifier unfolded `legalMoves p1` first and began to
+evaluate it, which ran out of heartbeats on positions with many moves.)
+
+T20 (§5) is this shape on the toy game, a whole win proved node by node with the glue alone, and
+it is checked on every build.
+
+At an attacker node the membership `m ∈ G.moves x` may be proved by any means. For chess,
+`mem_chess_moves.2 (by decide +kernel : Legal p m)` decides legality of one move (about 0.1 s on
+the Gotham certificate's nodes, Round 7) instead of generating all of them (about 0.5 s after
+MoveGen's Round 5 king-safety change, 1.5 s before it; MoveGen review C2). This is why `Game` has no
+`isLegal` field (design choice 13).
+
+### 4.2 Diagnostics (Round 5)
+
+When a certificate of a few hundred nodes is rejected, `checkWin … = false` says nothing about
+where. The diagnostics answer that: they walk the certificate as the checker does and return the
+path of moves from the root to the first node that fails, with the condition that fails there.
+They are executable functions for `#eval` and `#guard`, run by a person or by the generator after a
+rejection. No theorem about a game uses them, so they are not trusted (Game review C3.4). They are
+nevertheless proved to agree with the checkers (L4.13, L4.16): a diagnostic returns `none` exactly
+when its checker accepts, so it never reports a failure in an accepted certificate, nor misses one
+in a rejected certificate.
+
+#### D4.6 `inductive Cert.Rejection (M : Type) : Type` (namespace `Chess`, after `end Game`)
+
+```lean
+inductive Cert.Rejection (M : Type) where
+  | notInTarget
+  | noBudget
+  | notAttackerTurn
+  | unavailable (m : M)
+  | notDefenderTurn
+  | noDefenderMove
+  | missingReply (m : M)
+  | unrefuted (m : M)
+  deriving Repr, DecidableEq
+```
+*(checked)*
+
+Docstring: "Why a checker rejects a certificate: the condition of `Game.checkForces` or
+`Game.checkOnlyMove` that fails at the node where checking stops. Reported by `Game.firstFailure`
+and `Game.firstFailureOnlyMove`; it is never trusted."
+Constructor docstrings:
+
+- `notInTarget`: "A `goal` leaf at a state that is not in the target."
+- `noBudget`: "A `move` node with no budget left."
+- `notAttackerTurn`: "A `move` node at a state where the attacker is not to move."
+- `unavailable`: "A `move` node whose move `m` is not available."
+- `notDefenderTurn`: "A `replies` node at a state where the defender is not to move."
+- `noDefenderMove`: "A `replies` node at a state where the defender has no available move."
+- `missingReply`: "A `replies` node with no pair for the available move `m`."
+- `unrefuted`: "An only-move certificate with no refutation of the available move `m`, which is not
+  the best move."
+
+One constructor per conjunct of D4.2 and per coverage conjunct of D4.4, in the checker's order.
+`Repr` is derived so that `#eval` prints a rejection, `DecidableEq` so that tests compare one by
+`decide` or `#guard`. The name lives under `Cert` (`Chess.Cert.Rejection`) because it describes a
+certificate, not a game.
+
+#### D4.7 `Game.firstFailure` and `Game.firstFailureReplies`, by mutual structural recursion
+
+```lean
+mutual
+def firstFailure (G : Game) (a : Color) (T : G.State → Prop) [DecidablePred T] :
+    Nat → G.State → Cert G.Move → Option (List G.Move × Cert.Rejection G.Move)
+  | _, x, .goal => if T x then none else some ([], .notInTarget)
+  | 0, _, .move _ _ => some ([], .noBudget)
+  | k + 1, x, .move m next =>
+      if G.turn x ≠ a then some ([], .notAttackerTurn)
+      else if m ∉ G.moves x then some ([], .unavailable m)
+      else match G.firstFailure a T k (G.play x m) next with
+        | some (ms, r) => some (m :: ms, r)
+        | none => none
+  | n, x, .replies rs =>
+      if G.turn x ≠ a.other then some ([], .notDefenderTurn)
+      else if G.moves x = [] then some ([], .noDefenderMove)
+      else match (G.moves x).find? (fun m => m ∉ rs.map Prod.fst) with
+        | some m => some ([], .missingReply m)
+        | none => G.firstFailureReplies a T n x rs
+
+def firstFailureReplies (G : Game) (a : Color) (T : G.State → Prop) [DecidablePred T] :
+    Nat → G.State → List (G.Move × Cert G.Move) → Option (List G.Move × Cert.Rejection G.Move)
+  | _, _, [] => none
+  | n, x, (m, c) :: rs =>
+      match G.firstFailure a T n (G.play x m) c with
+      | some (ms, r) => some (m :: ms, r)
+      | none => G.firstFailureReplies a T n x rs
+end
+```
+*(checked: structural recursion through the `match`es is accepted, as for D4.2. Round 6: the
+`move` case prefixes the path with a `match`, as `firstFailureReplies` does, where Round 5 used
+`Option.map`; the two definitions now build the path the same way.)*
+
+Docstring of `firstFailure`: "Finds where certificate `c` for the claim `G.Forces a T n x` fails:
+`none` if `checkForces` accepts it (`firstFailure_eq_none_iff`), and otherwise `some (ms, r)`,
+where `ms` is the path of moves from `x` to the first node that fails and `r` is the first
+condition of `checkForces` that fails there. Conditions are tested in the order `checkForces`
+states them, and the pairs of a reply list in their order. An untrusted diagnostic, for reading a
+rejected certificate."
+
+Docstring of `firstFailureReplies`: "Finds the first pair `(m, c)` of `rs` whose certificate `c`
+fails with budget `n` in the state after `m` is played at `x`: `none` if every pair checks, and
+otherwise the path from `x`, starting with `m`, to the first node that fails, and the condition
+that fails there."
+
+The binding rule of §0 applies as for D4.2: the docstrings name the arguments after the colon.
+
+#### D4.8 `Game.firstFailureWin (G : Game) (a : Color) (n : Nat) (x : G.State) (c : Cert G.Move) : Option (List G.Move × Cert.Rejection G.Move)`
+
+`G.firstFailure a (G.DefenderMated a) n x c`, as `checkWin` is `checkForces` at the target of
+winning.
+Docstring: "Finds where certificate `c` for the claim `G.WinsIn a n x` fails, as `firstFailure`
+does for the target of `checkWin`."
+
+#### D4.9 `Game.firstFailureOnlyMove (G : Game) (n : Nat) (x : G.State) (best : G.Move) (oc : OnlyMoveCert G.Move) : Option (List G.Move × Cert.Rejection G.Move)`
+
+```lean
+match G.firstFailureWin (G.turn x) n x (.move best oc.next) with
+| some f => some f
+| none =>
+  match (G.moves x).find? (fun m => m ≠ best ∧ m ∉ oc.refs.map Prod.fst) with
+  | some m => some ([], .unrefuted m)
+  | none =>
+    G.firstFailureReplies (G.turn x).other (G.DefenderMated (G.turn x).other) oc.refBudget x
+      oc.refs
+```
+*(checked)*
+
+Docstring: "Finds where `checkOnlyMove n x best oc` fails: `none` if it accepts
+(`firstFailureOnlyMove_eq_none_iff`), and otherwise the path of moves from `x` to the first node
+that fails and the condition that fails there. It tests, in this order, the win certificate
+`.move best oc.next`, that every other available move has a refutation, and the refutations of
+`oc.refs` in their order; the path to a node of a refutation starts with the refuted move. An
+untrusted diagnostic, for reading a rejected certificate."
+
+The refutations are walked with `firstFailureReplies`, since checking every pair of `oc.refs` for
+the opponent with budget `oc.refBudget` is what `checkReplies` does (L4.15 connects the two
+readings). One ambiguity is accepted: if `oc.refs` lists `best` itself and its refutation fails,
+the path starts with `best`, like a path inside the win certificate. A refutation of the best move
+can never check once the win certificate checks (`not_both`), so such a pair is a generator bug
+either way.
+
+#### Lemmas of §4.2
+
+```lean
+section Diagnostics
+variable {G : Game} {a : Color} {T : G.State → Prop} [DecidablePred T] {n : Nat}
+  {x : G.State} {best : G.Move} {oc : OnlyMoveCert G.Move}
+```
+
+| ID | English | Lean | Tag |
+|---|---|---|---|
+| L4.13 | The diagnostic finds no failure exactly when the checker accepts. | `theorem firstFailure_eq_none_iff : ∀ {n : Nat} {x : G.State} (c : Cert G.Move), G.firstFailure a T n x c = none ↔ G.checkForces a T n x c = true` | sanity *(checked)* |
+| L4.14 | The diagnostic finds no failing pair exactly when every pair of the reply list checks. | `theorem firstFailureReplies_eq_none_iff : ∀ {n : Nat} {x : G.State} (rs : List (G.Move × Cert G.Move)), G.firstFailureReplies a T n x rs = none ↔ G.checkReplies a T n x rs = true` | sanity *(checked)* |
+| L4.16 | The diagnostic of the only-move checker finds no failure exactly when that checker accepts. | `theorem firstFailureOnlyMove_eq_none_iff : G.firstFailureOnlyMove n x best oc = none ↔ G.checkOnlyMove n x best oc = true` | sanity *(checked)* |
+
+L4.13 and L4.14 are one `mutual … end` block by structural recursion, like L4.1–L4.2. Proofs: at
+`goal` and at a `move` node, `by_cases` on each tested condition and `simp` with the definitions;
+when both conditions of a `move` node hold, rewrite with the recursive call and split on the
+diagnostic of the child (Round 6, since the `move` case is now a `match`). At a `replies` node,
+after the turn and emptiness tests, rewrite with the equations `firstFailure.eq_4` and
+`checkForces.eq_4` and split on the `find?`: if it finds a missing move `m`,
+`List.mem_of_find?_eq_some` and `List.find?_some` refute coverage; if it finds none,
+`List.find?_eq_none` gives coverage and L4.14 finishes. L4.14: on `(m, c) :: rs`, split on
+`firstFailure … c` and use L4.13. L4.16: unfold, split in the same way on the win certificate and on
+the `find?`, and finish with L4.14 and L4.15. All three are [kernel]: `#print axioms` shows
+`propext`, `Classical.choice`, `Quot.sound` (recorded in the axioms ledger).
+
+### 4.3 The generated-file interface (Round 5, frozen)
+
+Generated certificate files are the largest Lean of the project and are regenerated rather than
+edited, so the names and argument orders they use are expensive to change (Game review C3). From
+Round 5 on, a generated file:
+
+- states its claims with the definitions of §1, or for chess with their abbreviations
+  `Chess.WinsIn`, `Chess.OnlyWinningMove`, and names its positions with `fen "…"` (or with a name
+  from `Chess.Puzzles`) and its moves either with `uci "…"` or with literal `Move` definitions
+  named by their UCI writing; in the second case, the file that restates the claim proves
+  `uci "…" = lit` by `decide +kernel` (as `ChessDemo.uci_b7b2` does) (review of Round 7: the
+  first generated file, `ChessDemo.GothamCert`, uses literals, which are cheap for the kernel and
+  the elaborator);
+- writes its certificates as values of `Cert` and `OnlyMoveCert` (D4.1, D4.5);
+- proves its claims only through `checkWin_sound`, `checkOnlyMove_sound` (with `checkWin` and
+  `checkOnlyMove` evaluated by `decide +kernel`), the per-node glue L4.8–L4.10, L4.12 and
+  L4.17–L4.22, and
+  `OnlyWinningMove.of_refuted` (L2.19), with literal checkpoints `Position.play`/`Game.chess.moves`
+  equations (used directly, or by `rw` and `▸`, as at the only-move root of §4.1) and, for chess,
+  `mem_chess_moves` (Round 7; `mem_legalMoves` until then, see §4.1);
+- **never applies a constructor of `Forces`** (`Forces.goal`, `Forces.move`, `Forces.replies`).
+  The constructors' argument order is then free to change; the glue lemmas are the stable API.
+
+The names and signatures of this interface are recorded, with their binder names (a generated file
+may pass an argument by name, as in `checkWin_sound (c := …)`), in the test file
+`ChessTest/Interface.lean` (`docs/spec/ChessTest.Interface.md`), so that a change fails
+`lake build ChessTest`. A deliberate change updates that file in the same change and is logged in
+`docs/process/Game.md`. The name `Cert` is kept (Game review C3.2: decided, not renamed); its
+siblings of later stages (survival certificates C4, traps C5, ranked sets C6) will be new types
+beside it, not renamings of it.
 
 ---
 
 ## 5. Section "Examples"
+
+File `Chess/Game/Examples.lean`, which imports `Chess.Game.Search` and `Chess.Game.Cert`.
 
 Toy games make every definition run instantly under `decide`, so these tests stay in the library
 file (they add well under a second). They live in `namespace Chess.Game.Toy`.
@@ -811,7 +1299,11 @@ Black to move it is a stalemate."
 
 Each is an `example` (or, for T11, a `theorem` named as given, so it can be cited). An `example`
 carries no docstring; each test is preceded by a line comment `-- Tn. …` giving its "What it
-tests" column in a sentence. T11 has a docstring, since it is a named theorem. T6 is two examples,
+tests" column in a sentence (T18 and T19 are groups of examples under one comment; T20 is one
+example whose proof has one `have` per node). T11 has a
+docstring, since it is a named theorem: "Taking one counter is the only winning move from a pile of
+4 with White to move, proved through the only-move checker (T11)." (Round 5: the text is now given
+here, Game review C9.) T6 is two examples,
 one by `decide +kernel` and one by `rfl`. All values were computed by hand, and since Round 3 every
 test elaborates in the library file against the proved lemmas.
 
@@ -825,16 +1317,27 @@ test elaborates in the library file against the proved lemmas.
 | T6 | `takeAway.checkWin .white 2 (.white, 4) (.move 1 (.replies [(1, .move 2 .goal), (2, .move 1 .goal)])) = true` | `by decide +kernel` and also `rfl` *(both checked)* | the checker accepts |
 | T7 | the same certificate with budget `1` `= false` | `by decide` *(checked)* | budget is enforced |
 | T8 | `takeAway.checkWin .white 2 (.white, 4) (.move 1 (.replies [(1, .move 2 .goal)])) = false` | `by decide` *(checked)* | a missing defender reply is rejected |
-| T9 | `takeAway.checkOnlyMove 2 1 (.white, 4) 1 (.replies [(1, .move 2 .goal), (2, .move 1 .goal)]) [(2, .move 2 .goal)] = true` | `by decide +kernel` *(checked)* | the only-move checker accepts |
+| T9 | `takeAway.checkOnlyMove 2 (.white, 4) 1 { next := .replies [(1, .move 2 .goal), (2, .move 1 .goal)], refBudget := 1, refs := [(2, .move 2 .goal)] } = true` | `by decide +kernel` *(checked)* | the only-move checker accepts |
 | T10 | the same with `refs := []` `= false` | `by decide` *(checked)* | an unrefuted alternative is rejected |
-| T11 | `theorem takeAway_onlyWinningMove : takeAway.OnlyWinningMove (.white, 4) 1` | `(checkOnlyMove_sound (by decide +kernel : takeAway.checkOnlyMove 2 1 (.white, 4) 1 (.replies [(1, .move 2 .goal), (2, .move 1 .goal)]) [(2, .move 2 .goal)] = true)).1`, the instance of T9 | soundness end to end |
+| T11 | `theorem takeAway_onlyWinningMove : takeAway.OnlyWinningMove (.white, 4) 1` | `(checkOnlyMove_sound (by decide +kernel : …T9's statement… = true)).1`, the instance of T9 | soundness end to end |
 | T12 | `¬ takeAwayStalemate.Wins .white (.black, 0)` | `not_wins_of_stalemate (by decide) rfl` | a stalemated defender has not lost |
 | T13 | `¬ takeAwayStalemate.WinsIn .white 3 (.black, 0)` | `by decide` *(checked)* | the search agrees on stalemate |
 | T14 | `takeAwayStalemate.WinsIn .black 1 (.black, 1)` | `by decide` *(checked)* | the variant still has mates |
+| T15 | `takeAway.firstFailureWin .white 2 (.white, 4) (T6's certificate) = none` | `by decide` *(checked)* | the diagnostic finds nothing wrong with an accepted certificate |
+| T16 | `takeAway.firstFailureWin .white 1 (.white, 4) (T6's certificate) = some ([1, 1], .noBudget)` | `by decide` *(checked)* | T7's rejection: after 1 and Black's 1, White has no budget left |
+| T17 | `takeAway.firstFailureWin .white 2 (.white, 4) (.move 1 (.replies [(1, .move 2 .goal)])) = some ([1], .missingReply 2)` | `by decide` *(checked)* | T8's rejection: Black's move 2 has no pair |
+| T18 | five one-node certificates: `.goal` at `(.white, 4)` gives `notInTarget`; `.move 1 .goal` at `(.black, 4)` gives `notAttackerTurn`; `.move 3 .goal` gives `unavailable 3`; `.replies []` at `(.white, 4)` gives `notDefenderTurn`; in `takeAwayStalemate`, `.replies []` at `(.black, 0)` gives `noDefenderMove` (all with path `[]`) | `by decide` *(checked)* | the other rejections of `checkForces` |
+| T19 | `firstFailureOnlyMove` on T9's certificate `= none`; on T10's `= some ([], .unrefuted 2)`; with `refs := [(2, .goal)]` `= some ([2], .notInTarget)` | `by decide` *(checked)* | the diagnostic of the only-move checker, including a path inside a refutation |
 
 Reading of T1/T9: from a pile of 4 with White to move, White takes 1, leaving 3; whatever Black
 takes, White takes the rest and Black faces an empty pile. Taking 2 instead leaves 2, and Black
 takes both and wins: that is the refutation in T9.
+
+| T20 | `takeAway.WinsIn .white 2 (.white, 4)`, T1's claim | node by node with L4.8–L4.10, L4.12, L4.17 and L4.18 only, each checkpoint by `decide` or `rfl` *(checked)* | the glue of §4.1 proves a win without a constructor of `Forces` or a lemma of core (§4.3) |
+
+Every constructor of `Cert.Rejection` is produced by some test of T16–T19. A test of the
+diagnostic on chess (a rejected mate in one) is in `ChessTest/ChessGame.lean`
+(`docs/spec/ChessGame.md` §6).
 
 ---
 
@@ -890,7 +1393,7 @@ takes both and wins: that is the refutation in T9.
     only over available moves. Dropping it removes a conjunct, one membership
     test per pair (each of which re-reads `G.moves x`), and a sentence from the docstring.
     Completeness is unaffected (L4.4 builds a reply list naming exactly the available moves).
-12. **Certificates carry no budgets and no states.** The budget belongs to the claim; states are
+12. **Certificates carry no budgets of the claim and no states.** The budget belongs to the claim; states are
     recomputed by `play`. `Cert` is generic in the move type (`Chess.Cert`, not `Game.Cert`), so a
     certificate for one game can be transported along a game morphism by mapping its moves (G7).
 13. **No `isLegal` field in `Game` (Stage 1).** DESIGN §6.1 left it optional. The per-node lemmas
@@ -898,11 +1401,12 @@ takes both and wins: that is the refutation in T9.
     `Legal` through `mem_legalMoves` at the cost of one legality decision. The field would help only
     the monolithic checker, whose cost is not the bottleneck; adding it later changes one
     construction (`Game.chess`) and the `move` conjunct of `checkForces`.
-14. **`checkOnlyMove` takes the certificate *after* the best move** (`next`) and checks
+14. **`checkOnlyMove` takes the certificate *after* the best move** (`oc.next` since Round 5) and checks
     `.move best next` at `x`. **Deviation from DESIGN §7.2**, which takes a certificate "whose root is
     `move best _`": building the root instead of inspecting it needs no root extractor and no
     conjunct saying "the root is `best`", and the budget is still counted at `x`.
-15. **One refutation budget `k` for all alternatives** (resolves DESIGN §10's open question). By
+15. **One refutation budget for all alternatives** (resolves DESIGN §10's open question; since
+    Round 5 the field `refBudget` of `OnlyMoveCert`, earlier the argument `k`). By
     monotonicity the maximum of the individual budgets works for all of them, so nothing is lost,
     and the refutation list keeps the same type as a reply list.
 16. **The trusted definitions read `moves x` only through membership and emptiness**, and the
@@ -940,6 +1444,39 @@ takes both and wins: that is the refutation in T9.
     `checkTrap`, not as a field of `Game`, by the principle of choice 13: do not burden every
     instance with what one checker needs.
 
+22. **The module is six files, split at the trust boundary** (Round 5, Game review C2). DESIGN §11
+    asked for a split past about 600 lines; the file had 748. The reason that matters is the reader:
+    the trusted definitions are now a file of their own (`Defs`, 130 lines with its module
+    docstring), and an auditor stops at its end. `Search` and `Cert` are siblings above `Laws`, so
+    neither builds the other. The umbrella `Chess/Game.lean` keeps every downstream
+    `import Chess.Game` working. The toy games stay in the library (`Examples`), as in Rounds 1–4,
+    because they cost well under a second and document the definitions; the larger tests of the
+    other modules are in `ChessTest`. One spec covers the six files, since a declaration's spec
+    entry did not change when it moved.
+23. **The only-move checker takes a certificate structure** (Round 5, Game review C3.3). The
+    arguments of `checkOnlyMove` are the claim, and the `OnlyMoveCert` is the evidence (D4.4). Three
+    gains: a generated call names every part (`refBudget := 10` cannot be confused with the
+    claim's `11`); the refutation budget moves into the evidence, where choice 12 puts everything
+    that is not part of the claim; and the type can grow a field (trap refutations, open item 1)
+    with a default value, without breaking files already generated. The cost was one breaking
+    change while no generated file existed.
+24. **One refutation budget, kept** (owner decision of ROADMAP §5, taken in Round 5). One budget
+    per alternative would make `refs` a list of triples and buy nothing that monotonicity does not
+    give (choice 15): the generator can always use the largest refutation length. With the
+    structure of choice 23, a per-alternative budget can still be added later as a field.
+25. **Diagnostics, proved to agree with the checkers** (Round 5, Game review C3.4). The review
+    asked for an untrusted function with no proof. The agreement theorems (L4.13, L4.14, L4.16,
+    with L4.15) cost about 80 lines, and they say that a diagnostic returns `none` exactly when
+    its checker accepts, and `some` exactly when it rejects. That the reported path and reason
+    are the right ones is tested (T16–T19, `ChessTest/ChessGame.lean`), not proved.
+    They do not make the diagnostics trusted: no theorem about a game uses them. They live beside
+    the checkers so that a change to a checker shows up as a broken agreement proof.
+26. **A frozen generated-file interface, checked by a test** (Round 5, Game review C3.1). §4.3
+    lists the names a generated file may use; `ChessTest/Interface.lean` records their
+    signatures with `#guard_msgs`, as `ChessTest/Axioms.lean` records axioms. The glue gained
+    L4.12 (mate leaf) in Round 5 and L4.17–L4.18 (walking a defender's move list) in Round 6, so
+    that no generated proof needs a constructor of `Forces` or a lemma of core.
+
 ---
 
 ## 7. Not in this module, and open items
@@ -947,7 +1484,8 @@ takes both and wins: that is the refutation in T9.
 Not here:
 
 - `Game.chess`, `Chess.WinsIn`, `Chess.MateIn`, `Chess.Wins`, `Chess.OnlyWinningMove`, the FEN and
-  UCI parsers: `Chess.ChessGame`.
+  UCI parsers: `Chess.ChessGame`. Named headline positions (`Puzzles.gotham`): `Chess.Puzzles`.
+- The record of the generated-file interface (§4.3): `ChessTest/Interface.lean`.
 - `Holds`, `Trap`, `holds_iff_not_forces`, the game value, `Optimal` (G9, G10, O0–O7): Stage 3.
   Nothing here needs to change for them: the `replies` guard is what the trap duality requires.
 - Survival and trap certificates (C4, C5), and the `Refutation` sum type of THEOREMS C7: Stage 3.
@@ -959,6 +1497,9 @@ Open, for the critic and the owner:
 1. **Stage 3 refutations.** When trap refutations arrive, does `checkOnlyMove` change its `refs`
    type to `List (G.Move × Refutation G)` (a breaking change to every generated only-move file), or
    does a second checker `checkOnlyMoveWithTraps` sit beside it? The draft prefers the second.
+   Since Round 5 there is a third way: a new field of `OnlyMoveCert` (say `traps`, defaulting to
+   `[]`) and one more conjunct in `checkOnlyMove`, which leaves files generated before it valid
+   (choice 23).
 2. **Kernel cost of the `replies` case.** It names `G.moves x` twice (non-emptiness, coverage). If a
    measurement on chess shows the kernel evaluating it twice, merge the two conjuncts into one
    `match G.moves x with | [] => false | ms => decide (∀ m ∈ ms, …)`, and adjust L4.1. The per-node
@@ -976,17 +1517,24 @@ Open, for the critic and the owner:
 
 ## 8. Checklist for the translator
 
-Status after Round 4 (all done; `lake build` succeeds with no warnings).
+Status after Round 6 (all done; `lake build` succeeds with no warnings).
 
-- [x] `import Chess.Basic` only.
-- [x] Section order as in "Contents of the file"; `Cert` between the two `namespace Game` blocks.
+- [x] `Chess/Game/Defs.lean` imports `Chess.Basic` only; `Laws` imports `Defs`; `Search` and
+      `Cert` import `Laws`; `Examples` imports `Search` and `Cert`; `Chess/Game.lean` imports the
+      five.
+- [x] Declarations in the files and order of "Files and their contents"; in `Cert.lean`, `Cert`
+      and `OnlyMoveCert` before the first `namespace Game`, `Cert.Rejection` between the two.
 - [x] Every docstring above, word for word, on its declaration, its fields and its constructors
-      (lemma tags moved to a trailing "THEOREMS …" sentence, §0).
+      (lemma tags moved to a trailing "THEOREMS …" sentence, §0), and the six module docstrings
+      word for word.
 - [x] Never a bare `Move` or `State` inside `namespace Game`.
-- [x] `[DecidablePred T]` only in `section Search` and `section Certificates`.
+- [x] `[DecidablePred T]` only in `section Search`, `section Certificates` and
+      `section Diagnostics`.
 - [x] No `sorry`; `#print axioms` for `checkWin_sound`, `checkOnlyMove_sound`, `searchForces_iff`
       shows at most `propext`, `Classical.choice`, `Quot.sound` (the output is recorded in
-      `docs/process/Game.md`, Rounds 3 and 4).
-- [x] The tests T1–T14 elaborate, and T6 also by `rfl`.
+      `docs/process/Game.md`, Rounds 3 and 4, and checked by `ChessTest/Axioms.lean`, which since
+      Round 5 also lists L4.12, L4.13 and L4.16, and since Round 6 L4.17 and L4.18).
+- [x] The tests T1–T20 elaborate, and T6 also by `rfl`.
+- [x] The names of §4.3 are recorded in `ChessTest/Interface.lean`.
 - [x] Record in `docs/process/Game.md` every place where the English had to change for the Lean to
       go through, and every [cheap] lemma that turned out not to be (none did).

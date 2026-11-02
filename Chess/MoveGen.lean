@@ -15,10 +15,12 @@ every definition below carries the docstring given there.
   `Board.upToBlocker`).
 * `candidates`, built from `pawnTargets`, `pawnMovesTo`, `Move.castle`, `candidatesFrom` and
   `castleCandidates`: the moves proposed by geometry alone.
-* `pseudoMoves`, `legalMoves`: the candidates filtered by `PseudoLegal`, then by king safety.
+* `pseudoMoves`, `legalMoves`: the candidates filtered by `PseudoLegal`, then by king safety,
+  tested by `kingSafeAfter` (with Position's `Board.squaresOf` and the super-piece test
+  `Board.superpieceAttackedBy`).
 * `perft`, `perftDivide`: the standard move-path counts, for comparison with other programs.
-* `legalMovesBySpec`, `agreesWithLegal`: the legal moves found from the specification alone, and the
-  test that the generator agrees with them.
+* `legalMovesBySpec`, `agreesWithLegal`: the legal moves found from the specification alone, and a
+  test that the generator agrees with them; since M4 only its no-repeat half (M5) is informative.
 
 ## Main statements
 
@@ -26,6 +28,8 @@ every definition below carries the docstring given there.
   `Slides` and `Reaches` describe.
 * (M4, soundness) `legalMoves_eq_filter`: `legalMoves p` is `candidates p` filtered by `Legal`;
   hence `legalMoves_sound`: every entry of `legalMoves p` is legal.
+* `Board.superpieceAttackedBy_iff`, `kingSafeAfter_iff`: the king-safety test is `Legal`'s second
+  conjunct on every pseudo-legal move (from Rules' R3 and M1).
 * (the cover) `PseudoLegal.mem_candidates`: every pseudo-legal move is a candidate.
 * (M2, M4) `mem_pseudoMoves`, `mem_legalMoves`: the generator lists exactly the pseudo-legal and
   the legal moves.
@@ -34,9 +38,8 @@ every definition below carries the docstring given there.
 * `candidates_ignores_epTarget`: the candidates do not read the en passant target.
 * `perft_one`, `sum_perftDivide`: perft of depth 1 counts `legalMoves`, and the divide adds up to
   perft of one more ply.
-* (M4, M5 at one position) `mem_legalMoves_of_agreesWithLegal`,
-  `nodup_legalMoves_of_agreesWithLegal`: where the test `agreesWithLegal` passes, `legalMoves`
-  lists exactly the legal moves, each once.
+* (M5 at one position) `nodup_legalMoves_of_agreesWithLegal`: where the test `agreesWithLegal`
+  passes, `legalMoves` lists no move twice.
 
 ## Implementation notes
 
@@ -53,7 +56,10 @@ every definition below carries the docstring given there.
 * `pseudoMoves` and `legalMoves` capture the `Decidable` instances of `Chess.Rules` when they are
   elaborated; a faster instance declared later does not change them. A speed-up goes either into
   Rules' instances or into this module as its own Boolean test proved equal to the Rules predicate
-  (design choice 10; which one is spec open item 4).
+  (design choice 10). King safety took the second way: `kingSafeAfter` looks from the squares
+  where the mover's king can stand outward, and lists the kings of the position before the move,
+  which, by the timings, the kernel appears to evaluate once per position instead of once per move
+  (the mechanism was not checked against the kernel's code).
 * The candidates read the board, the side to move and the castling rights, never the en passant
   target (design choice 13, `candidates_ignores_epTarget`).
 * Completeness (M4: every legal move is listed) goes through one geometric cover lemma,
@@ -205,9 +211,8 @@ def castleCandidates (p : Position) : List Move :=
   else []
 
 /-- The candidate moves of `p`: the candidate moves from every square, in square order (a1, b1, …,
-h8), then the candidate castling moves. They are meant to include every pseudo-legal move of `p`
-Every pseudo-legal move of `p` is a candidate (the cover, `PseudoLegal.mem_candidates`); in
-general some candidates are not pseudo-legal. -/
+h8), then the candidate castling moves. Every pseudo-legal move of `p` is a candidate (the cover,
+`PseudoLegal.mem_candidates`); in general some candidates are not pseudo-legal. -/
 def candidates (p : Position) : List Move :=
   Square.all.flatMap (candidatesFrom p) ++ castleCandidates p
 
@@ -243,10 +248,24 @@ end Candidates
 def pseudoMoves (p : Position) : List Move :=
   (candidates p).filter fun m => decide (PseudoLegal p m)
 
+/-- Whether colour `c` attacks `t` on `b`, tested from `t` outward (the super-piece method): for
+some kind `k`, one of the squares that a piece of kind `k` and colour `c.other` standing on `t`
+would reach holds a piece of kind `k` and colour `c`. -/
+def Board.superpieceAttackedBy (b : Board) (c : Color) (t : Square) : Bool :=
+  Kind.all.any fun k => (reachTargets k c.other b t).any fun s => decide (b s = some ⟨c, k⟩)
+
+/-- After move `m` in `p`, no king of the mover's colour is attacked. Only the squares where such a
+king can stand after a pseudo-legal move are tested: the destination of `m`, and the squares that
+held one in `p`. Each is tested by the super-piece method. -/
+def kingSafeAfter (p : Position) (m : Move) : Bool :=
+  !(m.dst :: p.board.squaresOf ⟨p.turn, .king⟩).any fun s =>
+    decide ((p.play m).board s = some ⟨p.turn, .king⟩) &&
+      (p.play m).board.superpieceAttackedBy p.turn.other s
+
 /-- The legal moves of `p`: the entries of `pseudoMoves p` after which no king of the mover's
 colour is attacked (FIDE 3.9.2). -/
 def legalMoves (p : Position) : List Move :=
-  (pseudoMoves p).filter fun m => decide (¬ (p.play m).board.KingAttacked p.turn)
+  (pseudoMoves p).filter (kingSafeAfter p)
 
 section Generator
 
@@ -261,12 +280,64 @@ theorem mem_pseudoMoves_iff_candidate :
 theorem pseudoMoves_sound (h : m ∈ pseudoMoves p) : PseudoLegal p m :=
   (mem_pseudoMoves_iff_candidate.mp h).2
 
+/-- **The super-piece test decides attack: `b.superpieceAttackedBy c t` is true exactly when `t` is
+attacked by colour `c`.** -/
+theorem Board.superpieceAttackedBy_iff {b : Board} {c : Color} {t : Square} :
+    b.superpieceAttackedBy c t = true ↔ b.AttackedBy c t := by
+  simp only [Board.superpieceAttackedBy, List.any_eq_true, decide_eq_true_eq, mem_reachTargets,
+    Board.attackedBy_iff_superpiece]
+  exact ⟨fun ⟨k, _, s, hr, hs⟩ => ⟨k, s, hs, hr⟩,
+    fun ⟨k, s, hs, hr⟩ => ⟨k, Kind.mem_all k, s, hr, hs⟩⟩
+
+/-- After a pseudo-legal move, a king of the mover's colour stands only on the move's destination
+or on a square that held one before the move. -/
+theorem PseudoLegal.eq_dst_or_of_play_board_eq_king {s : Square} (h : PseudoLegal p m)
+    (hs : (p.play m).board s = some ⟨p.turn, .king⟩) :
+    s = m.dst ∨ p.board s = some ⟨p.turn, .king⟩ := by
+  rcases Board.setMany_eq_or_mem p.board (m.boardWrites p) s with e | hw
+  · exact .inr (hs ▸ e.symm)
+  rw [← play_board, hs] at hw
+  simp only [Move.boardWrites, List.mem_append] at hw
+  rcases hw with (hw | hw) | hw
+  · -- The piece moves: the source is emptied, so a king can only arrive on the destination.
+    simp only [Move.pieceWrites, List.mem_cons, List.not_mem_nil, Prod.mk.injEq, or_false] at hw
+    rcases hw with ⟨-, h0⟩ | ⟨rfl, -⟩
+    · cases h0
+    · exact .inl rfl
+  · -- En passant writes only an empty square.
+    by_cases he : m.IsEnPassant p
+    · simp [Move.enPassantWrites_of_isEnPassant he] at hw
+    · simp [Move.enPassantWrites_of_not_isEnPassant he] at hw
+  · -- Castling writes an empty square and the rook that stood at home.
+    by_cases hc : ∃ w, m.IsCastle p w
+    · obtain ⟨w, hw'⟩ := hc
+      obtain ⟨-, ⟨-, hr, -⟩, -⟩ := (h.isCastle_iff (w := w)).mp hw'
+      rw [Move.castleWrites_of_isCastle hw'] at hw
+      simp [hr] at hw
+    · simp [Move.castleWrites_of_forall_not_isCastle (not_exists.mp hc)] at hw
+
+/-- **For a pseudo-legal move, `kingSafeAfter` decides king safety: it is true exactly when no
+king of the mover's colour is attacked after the move.** -/
+theorem kingSafeAfter_iff (h : PseudoLegal p m) :
+    kingSafeAfter p m = true ↔ ¬ (p.play m).board.KingAttacked p.turn := by
+  simp only [kingSafeAfter, Bool.not_eq_true', List.any_eq_false, Bool.and_eq_true,
+    decide_eq_true_eq, Board.superpieceAttackedBy_iff, not_and, Board.KingAttacked, not_exists]
+  refine ⟨fun hl s hs => hl s ?_ hs, fun hk s _ => hk s⟩
+  rcases h.eq_dst_or_of_play_board_eq_king hs with rfl | hb
+  · exact List.mem_cons_self
+  · exact List.mem_cons_of_mem _ (Board.mem_squaresOf.mpr hb)
+
 /-- **`legalMoves p` is `candidates p` filtered by `Legal`, in the same order.** -/
 theorem legalMoves_eq_filter (p : Position) :
     legalMoves p = (candidates p).filter fun m => decide (Legal p m) := by
   rw [legalMoves, pseudoMoves, List.filter_filter]
   -- `List.filter_filter` puts the outer test (king safety) first; `Legal` puts it second.
-  congr 1; funext m; simp [Legal, Bool.and_comm]
+  congr 1; funext m
+  by_cases h : PseudoLegal p m
+  · have hk : kingSafeAfter p m = !decide ((p.play m).board.KingAttacked p.turn) := by
+      rw [Bool.eq_iff_iff, kingSafeAfter_iff h]; simp
+    simp [Legal, h, hk]
+  · simp [Legal, h]
 
 /-- `m` is in `legalMoves p` exactly when it is a candidate of `p` and legal in `p`. -/
 theorem mem_legalMoves_iff_candidate : m ∈ legalMoves p ↔ m ∈ candidates p ∧ Legal p m := by
@@ -406,7 +477,8 @@ def legalMovesBySpec (p : Position) : List Move :=
 
 /-- The generator agrees with the specification on `p`: every move `legalMovesBySpec` finds is
 listed by `legalMoves`, and `legalMoves` lists no move twice. (That every listed move is legal is a
-theorem, `legalMoves_sound`.) -/
+theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, the first half holds at every position, so
+only the second, M5 at `p`, still tests anything.) -/
 def agreesWithLegal (p : Position) : Bool :=
   (legalMovesBySpec p).all (· ∈ legalMoves p) && decide (legalMoves p).Nodup
 
@@ -422,8 +494,8 @@ theorem mem_legalMovesBySpec : m ∈ legalMovesBySpec p ↔ Legal p m := by
     m.promo, ?_, rfl⟩
   cases m.promo <;> simp [PromoKind.mem_all]
 
-/-- **If the generator agrees with the specification on `p`, then `legalMoves p` lists exactly the
-legal moves of `p` (M4 at `p`).** -/
+/-- If the generator agrees with the specification on `p`, then `legalMoves p` lists exactly the
+legal moves of `p` (M4 at `p`). Superseded by `mem_legalMoves`, which needs no hypothesis. -/
 theorem mem_legalMoves_of_agreesWithLegal (h : agreesWithLegal p = true) :
     m ∈ legalMoves p ↔ Legal p m := by
   refine ⟨legalMoves_sound, fun hl => ?_⟩
@@ -439,81 +511,17 @@ theorem nodup_legalMoves_of_agreesWithLegal (h : agreesWithLegal p = true) :
 
 end Testing
 
-/-! ## Tests -/
+/-! ## Tests
 
-/-- The position after d7d5 from: White king e4 and pawn e5, Black king a8 and pawn d7, Black to
-move, no castling rights. So: White to move, in check from the pawn on d5, en passant target d6,
-no rights. -/
-def epCheckPos : Position :=
-  (⟨Board.empty
-      |>.set ⟨4, 3⟩ (some ⟨.white, .king⟩)  -- e4
-      |>.set ⟨4, 4⟩ (some ⟨.white, .pawn⟩)  -- e5
-      |>.set ⟨0, 7⟩ (some ⟨.black, .king⟩)  -- a8
-      |>.set ⟨3, 6⟩ (some ⟨.black, .pawn⟩), -- d7
-    .black, CastlingRights.none, none⟩ : Position).play
-    ⟨⟨3, 6⟩, ⟨3, 4⟩, none⟩  -- d7d5
+The tests of this module are in `ChessTest/MoveGen.lean`, and the six standard perft positions in
+`ChessTest/Perft.lean` (`lake build ChessTest`). The checks below stay here as documentation; they
+are cheap. -/
 
-/-- `promoPos` after b7a8=N: White's pawn has captured Black's a8 rook and become a knight; Black
-to move, Black's kingside right only. -/
-def promoKnightPos : Position := promoPos.play ⟨⟨1, 6⟩, ⟨0, 7⟩, some .knight⟩  -- b7a8=N
-
--- The two positions are what their docstrings say ("So: …").
-#guard epCheckPos.turn == .white && decide (InCheck epCheckPos) &&
-  epCheckPos.epTarget == some ⟨3, 5⟩ &&  -- d6
-  epCheckPos.castling.letters == "-"
-#guard promoKnightPos.turn == .black && promoKnightPos.castling.letters == "k"
-
--- The initial position: 20 legal moves, 400 after two plies.
-example : (legalMoves Position.initial).length = 20 := by decide +kernel
+-- The initial position: 20 legal moves, 400 after two plies, and agreement with `Legal`.
+#guard (legalMoves Position.initial).length == 20
 #guard perft 2 Position.initial == 400
-#guard ((perftDivide 1 Position.initial).map (·.2)).sum == 400
-
--- Fool's mate, through the generator: no listed move, so checkmate (decided by `checkmate_iff`).
-example : legalMoves foolsMate = [] := by decide +kernel
-example : Checkmate foolsMate := by decide +kernel
-example : ¬ Stalemate foolsMate := by decide +kernel
-
+#guard agreesWithLegal Position.initial
 -- The empty board: the castling rights alone propose nothing.
 #guard (candidates ⟨Board.empty, .white, CastlingRights.full, none⟩).isEmpty
-
--- Agreement with `Legal`: every legal move listed, none twice.
-#guard agreesWithLegal Position.initial
-#guard agreesWithLegal foolsMate
-#guard agreesWithLegal castlePos
-#guard agreesWithLegal blackCastlePos
-#guard agreesWithLegal (castleRookPos 3)  -- Black rook d7
-#guard agreesWithLegal (castleRookPos 4)  -- Black rook e7, White in check
-#guard agreesWithLegal epPos
-#guard agreesWithLegal epPinPos
-#guard agreesWithLegal kingsPos
-#guard agreesWithLegal promoPos
-#guard agreesWithLegal blackPromoPos
-#guard agreesWithLegal pinPos
-#guard agreesWithLegal blackEpPos
-#guard agreesWithLegal rookAttackedPos
-#guard agreesWithLegal defendedPos
-#guard agreesWithLegal epCheckPos
-#guard agreesWithLegal promoKnightPos
-
--- Agreement as a theorem: on `kingsPos`, the generator lists exactly the legal moves (M4 there).
-example : ∀ m, m ∈ legalMoves kingsPos ↔ Legal kingsPos m :=
-  fun _ => mem_legalMoves_of_agreesWithLegal (by decide +kernel)
-
--- Regression counts, cross-checked by the agreement tests.
-#guard [Position.initial, foolsMate, castlePos, blackCastlePos, castleRookPos 3, castleRookPos 4,
-  epPos, epPinPos, kingsPos, promoPos, blackPromoPos, pinPos, blackEpPos, rookAttackedPos,
-  defendedPos, epCheckPos, promoKnightPos].map (fun p => (legalMoves p).length) ==
-  [20, 0, 23, 15, 23, 4, 7, 4, 2, 13, 9, 4, 7, 15, 2, 8, 15]
-
--- En passant out of check: e5d6 is legal only because it removes the checking pawn.
-example : (⟨⟨4, 4⟩, ⟨3, 5⟩, none⟩ : Move) ∈ legalMoves epCheckPos := by decide +kernel
--- Castling after a rook capture with promotion: O-O, but no O-O-O.
-example : Move.castle .black .kingside ∈ legalMoves promoKnightPos := by decide +kernel
-example : Move.castle .black .queenside ∉ legalMoves promoKnightPos := by decide +kernel
--- Castling through an attacked square: O-O-O, but no O-O (f1 attacked).
-example : Move.castle .white .queenside ∈ legalMoves castlePos := by decide +kernel
-example : Move.castle .white .kingside ∉ legalMoves castlePos := by decide +kernel
--- A pin: Be2d3 is not listed.
-example : (⟨⟨4, 1⟩, ⟨3, 2⟩, none⟩ : Move) ∉ legalMoves pinPos := by decide +kernel
 
 end Chess

@@ -283,3 +283,81 @@ new tests.
 
 **Open for the owner** (review C2–C4): pawn direction as a `Direction`; keep `walk` and close R5;
 a `sq!e4` square literal elaborator.
+
+---
+
+## Note, 2026-11-02 (test library review round): the tests stay in the module
+
+Review C8 (last bullet, `docs/reviews/Basic.md`) recommends moving the tests out of `Basic.lean`
+once a test library exists. Considered and not followed. They cost 1.7 s on a build of `Basic`
+(measured, `docs/process/ChessTest.md` §1); a module that imports `Basic`, `Game` among them, reads
+its `.olean` and does not re-elaborate them; and the spec asks for the whole-board check to run on
+every build. Spec §11's tests bullet now says this instead of "until the test library exists".
+
+---
+
+## Note, 2026-11-02 (L4.11 round, ROADMAP step 4): four geometry lemmas for Rules' castling proof
+
+Added in the Lean and in spec §5, English first: B5.6a `Direction.eq_or_eq_opposite_of_dr_eq_zero`
+(two directions along a rank are equal or opposite), B5.16a `Square.dr_eq_zero_of_between` and
+B5.16b `Square.df_eq_zero_of_between` (a square strictly inside a segment and on an edge rank,
+resp. edge file, forces the direction along that edge), and B5.16c `Square.shift_one_of_between`
+(the neighbours along the line of a square strictly inside a segment are inside it or at its
+ends). They are general geometry, so they live here rather than as `private` helpers in Rules
+(Rules review C5's advice about helpers). Proofs by `cases d`, `simp [Direction.df,
+Direction.dr]` and `omega`, as for B5.15–B5.16; B5.16c by `shift_add` and
+`shift_eq_shift_opposite`. Spec §0's letters now include `v`. The module builds in 3.6 s (`lake
+build Chess.Basic`); no existing declaration changed.
+
+**Review C2 (pawn direction as a `Direction`) is decided: not adopted.** Reasons in
+`docs/spec/Rules.md` §12 item 3 and `docs/process/Rules.md` Round 5, since the change would fall
+on Rules' trusted definitions.
+
+---
+
+## Note, 2026-11-02 (Rules Round 6, review fixes for L4.11): B6.3a
+
+Added in spec §6 and then in the Lean: B6.3a `Color.homeRank_eq_zero_or_seven` ("A home rank is
+the first or the last rank."), by `cases c <;> simp`, not `@[simp]`. Rules' castling proofs pass
+it as B5.16a's edge-rank hypothesis in place of three inline `by cases p.turn <;> simp`. Reasons
+in `docs/process/Rules.md` Round 6. No existing declaration changed.
+
+---
+
+## Note, 2026-11-02 (readability round): lemmas moved in from Rules; instance docstrings quoted
+
+- Five lemmas moved here from `Chess.Rules` (Rules review C5; Rules process log, Round 8), public,
+  with their docstrings and proofs unchanged: `Color.forward_ne_zero` and
+  `Color.two_mul_forward_ne_zero` (B6.2a), `Square.file_eq_of_offset_zero` (B4.8a),
+  `shift_kingHome_one_ne` (B7.5a) and `rookCastleSquare_ne_kingHome` (in B7.9, beside its five
+  siblings). The first four were `private` in Rules, so no later module could use them. Spec rows
+  first, then the Lean.
+- Spec §1 and D2.7 quoted only two of the eight remaining instance docstrings of the D1.4 pattern
+  (`Kind`, `PromoKind`, `Direction`, `Wing` and `Piece`'s `∃`), abbreviating the rest with "…";
+  they are now quoted in full, so every definition and instance docstring of this file appears in
+  the spec word for word (`scripts/check_docstrings.py`: 0 missing; 73 theorem docstrings are
+  paraphrased in merged table cells, as before).
+- The test comment on e3's relative rank mixed the algebraic rank (3) with the 0-based relative
+  rank (2); it now says "relative rank index 2 … (counting from 0)". The spec's list of a pawn's
+  relative ranks says that they count from 0.
+
+---
+
+## Note, 2026-11-02 (finding trust-3): single-lemma docstrings matched to the spec
+
+A whole-library check (two independent reproductions) found that four lemmas alone in their table
+cell had a Lean docstring different from the cell's English, outside the grouped-cell exception of
+§0. Each pair now agrees word for word, spec first:
+- B4.2 `offset_eq_some_iff`: the Lean's added sentence "Every proof about offsets goes through
+  this lemma." overclaimed (`decide` still evaluates `offset`); both now say "Other proofs use this
+  lemma instead of unfolding `offset`." (A grep finds `unfold offset` only in this lemma's proof.)
+- B4.9 `isLight_offset_iff`: the spec cell gains the Lean's note on `Int.emod`.
+- B5.12 `isSome_shift_of_le`: both now cite "(DESIGN §5.2: a square between two on-board squares
+  is on the board)"; the spec's old quotation was not a quotation of DESIGN.
+- B5.19 `mem_ray_iff`: both end "(the geometric half of M1)" in place of the spec's
+  "(M1, `mem_ray_iff`)".
+§0 now states the grouped-cell rule precisely: each lemma's docstring is the part of the cell's
+sentence about it, reworded to stand alone. The 67 remaining differences reported by
+`scripts/check_docstrings.py` are all in cells that group two or more lemmas (checked by a script
+that maps each to its row). The eight instance docstrings named in the finding were already quoted
+in full by the readability round. No statement or proof changed.

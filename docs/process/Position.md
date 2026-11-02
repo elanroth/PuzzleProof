@@ -291,3 +291,52 @@ characters.
 - **F5** rename to `CastlingRights.empty`: owner decision (spec §9 item 6).
 - **P4, P5** (the `ofCode` search cost and the slow whole-`Move` sweep): no change needed; the
   fallback (spec §8 item 4) and DESIGN §5.6's generator route stand.
+
+---
+
+## Note, 2026-11-02 (test library review round): the tests stay in the module
+
+Spec §7 said the tests stay at the end of the file "until the test library exists". The library
+exists, and its round kept these tests here (0.14 s; `docs/process/ChessTest.md` §1). The sentence
+now says so. No Lean changed.
+
+---
+
+## Round 5 (2026-11-02, ROADMAP step 6): `Piece.ofCode` as a table
+
+Spec §8 item 4 had kept `Piece.ofCode` as a search of `Piece.all` and named a fallback "if the DESIGN
+§7.4 benchmarks show board reads dominate". The Gotham certificate is that benchmark: 64 reads of a
+packed board cost 34 ms with the search and 13 ms with a `match` (`decide +kernel`); a checkpoint
+`p.play m = q` went from about 0.10 s to 0.04 s and a mate leaf about 15 % faster (MoveGen process
+log, Round 5). The fallback was taken as written: D2.2's body is the 13-arm `match`, and the new
+P2.0 `Piece.ofCode_eq_find?` proves it equal to the old search by `decide`, so the code table D2.1
+still decides every code's meaning. P2.1–P2.5 kept their `decide` proofs unchanged. No other
+definition changed.
+
+---
+
+## Round 6 (2026-11-02, readability round): the castling-rights convention, `ofCode`'s notes, two definitions moved in
+
+Inputs: findings of the readability and fidelity audit, each reproduced by two skeptics; Rules
+spec §12 item 7; ChessGame review C5. Spec first, then the Lean.
+
+- **`CastlingRights` docstring** (trusted text, D4.1). It said rights are "changed only with
+  `revoke` and `revokeAll`", which has been false since Rules wrote step 4 with `ofGet` (Rules
+  review C5). It now says a move changes them only through `Move.castlingAfter`, which builds them
+  with `ofGet` and can only clear a flag, and names `castling_play_le` as R8. The module docstring
+  and D4.1's interface rule say the same. `revoke`, `revokeAll` and their lemmas stay (a small
+  algebra used by tests and literals), but `revoke_le` and `revokeAll_le` no longer carry "(R8)";
+  P4.13's note no longer claims `play` uses them.
+- **Moved in.** `CastlingRights.ofGet` and `get_ofGet` from Rules (D4.6b, P4.3b);
+  `CastlingRights.all` with `mem_all` and `length_all` from ChessGame (D4.6a, P4.3a);
+  `Board.squaresOf` with `Board.mem_squaresOf` from ChessGame (D1.6, P1.8). Docstrings and proofs
+  unchanged; only `mem_squaresOf` lost its now redundant binders `{b} {t}`, which the
+  `namespace Board` variable line provides. `squaresOf` is trusted here as it was in ChessGame
+  (`Position.Sane` counts kings with it); MoveGen now uses it in place of its own copy.
+- **`Piece.ofCode`'s notes.** The module docstring still described the Round 1–4 body ("its inverse
+  found by search", "a `match` can replace its body"). It now says that `ofCode` is a second table,
+  for speed, tied to `Piece.code` by `ofCode_eq_find?` and `ofCode_code`. Spec §8 item 4 and §9
+  ("the way `ofCode` searches `Piece.all`") are reworded to match.
+
+Checks: as in the Rules process log, Round 8 (all four builds green). `scripts/check_docstrings.py
+Chess/Position.lean`: 120 docstrings, none missing.

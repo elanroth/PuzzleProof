@@ -25,7 +25,7 @@ file wins; Section 12 lists the edits THEOREMS needs to catch up.
 2. **What is legal is a relation; what a move does is a total function.** Legality, attack, check,
    checkmate and forcing are `Prop`s. The effect of a move is the total function `play`, trusted by
    reading it. Listing the legal moves is a separate function joined to the relation by a theorem.
-   Until that theorem (M4, Stage 2) is proved, the generator is also trusted; after it, only the
+   That theorem (M4, `mem_legalMoves`) is proved, so the generator is not trusted: only the
    relations and `play` are.
 3. **One data model, two kinds of definitions.** The specification and the executable generator
    share the same `Square`, `Board`, `Move` and `Position`. What separates the layers is relation
@@ -65,7 +65,7 @@ file wins; Section 12 lists the edits THEOREMS needs to catch up.
 | position | `Position` = `board`, `turn`, `castling`, `epTarget` | the move layer's state |
 | en passant shape | `Move.IsEnPassant p m` | `m` has the shape of an en passant capture in `p` |
 | castling shape | `Move.IsCastle p w m` | `m` is the king's castling move to wing `w` in `p` |
-| pseudo-legal | `PseudoLegal p m` = `StepMove ∨ PushMove ∨ DoublePushMove ∨ PawnCaptureMove ∨ EnPassantMove ∨ ∃ w, CastleMove w` | movement rules, ignoring own-king safety |
+| pseudo-legal | `PseudoLegal p m` = `PieceMove ∨ PushMove ∨ DoublePushMove ∨ PawnCaptureMove ∨ EnPassantMove ∨ ∃ w, CastleMove w` | movement rules, ignoring own-king safety |
 | legal | `Legal p m` | pseudo-legal and the mover's king is not attacked afterwards |
 | check | `InCheck p` (a `Prop`, decided by `decide`) | the side to move's king is attacked |
 | abstract game | `Game` (structure), with game `G` | states, moves, turn, play, mated |
@@ -83,6 +83,13 @@ There is no executable `inCheck : Position → Bool` in Stage 1. The executable 
 `decide (InCheck p)`. A faster test (the super-piece method, R3.3) may be added later, under its own
 name, with a theorem equating it to `InCheck`.
 
+*Outcome (2026-11-02, ROADMAP steps 1 and 6).* The super-piece test was added in `Chess.MoveGen`,
+not as an `inCheck`: `Board.superpieceAttackedBy`, proved equal to `Board.AttackedBy` by
+`Board.superpieceAttackedBy_iff` (through Rules' `Board.attackedBy_iff_superpiece`), and the
+generator's king-safety filter `kingSafeAfter`, proved equal to "no king of the mover's colour is
+attacked after the move" for every pseudo-legal move by `kingSafeAfter_iff`. There is still no
+executable `inCheck`; tests decide `InCheck p` through Rules' instance.
+
 ---
 
 ## 3. Layers
@@ -90,14 +97,15 @@ name, with a theorem equating it to `InCheck`.
 ```
                 ┌─────────────────────────── trusted: read the English ───────────────────────────┐
  Specification  │ Basic (colours, squares, pieces, geometry)  Position (board, moves, positions)   │
-                │ Rules (Reaches, Attacked, PseudoLegal, play, Legal, Checkmate, Stalemate)        │
-                │ Game, definitions only (Game, Forces, WinsIn, MateIn, OnlyWinningMove)          │
-                │ ChessGame (Game.chess, Chess.WinsIn …, fen/uci parsers)                          │
-                │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
-                │ MoveGen (pseudoMoves, legalMoves): trusted UNTIL STAGE 2 (M4 removes it)         │
+                │ Rules (Reaches, AttackedBy, PseudoLegal, play, Legal, Checkmate, Stalemate)        │
+                │ Spec/Winning (SpecForces, SpecWinsIn, SpecWins, SpecMateIn, SpecOnlyWinningMove) │
+                │ ChessGame, notation only (writers, IsFEN, Position.Sane, fen_eq_iff, uci_eq_iff) │
+                │ Puzzles (one FEN string per named position a headline mentions, e.g. gotham)     │
                 └───────────────────────────────────────────────────────────────────────────────┘
- Proved, not      Game, the rest: searchForces (searchForces_iff), Cert and checkers (checkWin_sound)
- trusted          MoveGen/Correct (Stage 2): mem_legalMoves
+ Proved, not      ChessGame/Fide (G8): Chess.WinsIn … ↔ SpecWinsIn …, so a headline is read through
+ trusted            Spec/Winning, and Game.chess, the abbreviations and Game's definitions drop out
+                  MoveGen: legalMoves, with mem_legalMoves (M4) and checkmate_iff (M6)
+                  Game, the rest: searchForces (searchForces_iff), Cert, checkers (checkWin_sound)
                         ▲ refinement + game morphism (Stage 5)
  Fast           Fast.* (bitboards over BitVec 64)                       — not in this draft
                         ▲ certificates (data)
@@ -112,8 +120,14 @@ move is legal; what a move does; what checkmate and stalemate are; and, in the a
 it means to force a win. These are the definitions a reader must trust. They are written to be
 read, not run, although all of them are decidable and therefore also runnable.
 
-`ChessGame` is in the trusted box because headline theorems are stated in its vocabulary: the chess
-instance, the specialised names, and the FEN and UCI parsers. The parsers are trusted until M11.
+Headline theorems are stated in the vocabulary of `ChessGame`: the chess instance `Game.chess`, the
+specialised names (`Chess.WinsIn` and the others), and the notation `fen "…"` and `uci "…"`. Since
+G8 (`Chess/ChessGame/Fide.lean`), the specialised names are proved equivalent to the definitions of
+`Chess/Spec/Winning.lean`, which use `Legal`, `play` and `Checkmate` alone, so a reader may read a
+headline through those and need not trust `Game.chess`, the definitions of `Game`, or the
+generator. What stays trusted in `ChessGame` is its notation: the FEN and UCI writers, the
+predicates `IsFEN` and `Position.Sane`, and the statements `fen_eq_iff` and `uci_eq_iff`. The
+parsers themselves are not trusted; those two statements say what they accept.
 
 ### 3.2 Executable layer
 
@@ -121,15 +135,17 @@ The executable layer computes what the specification describes:
 
 - `legalMoves : Position → List Move`, the generator, and `perft`.
 - `searchForces`, a bounded minimax that decides `Forces` (and so `WinsIn`).
-- `checkWin` and `checkOnlyMove`, Boolean certificate checkers.
+- `checkWin` and `checkOnlyMove`, Boolean certificate checkers, and `firstFailureWin` and
+  `firstFailureOnlyMove`, diagnostics that say where a rejected certificate fails (proved to agree
+  with the checkers, and used by no theorem about a game).
 
 Each executable function has, or will have, a theorem stating what it computes in specification
 terms. The checkers and the search are proved in Stage 1 (C1, C2, G5). For the generator this
 theorem is M4, `mem_legalMoves : m ∈ legalMoves p ↔ Legal p m`, proved in `MoveGen` through one
 geometric cover lemma (pulled forward from Stage 2; MoveGen review C1). The generator is therefore
 not part of the trusted base. Chess theorems are stated about "the game whose moves are
-`legalMoves`", and G8 turns them into theorems about FIDE chess without changing a single
-statement.
+`legalMoves`", and G8 (`Chess.ChessGame.Fide`, proved) turns them into theorems about FIDE chess
+without changing a single statement.
 
 The executable layer works on the *same* `Position` as the specification. This is deliberate. The
 Stage 2 link is then a membership `↔`, the simplest possible refinement statement, and no
@@ -259,7 +275,7 @@ Rejected alternatives, with the reason:
   constructor, so it can never be generated twice (M5).
 - **En passant** is a pawn's diagonal move onto the en passant target.
 - **Promotion** uses `PromoKind`, a four-value enumeration with `PromoKind.toKind`, so that
-  "promote to a king" or "promote to a pawn" cannot be written. FIDE 3.7.5 lists exactly queen,
+  "promote to a king" or "promote to a pawn" cannot be written. FIDE 3.7.3.3 lists exactly queen,
   rook, bishop or knight.
 - **Notation is a parser.** UCI strings parse to `Move`. SAN is not used for identity (the
   dwrensha pitfall, *prior-work* §5).
@@ -267,8 +283,10 @@ Rejected alternatives, with the reason:
 ### 4.5 Castling rights
 
 `inductive Wing | kingside | queenside` and `structure CastlingRights` with four `Bool` fields,
-always read through `CastlingRights.get : CastlingRights → Color → Wing → Bool` and changed through
-`CastlingRights.revoke c w` and `revokeAll c`. `CastlingRights.none` has all four rights false. The
+always read through `CastlingRights.get : CastlingRights → Color → Wing → Bool`. A move changes them
+only through step 4 of `play` (`Move.castlingAfter`, §5.5), which builds the new rights with
+`CastlingRights.ofGet` and can only clear a flag; `CastlingRights.revoke c w` and `revokeAll c` exist
+but no move uses them. `CastlingRights.none` has all four rights false. The
 four fields keep equality structural and cheap; the `get` interface keeps theorems indexed by colour
 and wing, so colour flip is a swap, not four special cases (R6). Castling rights are ordered
 pointwise, and `play` never grants a right: `(p.play m).castling ≤ p.castling` for **every** move
@@ -364,7 +382,7 @@ quantifiers over `i, j < 8`; the Lean form of "the square `s.shift d j` is empty
 
 - `Board.AttacksFrom b s t : Prop`: a piece stands on `s` and it reaches `t`
   (`Reaches q.kind q.color b s t` for the piece `q` on `s`; false if `s` is empty).
-- `Board.Attacked b c t : Prop`: some square `s` holds a piece of colour `c` and that piece attacks
+- `Board.AttackedBy b c t : Prop`: some square `s` holds a piece of colour `c` and that piece attacks
   `t` from `s`. The kind is read off the board, not quantified over.
 - `Board.KingAttacked b c : Prop`: some square holding a king of colour `c` is attacked by
   `c.other`. With no king on the board this is false; with two kings it says "one of them".
@@ -388,18 +406,18 @@ Then six named, decidable predicates, one per rule:
 
 | Predicate | English (FIDE) |
 |---|---|
-| `StepMove p m` | `src` holds a non-pawn piece of colour `c`, it `Reaches` `dst`, `dst` is empty or holds a piece of colour `c.other`, and `promo = none`. (3.2–3.6, 3.8.1) |
+| `PieceMove p m` | `src` holds a non-pawn piece of colour `c`, it `Reaches` `dst`, `dst` is empty or holds a piece of colour `c.other`, and `promo = none`. (3.2–3.6, 3.8.1) |
 | `PushMove p m` | `src` holds a pawn of colour `c`, `dst` is one square `c.forward` from `src` on the same file, `dst` is empty, and the promotion rule holds. (3.7.1) |
 | `DoublePushMove p m` | `src` holds a pawn of colour `c` on relative rank 1, `dst` is two squares `c.forward` from `src` on the same file, the square between them and `dst` are both empty, and `promo = none`. (3.7.2) |
 | `PawnCaptureMove p m` | `src` holds a pawn of colour `c`, it `Reaches` `dst`, `dst` holds a piece of colour `c.other`, and the promotion rule holds. (3.7.3) |
 | `EnPassantMove p m` | `m.IsEnPassant p`; the pawn `Reaches` `dst`; `dst.relRank c = 5`; a pawn of colour `c.other` stands on the *victim square* (`dst`'s file, `src`'s rank); the victim's origin square (one square `c.forward` beyond `dst`) is empty; and `promo = none`. (3.7.3.1) |
 | `CastleMove p w m` | `m.IsCastle p w`; `p.castling.get c w`; `rookHome c w` holds `c`'s rook; every square strictly between `kingHome c` and `rookHome c w` is empty; `c` is not in check; `rookCastleSquare c w` (the square the king crosses) is not attacked by `c.other`; and `promo = none`. (3.8.2) |
 
-`PseudoLegal p m := StepMove p m ∨ PushMove p m ∨ DoublePushMove p m ∨ PawnCaptureMove p m ∨
+`PseudoLegal p m := PieceMove p m ∨ PushMove p m ∨ DoublePushMove p m ∨ PawnCaptureMove p m ∨
 EnPassantMove p m ∨ ∃ w, CastleMove p w m`.
 
 **The promotion rule**: `promo` is `some _` exactly when `dst` is on relative rank 7. A pawn
-reaching the last rank must promote, and nothing else may (3.7.5).
+reaching the last rank must promote, and nothing else may (3.7.3.3).
 
 Design notes:
 
@@ -409,15 +427,21 @@ Design notes:
   (see Section 5.7 for what that buys).
 - Castling states *all* its preconditions, including that the king and rook are on their home
   squares, so that castling legality never relies on `WellFormed`. That the king does not *land* on
-  an attacked square is not repeated here: it is the second half of `Legal`. On the queenside the
+  an attacked square is not repeated here: it is the second half of `Legal`. FIDE 3.8.2.2 tests that
+  square before the move; `CastleMove.legal_iff` (Rules L4.11) proves the two readings agree on
+  every board, with no one-king hypothesis. On the queenside the
   b-file square must be empty but may be attacked; "strictly between king and rook" for emptiness
   versus "the square the king crosses" for attack says exactly this.
 - `EnPassantMove` encodes "the enemy pawn has just advanced two squares" as far as a single position
   can: the target is on the right rank, the victim is a pawn beside the capturer, and the square it
-  came from is empty. A hand-written FEN with a nonsensical target cannot produce a capture FIDE
-  forbids. None of this relies on `WellFormed`.
+  came from is empty. So a hand-written FEN target can only produce a capture that *some* previous
+  double push would explain (Rules spec, D4.5 note). Whether that push was legal, or was the last
+  move played at all, the position does not record: a target left over from an earlier move, or one
+  no legal double push explains, still allows the capture. The FEN target is trusted as history and
+  is not checked against the rest of the position, beyond `parseFEN`'s rank check (Section 8.6).
+  None of this relies on `WellFormed`.
 - `PawnCaptureMove` and `EnPassantMove` are disjoint (`dst` occupied versus empty), and a king
-  `StepMove` moves one file while `CastleMove` moves two. So a move satisfies at most one of the six
+  `PieceMove` moves one file while `CastleMove` moves two. So a move satisfies at most one of the six
   predicates, which is what M5 (no duplicates) needs.
 - Capturing a king is not excluded by `PseudoLegal`. In a well-formed position it cannot happen,
   because the side not to move is not in check (R9 corollary). Keeping it out of the rule avoids a
@@ -462,11 +486,11 @@ and no junk value: `(p.play m).board m.dst = (p.board m.src).map (·.promote m.p
 pseudo-legal `m` (steps 2 and 3 never write to `dst` then: the castling rook squares differ from the
 king's landing square, and an en passant capture changes rank, so the victim square is not `dst`).
 
-`Move.IsCapture p m := (p.board m.dst).isSome ∨ m.IsEnPassant p`.
+`Move.IsCapture p m := p.board m.dst ≠ none ∨ m.IsEnPassant p`.
 
 ### 5.6 Terminal positions
 
-Word for word from FIDE 5.1.1 and 5.2.1, over `Legal`, not over the generator:
+Word for word from FIDE 1.4–1.4.1 (checkmate; 5.1.1 makes it a win) and 5.2.1, over `Legal`, not over the generator:
 
 - `Checkmate p := InCheck p ∧ ∀ m, ¬ Legal p m`
 - `Stalemate p := ¬ InCheck p ∧ ∀ m, ¬ Legal p m`
@@ -475,6 +499,11 @@ with `checkmate_or_stalemate` and their exclusivity (R11). Both are decidable al
 by enumerating all 64 × 64 × 5 candidate moves, which is fine for tests under `native_decide` but too
 slow for certificates. The cheap decision goes through the generator in Stage 2 (M6).
 
+*Outcome (2026-11-02, ROADMAP steps 1 and 6).* M6 is proved (`checkmate_iff`, `stalemate_iff` in
+`Chess.MoveGen`), and the instances `Checkmate.decidableByGen` and `Stalemate.decidableByGen`
+(priority high) decide both through `legalMoves`, so wherever `Chess.MoveGen` is imported they
+replace the enumeration instance of `Chess.Rules`. No test or demonstration uses `native_decide`.
+
 ### 5.7 The generator
 
 `pseudoMoves p` enumerates, for each square holding a piece of the side to move, its targets by
@@ -482,18 +511,27 @@ kind: leapers from the jump lists, sliders by walking each `ray` until the first
 (including it if it is an enemy), pawn pushes, double pushes, captures, en passant, the four
 promotion choices on the last rank, and castling by checking `CastleMove` for each wing.
 
-`legalMoves p := (pseudoMoves p).filter fun m => ¬ (p.play m).board.KingAttacked p.turn`.
+`legalMoves p := (pseudoMoves p).filter (kingSafeAfter p)`.
 
-This is the FIDE definition read as a program. Check masks and pin rays are later optimizations
-proved equal to this filter. `perft` counts leaves of the tree of `legalMoves` (M7). The Stage 2
-theorems are `mem_legalMoves` (`↔`, not list equality, so move order stays free) and
-`legalMoves_nodup`.
+Here `kingSafeAfter p m` tests, by the super-piece method, whether a king of the mover's colour is
+attacked after `m`, looking only at the squares where such a king can stand after a pseudo-legal
+move: the destination of `m`, and the squares that held one before. `kingSafeAfter_iff` proves it
+equal to `¬ (p.play m).board.KingAttacked p.turn` for every pseudo-legal `m`, so `legalMoves` is
+still the FIDE definition read as a program: `legalMoves_eq_filter` states it as `candidates p`
+filtered by `Legal`. (Before ROADMAP step 6 the filter was that condition itself; step 6 replaced
+it to cut the kernel's cost, MoveGen spec design choice 10.) Check masks and pin rays would be later
+optimizations, proved equal to the same filter. `perft` counts leaves of the tree of `legalMoves`
+(M7). The theorems planned for Stage 2 were `mem_legalMoves` (`↔`, not list equality, so move order
+stays free) and `legalMoves_nodup`. `mem_legalMoves` (M4) is proved; `legalMoves_nodup` (M5) is
+still planned, and is checked position by position by the test `agreesWithLegal`.
 
 **Stage 1 testing against the specification.** Because `Legal` is decidable, the test suite checks,
 on every perft test position, both `∀ m ∈ legalMoves p, Legal p m` (soundness) and, by enumerating
 all 64 × 64 × 5 candidate moves, `∀ m, Legal p m → m ∈ legalMoves p` (completeness). This is far
 stronger evidence than perft counts alone, and it tests the generator against the very definition
-M4 will relate it to.
+M4 relates it to. Since M4 is proved (`mem_legalMoves`), both halves hold at every position; what
+the test `agreesWithLegal` still adds is the check of M5 (no move listed twice) at the tested
+positions.
 
 ---
 
@@ -516,14 +554,20 @@ Structure fields are not instances on projection, so the module registers
 Every definition about games takes the game `G` as its **first explicit argument**, so that dot
 notation reads naturally (`G.WinsIn a n x`) and `G` never has to be inferred from a state.
 
-The interface is finite-branching by construction (`moves` is a `List`). Toy games (a subtraction
-game, tic-tac-toe) instantiate it in tests, where everything is instant under `decide`.
+The interface is finite-branching by construction (`moves` is a `List`). Two toy games instantiate
+it: the take-away games `Game.Toy.takeAway` and `Game.Toy.takeAwayStalemate` (each move takes one or
+two counters), in the library file `Chess/Game/Examples.lean`, where everything is instant under
+`decide`. (An earlier draft also planned tic-tac-toe; it was not written.)
 
 *Stage 1 option, not a requirement:* a field `isLegal : State → Move → Bool` with the law
 `isLegal x m = true ↔ m ∈ moves x`. Attacker nodes of a certificate could then check one move
 instead of generating all of them (about 35 king-safety scans saved per attacker node). For chess it
 would be `decide (Legal p m)`, which needs M4 for the law, so it waits for Stage 2 unless the kernel
 cost of Section 7.4 forces it earlier.
+
+*Outcome (2026-11-02, ROADMAP step 6).* Not added as a field. With M4 proved, the chess instance
+has `mem_chess_moves : m ∈ Game.chess.moves p ↔ Legal p m` (`Chess.ChessGame.Fide`), and attacker
+nodes of a chess certificate decide `Legal p m` through it, which is what the option was for.
 
 ### 6.2 Forcing a target, and winning
 
@@ -608,17 +652,22 @@ The same module defines the names headline theorems use, each an `abbrev`:
 So a headline reads `Chess.OnlyWinningMove (fen "…") (uci "…") ∧ Chess.WinsIn .black 11 (fen "…")`,
 with no `(G := …)` annotations.
 
-The instance uses the generator, not `Legal`, so that Stage 1 is not blocked on M4. Stage 2 proves
-`m ∈ Game.chess.moves p ↔ Legal p m` and `Game.chess.Mated p ↔ Checkmate p` (G8), after which every
-`Chess.WinsIn` theorem is a theorem about FIDE chess.
+The instance uses the generator, not `Legal`, so that Stage 1 was not blocked on M4. G8 proves
+`m ∈ Game.chess.moves p ↔ Legal p m` and `Game.chess.Mated p ↔ Checkmate p`, and from them
+`Chess.WinsIn a n p ↔ SpecWinsIn a n p` and the same for `Wins`, `MateIn` and `OnlyWinningMove`
+(`Chess/ChessGame/Fide.lean`, against the definitions of `Chess/Spec/Winning.lean`), so every
+`Chess.WinsIn` theorem is a theorem about FIDE chess under its rules of movement and checkmate
+(Articles 3 and 5.1), without the clock and draw rules (THEOREMS G15).
 
 **Malformed positions.** `PseudoLegal` allows capturing a king (Section 5.4). If the side *not* to
 move is in check, the side to move can capture that king; the kingless side is then never `InCheck`,
 so never mated, and the semantics can never award a win against it. That is harmless (no false win
-can be derived), but such a position is not chess. So `parseFEN` rejects it: besides syntax errors,
-it rejects positions where a side does not have exactly one king, and positions where the side not
-to move is in check. `fen "…"` positions in headlines therefore never hit this case. This is a
-sanity filter in the parser, not `WellFormed`.
+can be derived), but such a position is not chess. So `parseFEN` rejects it: besides strings that
+are not the canonical FEN of a position, it rejects positions where a side does not have exactly
+one king, and positions where the side not to move is in check. `fen "…"` positions in headlines
+therefore never hit this case. A third check, cheap and unrelated to this case, rejects an en
+passant target that is not on the rank a double push crosses (ChessGame spec, choice 7). These
+three are a sanity filter in the parser (`Position.Sane`), not `WellFormed`.
 
 ### 6.5 Which FIDE rules are in, which are out, and why
 
@@ -634,7 +683,7 @@ infinite play is not a win for anyone.
 | Dead position draws (5.2.2) | Out, Stage 4 | Deciding deadness is expensive. G11 shows a forced win never passes through a dead position, so excluding the rule does not change any `WinsIn` claim. |
 | Threefold and fivefold repetition (9.2, 9.6.1) | Out, Stage 4 | In G∞ a forced win can always avoid repeating a position. G15 proves that under the actual rules, given a stated history hypothesis. Claim timing has an off-by-one hazard: FIDE 9.2.1.1 lets a player claim with a move that *would* produce the third occurrence, so the claim model must fix `R = 2` versus `3`, just as the 50-move rule must fix `L = 99` versus `100`. |
 | 50- and 75-move rules (9.3, 9.6.2) | Out, Stage 4 | They *do* change some values (Syzygy's "cursed wins"). They enter as the clocked games `Clocked L`, separate `Game` instances whose states pair a position with a clock, and G12/G15 transfer wins with explicit clock headroom. |
-| Illegal positions (3.10.3) | Partly | `WellFormed` (Stage 2) and `Reachable` (R10) are predicates; nothing assumes a position is reachable. `parseFEN` rejects the two cases of Section 6.4. |
+| Illegal positions (3.10.3) | Partly | `WellFormed` (Stage 2) and `Reachable` (R10) are predicates; nothing assumes a position is reachable. `parseFEN` rejects the two cases of Section 6.4, and an en passant target on the wrong rank (`Position.Sane`, Section 8.6). |
 | Resignation, agreement, time, arbiter rules (Art. 5.1.2, 5.2.3, 6–12) | Out, permanently | Not part of the game tree. |
 | Chess960 castling | Out | Different castling geometry; not needed. |
 
@@ -647,10 +696,11 @@ headline theorem says which game it is about.
 Draws are certified by **traps** (G9), stated for a general target: `G.Trap a T S` says that no
 state of `S` is in `T`, every attacker move from a state of `S` stays in `S`, and at every defender
 state of `S` the defender either has some move that stays in `S` or has no moves at all. A defender
-with no moves outside `T` is safe because `Forces`'s `replies` rule needs a move. The duality is
-`holds_iff_not_forces`: no budget forces `T` from `x` exactly when `x` lies in some trap, a greatest
-fixed point given by an invariant, with no `coinductive`. For `T := DefenderMated a` this is the
-draw half; for other targets it says "cannot force material gain", and so on.
+to move with no moves, at a state outside `T`, is safe because `Forces`'s `replies` rule needs a
+move. The duality is `holds_iff_not_forces`: no budget forces `T` from `x` exactly when `x` lies in
+some trap, a greatest fixed point given by an invariant, with no `coinductive`. For
+`T := DefenderMated a` this is the draw half; for other targets it says "cannot force material
+gain", and so on.
 
 "Holding" is indexed by the defender: `G.Holds d x := ¬ G.Wins d.other x`, read "`d` holds at `x`".
 The game value (G10), `Optimal` (O0) and the ladder of approximations (O3–O7) are defined from
@@ -707,9 +757,11 @@ conjunct.
 - `checkWin_sound : G.checkWin a n x c = true → G.WinsIn a n x` (C1);
 - `checkWin_complete : G.WinsIn a n x → ∃ c, G.checkWin a n x c = true` (C2: the format is not lossy);
 - `checkOnlyMove_sound` (C7). **Budget convention: the budget is counted at `x`, the position before
-  the best move**, like every other budget in the library. `G.checkOnlyMove n k x best c refs` takes a
-  win certificate `c` *at `x`* whose root is `move best _`, and for every other move in `moves x` a
-  certificate in `refs` that the opponent wins within `k` after it. Acceptance gives
+  the best move**, like every other budget in the library. `G.checkOnlyMove n x best oc` (since
+  ROADMAP step 5; the arguments are the claim, the structure `oc : OnlyMoveCert` the evidence) takes
+  the win certificate `oc.next` for the state after `best`, checks `move best oc.next` at `x`, and
+  for every other move in `moves x` takes a certificate in `oc.refs` that the opponent wins within
+  `oc.refBudget` after it. Acceptance gives
   `G.OnlyWinningMove x best ∧ G.WinsIn (G.turn x) n x`. The "does not win" half comes from
   `not_both`. So the headline `Chess.WinsIn .black 11 gotham` uses `n = 11` directly, with no
   subtraction anywhere. Refutations by traps (alternatives that only draw) are added in Stage 3 as a
@@ -717,22 +769,32 @@ conjunct.
 
 ### 7.3 Trust labels
 
-Every headline theorem's docstring carries one label (THEOREMS §0.4):
+Every headline theorem has one label (THEOREMS §0.4):
 
 - **[kernel]**: `#print axioms` shows at most `propext`, `Classical.choice`, `Quot.sound`.
 - **[native]**: also `Lean.ofReduceBool` / `Lean.trustCompiler`, from `native_decide`. Such
   theorems have names ending in `_native` and live only in test or demonstration files, never in the
-  six library modules.
+  library modules (the six of the first draft, `Spec/Winning`, `ChessGame/Fide`, and later ones).
 - **[hyp: H]**: conditional on an explicit hypothesis in the statement, such as a tablebase
   soundness assumption. Never an `axiom`.
 
-A test file records `#print axioms` for every headline theorem, so the labels are checked, not
-claimed.
+The label is recorded where it is checked, not in docstrings: the axioms ledgers
+`ChessTest/Axioms.lean`, `ChessTest/AxiomsPerft.lean` (the kernel perft counts) and
+`ChessDemo/Axioms.lean` hold one `#guard_msgs in #print axioms` entry per headline theorem, so a
+build fails if a listed theorem's axioms change. Every theorem listed there today is [kernel]. Only
+the perft theorems of `ChessTest/Perft.lean` also state their label in their docstrings.
 
-What a reader trusts for a Stage 1 chess theorem: the Lean kernel; the English and Lean of `Basic`,
-`Position`, `Rules`, the definitions section of `Game`, and `ChessGame` (including the FEN and UCI
-parsers until M11). `MoveGen` is not trusted: M4 (`mem_legalMoves`) proves that it lists exactly
-the moves `Legal` allows.
+What a reader trusts for a chess headline, since G8: the Lean kernel; the English and Lean of
+`Basic`, `Position`, `Rules` and `Spec/Winning`; the notation of `ChessGame` (the FEN and UCI
+writers, `IsNumeral`, `ClockFields`, `IsFEN`, `Position.Sane`, and the statements of `fen_eq_iff`
+and `uci_eq_iff`); and the definitions in `Chess.Puzzles` of the named positions the headline
+mentions (one FEN string each, such as `Puzzles.gotham`). The headline is read through the
+equivalences of `ChessGame/Fide` (`winsIn_iff_specWinsIn`, `mateIn_iff_specMateIn`,
+`onlyWinningMove_iff_specOnlyWinningMove`), which are proved. `MoveGen` is not trusted: M4 (`mem_legalMoves`) proves that it lists exactly the
+moves `Legal` allows. Neither is `Game`: its definitions are only the route by which a claim is
+checked, and G8 removes them from the reading. A reader who prefers to read the headline as
+`Chess.WinsIn` itself trusts, in place of `Spec/Winning`, the definitions section of `Game`,
+`Game.chess` and the four abbreviations.
 
 ### 7.4 Keeping kernel checks affordable
 
@@ -754,9 +816,22 @@ push. The `scripts/` README states this.
 
 *Risk.* The function board is slower in the kernel than raw nibbles (about 1.4 s against 0.75 s for
 20 chained moves, *lean-eng* §5), and the generator itself is not optimized. If the Stage 1
-kernel-only demonstration proves too slow, the remedies in order are: a faster `Attacked` (super-piece
+kernel-only demonstration proves too slow, the remedies in order are: a faster `AttackedBy` (super-piece
 method, proved equal); the `isLegal` option of Section 6.1; then the fast layer of Section 3.3 with a
 game morphism. The specification does not change in any case.
+
+*Outcome (2026-11-02, ROADMAP steps 6–7).* The first remedy, in `Chess.MoveGen` (`kingSafeAfter`,
+with Rules' R3), and attacker nodes decided by `Legal` were enough: the Gotham certificate (319
+nodes) checks in 165 s and 1.1 GB (`docs/spec/ChessDemo.GothamCert.md` §3). Three things about the
+kernel learned on the way: a `let` does not memoize (MoveGen review C2), but the timings indicate
+that the kernel reuses the evaluation of a repeated *closed* term within a declaration (its whnf
+cache), so a fact about the position before a move (its king squares) appears to be computed once
+per node if it is written so that it does not mention the move (an observation from timings, not
+checked against the kernel's code); a faster `Decidable` instance declared after `Chess.Rules` does not change Rules' composite
+instances (MoveGen review C2); and a search by `decide` on `Forces` keeps every evaluated position,
+so its memory grows with the nodes visited (gigabytes for a few hundred), unlike a certificate
+checked node by node. The checkpoints are written by `scripts/gen_cert.py`, in this library's
+convention, as above.
 
 ---
 
@@ -764,12 +839,17 @@ game morphism. The specification does not change in any case.
 
 Six modules in `Chess/`, built in this order. Each is one file, each has `docs/spec/<Module>.md` as
 its English specification, `docs/process/<Module>.md` as the log of the English↔Lean back-and-forth,
-and `docs/reviews/<Module>.md` as its file-level review. `Chess.lean` imports all six.
+and `docs/reviews/<Module>.md` as its file-level review. `Chess.lean` imports all six, and the
+Stage 2 files below once they exist. (Since 2026-11-02 two more: `Chess.Spec.Winning` and
+`Chess.ChessGame.Fide`, with specs `docs/spec/Spec.Winning.md` and `docs/spec/ChessGame.Fide.md`;
+and since ROADMAP step 5 `Chess.Puzzles` (`docs/spec/Puzzles.md`), while `Chess.Game` became an
+umbrella over five files with one spec, `docs/spec/Game.md`.)
 
 ```
 Basic ──► Position ──► Rules ──► MoveGen ──┐
-  │                                         ├──► ChessGame
-  └──► Game ────────────────────────────────┘
+  │                      │                  ├──► ChessGame ──┐
+  └──► Game ─────────────┼──────────────────┘                ├──► ChessGame/Fide
+                         └──► Spec/Winning ──────────────────┘
 ```
 
 - `Game` imports `Basic` only for `Color`, which is the first section of `Basic` and changes rarely.
@@ -781,9 +861,12 @@ Planned later files, given homes now so that the reviews have fixed targets (not
 
 | File | Stage | Contents |
 |---|---|---|
-| `Chess/MoveGen/Correct.lean` | 2 | M1–M6: `mem_ray_iff`, `mem_pseudoMoves`, `mem_legalMoves`, `legalMoves_nodup`, the cheap decision of `Checkmate`. Imports `MoveGen`. |
+| `Chess/MoveGen/Correct.lean` | 2 | Not created yet. M1, M2, M4 and M6 landed in `MoveGen` itself (section `Completeness`); M5 (`legalMoves_nodup`) is still planned here (MoveGen spec §7). |
 | `Chess/Invariants.lean` | 2 | `WellFormed`, `Reachable`, R6–R10. Imports `Rules`. |
-| `Chess/ChessGame.lean` (extended) | 2 | G8: `Game.chess` means FIDE chess. Then imports `MoveGen.Correct`. |
+| `Chess/Spec/Winning.lean` (done) | 2 | `SpecForces`, `SpecWinsIn`, `SpecWins`, `SpecMateIn`, `SpecOnlyWinningMove`: winning written with `Legal`, `play` and `Checkmate` alone. Imports `Rules` only. Trusted. |
+| `Chess/Game/{Defs,Laws,Search,Cert,Examples}.lean` (done) | 1 | The parts of `Chess.Game`, split at the trust boundary (ROADMAP step 5, Game review C2). `Chess/Game.lean` imports them. |
+| `Chess/Puzzles.lean` (done) | 1 | The positions of headline theorems, named once (`Puzzles.gotham`). Imports `ChessGame`. Trusted (a FEN string per position). |
+| `Chess/ChessGame/Fide.lean` (done) | 2 | G8: `Chess.WinsIn a n p ↔ SpecWinsIn a n p`, and the same for `Wins`, `MateIn`, `OnlyWinningMove`. Imports `ChessGame` and `Spec/Winning`. Not trusted. Kept out of `ChessGame` so that certificate files do not depend on it (ChessGame review C2). |
 | `Chess/Fast/*.lean` | 5 | Bitboards, refinement, game morphism. |
 
 ### 8.1 `Chess.Basic`: colours, kinds, pieces, squares, geometry
@@ -816,7 +899,7 @@ bits is the code of the piece on the square with index `i`; the code table is de
 codes read as empty, and unpacking the packing of a board gives the board back. A move is a source
 square, a destination square and an optional promotion choice; castling is written as the king's
 two-square move. The castling rights record, for each colour and wing, whether that right is still
-held; they are read by colour and wing and, by convention, only revoked. A position is a board, the
+held; they are read by colour and wing, and a move can only clear them. A position is a board, the
 side to move, the castling rights and an optional en passant target. The initial position is the
 standard one. Two positions are equal when they agree on all four fields, and this is decidable.
 A position prints as a diagram.
@@ -849,13 +932,16 @@ move, its leaper jumps, its slider rays up to and including the first occupied s
 an enemy, its pawn pushes, double pushes, captures and en passant capture, every promotion choice
 when a pawn reaches the last rank, and each castling whose rule predicate holds. The legal moves are
 the pseudo-legal moves after which the mover's king is not attacked. Perft of depth `n` counts the
-sequences of `n` legal moves from a position. The perft regression facts and the generator-versus-
-`Legal` checks (M7 and Section 5.7) live in a test file that imports this module and `ChessGame` (for
-FEN), with kernel versions at small depths and `_native` versions deeper. The test positions are the
-six standard perft positions plus five named bug-class positions: the three of THEOREMS M7, a
-promotion capture onto a rook home square (b7xa8=Q must revoke Black's queenside right through
-step 4's `dst` clause), and an en passant capture that is legal only because it removes the pawn
-that, having just double-pushed, gives check. *Targets: M7 (in tests).*
+sequences of `n` legal moves from a position. The perft regression facts and the
+generator-versus-`Legal` checks (M7 and Section 5.7) live in the test library
+(`ChessTest/MoveGen.lean`, `ChessTest/Perft.lean`, `ChessTest/PerftDeep.lean`), which imports this
+module and `ChessGame` (for FEN): kernel versions at depths 1–2, interpreted `#guard`s at depths
+2–4, and no `_native` versions (deeper counts are checked by the compiled `chess-perft` against
+python-chess, outside the build). The test positions are the six standard perft positions plus five
+named bug-class positions: the three of THEOREMS M7, a promotion capture onto a rook home square
+(b7xa8=Q must revoke Black's queenside right through step 4's `dst` clause), and an en passant
+capture that is legal only because it removes the pawn that, having just double-pushed, gives check.
+*Targets: M7 (in tests).*
 
 ### 8.5 `Chess.Game`: the abstract game, forced wins, search and certificates
 
@@ -891,6 +977,16 @@ The file has four sections; only the first is part of the trusted reading.
    that the mover wins within the budget. Glue lemmas let a large certificate be checked as many
    small per-node theorems.
 
+Since ROADMAP step 5 (2026-11-02) the four sections are four files, `Chess/Game/Defs.lean`,
+`Laws.lean`, `Search.lean` and `Cert.lean`, plus `Examples.lean` (toy games and tests), under the
+umbrella `Chess/Game.lean` (Game review C2). `Defs` is the trusted reading; `Search` and `Cert`
+import `Laws` but not each other. `Cert` also holds the diagnostics (`firstFailure` and its
+variants) and is the frozen interface of generated certificate files (Game spec §4.3): they use
+`checkWin`, `checkOnlyMove`, their soundness theorems and the glue lemmas (since the step's review
+fixes, including `Forces.forall_mem_cons` and `Forces.forall_mem_nil` for defender nodes), never a
+constructor of `Forces` or a lemma of core, and `ChessTest/Interface.lean` records those
+signatures.
+
 *Targets: G1 (interface), G2, G3, G4, G5, G6, O2 (`wins_iff`), C1, C2, C3, C7.*
 
 ### 8.6 `Chess.ChessGame`: chess as a game, and the notation of claims
@@ -902,17 +998,27 @@ The chess game has positions as states, the legal-move list as its moves, `play`
 a mated side has an empty move list by definition. Chess-specialised names (`Chess.WinsIn`,
 `Chess.MateIn`, `Chess.Wins`, `Chess.OnlyWinningMove`) abbreviate the game-generic ones at the chess
 game. Positions are read from FEN and moves from UCI by parsers over `List Char`, so that `fen "…"`
-reduces in the kernel. `parseFEN : String → Option Position` reads the four move-layer fields,
-reads and ignores the two clock fields, and rejects a string that is not valid FEN, a position where
-a side does not have exactly one king, and a position where the side not to move is in check.
+reduces in the kernel. `parseFEN : String → Option Position` accepts only canonical FEN (single
+spaces, castling letters in `KQkq` order, runs of empty squares as one digit; ChessGame spec choice
+5): the four move-layer fields, then either no clock fields or two numerals, which are not read
+(choice 6; so a move number of `0`, which FEN forbids, is accepted). It then rejects a position
+that fails one of three sanity checks (`Position.Sane`, choice 7): a side does not have exactly one
+king, the side not to move is in check, or the en passant target is not on the rank a double push
+crosses.
 `fen s` takes, as an automatically discharged argument, the proof that `parseFEN s` succeeded, so a
 bad string is a compile-time error, never a silent default position. `uci` is analogous. `toFEN`
 writes a position back. *Targets: G1 (chess instance); M11 later.*
 
 ### 8.7 Outside the six modules
 
-- `test/` (or a `ChessTest` library): perft regressions, generator-versus-`Legal` checks, toy games
-  for `Game`, sanity checks, and the `#print axioms` ledger.
+- The `ChessTest` library (`ChessTest/`, built by `lake build ChessTest`, not a default target;
+  since 2026-11-02): the tests of `Rules`, `MoveGen`, `ChessGame`, `ChessGame/Fide` and `Puzzles`,
+  moved out of the modules; the perft suite (`Perft`, `PerftDeep`, with `Tabulate`); the
+  `#print axioms` ledger (`Axioms`, and `AxiomsPerft` for the perft theorems); and the interface
+  ledger `Interface` (Section 8.5), which records the signatures generated certificate files use.
+  The toy games of `Game` and the cheap tests of `Basic` and `Position` stay in their modules. The
+  program `chess-perft` (`ChessPerft.lean`) prints perft and divide for any FEN, for differential
+  tests against other programs.
 - `scripts/`: the untrusted certificate generator (Python, Stockfish, python-chess), ported from the
   prototype's `gen_cert.py` to emit `Cert` values and literal checkpoints for this library, with the
   en passant rule of Section 7.4.
@@ -922,6 +1028,15 @@ writes a position back. *Targets: G1 (chess instance); M11 later.*
   only for short mates (budget at most 3), where `searchForces` is feasible; its label, [kernel] or
   [native], is whatever the measurement allows. An exact `MateIn 11` for Gotham would need a
   mathematical lower-bound argument and is out of scope for Stage 1 (Section 6.3).
+
+  *Outcome (2026-11-02, ROADMAP steps 6–7).* The demonstration is the library `ChessDemo`
+  (`ChessDemo/`, built by `lake build ChessDemo`, not a default target), in four modules:
+  `GothamCert` (generated by `scripts/gen_cert.py`: the certificate values and per-node theorems),
+  `Gotham` (the two claims, about `Puzzles.gotham`, their G8 readings `gotham_specWinsIn` and
+  `gotham_specOnlyWinningMove`, and the refutations behind the only move), `Mates` (exact `MateIn`
+  in 1 and 2 by search; in 3, the win by a certificate and the minimality by search) and `Axioms`,
+  its own ledger, whose 16 entries are all [kernel]. Every label came out [kernel]: nothing in
+  `ChessDemo` uses `native_decide`.
 
 ---
 
@@ -933,7 +1048,7 @@ writes a position back. *Targets: G1 (chess instance); M11 later.*
 | R2 `mem_all`, `all_nodup`, `Decidable ∀` | Enumerations listed once; `Square` quantifiers through core `Fin` quantifiers. |
 | R3 attack symmetry (later) | Slider `Reaches` in index form via `Square.shift`; `Reaches` never reads `b s` or `b t`. |
 | R4 frame lemmas, `play_turn`, destination lemma | `play` as a composition of `Board.set` steps; `set_ne` as `@[simp]`; turn update unconditional; arriving piece `(b src).map (·.promote promo)`, total. |
-| R5 bishops keep, knights flip square colour | Bishop directions with `|df| = |dr|`; knight jumps a named list of eight offsets; `StepMove` carries `Reaches`. |
+| R5 bishops keep, knights flip square colour | Bishop directions with `|df| = |dr|`; knight jumps a named list of eight offsets; `PieceMove` carries `Reaches`. |
 | R7 material (later) | `IsEnPassant` requires `dst` empty and is shared by `EnPassantMove` and `play`. |
 | R8 `castling_play_le` | Step 4 only clears rights (`p.castling.get c w && !decide (m.Revokes c w)`); stated for every move. |
 | R11 checkmate or stalemate, not both | Definitions phrased over `InCheck` and `∀ m, ¬ Legal p m`. |
@@ -968,20 +1083,22 @@ Stage 1 decisions from THEOREMS §7, as decided here:
 Also decided: `Game` is a structure, with the game an explicit first argument of every definition;
 the chess instance is `Game.chess` and headlines use the `Chess.*` abbreviations; the attacker is an
 explicit colour; `Game.chess.Mated` is executable (`InCheck p ∧ legalMoves p = []`) and bridged to
-`Checkmate` in Stage 2; there is no `inCheck : Position → Bool` in Stage 1; promotion choices have
-their own type; castling rights are four `Bool`s behind a `get` interface; `Board` is a `def`; en
-passant and castling are each one shared shape predicate; the only-move budget is counted before
+`Checkmate` in Stage 2 (done, ROADMAP steps 1–2: `checkmate_iff`, M6, and
+`chess_mated_iff_checkmate`); there is no `inCheck : Position → Bool` in Stage 1; promotion choices
+have their own type; castling rights are four `Bool`s behind a `get` interface; `Board` is a `def`;
+en passant and castling are each one shared shape predicate; the only-move budget is counted before
 the best move; exact `MateIn` is claimed only for short mates.
 
 Open, for the owner or for the spec phase:
 
-- The exact Lean form of "the square `s.shift d j` is empty" and of `Attacked`'s "some square holds
+- The exact Lean form of "the square `s.shift d j` is empty" and of `AttackedBy`'s "some square holds
   a piece of colour `c` that attacks `t`", chosen in `docs/spec/Rules.md` for readable proofs and a
   decision procedure that enumerates squares only, never kinds or pieces.
 - Whether the FEN parser builds the board through `Board.unpack` of a computed number or through
   `set`s; benchmark under `decide +kernel` in the Stage 1 demonstration.
-- Whether the only-move checker takes one refutation budget `k` for all alternatives or one per
-  alternative (`docs/spec/Game.md`).
+- ~~Whether the only-move checker takes one refutation budget `k` for all alternatives or one per
+  alternative (`docs/spec/Game.md`).~~ *Decided in ROADMAP step 5:* one budget, the field
+  `OnlyMoveCert.refBudget` (Game spec design choice 24).
 - Claim timing for the Stage 4 draw rules: `L = 99` or `100` for the 50-move rule, `R = 2` or `3`
   for threefold repetition (THEOREMS G15). Not needed now.
 
@@ -1003,9 +1120,9 @@ Rejected or adopted only in part, with the reason:
 |---|---|---|
 | E1: a separate `Chess.Color` module | **Rejected**; `Color` is the first section of `Basic`, and `Game` imports `Basic`. | The first draft has a budget of six modules. `Basic` is small and becomes stable first, so the rebuild cost of the `Basic → Game` edge is negligible. The part of E1 that matters is adopted: `MoveGen` no longer imports `Game`, and the chess instance moved to `ChessGame`. |
 | E2: split `Position` into `Board`, `Position` and `Notation` | **In part.** The parsers leave `Position` and go to `ChessGame`; `Board` stays in `Position`. | Isolating the trusted, unverified parser from `Rules` is the substance of E2, and it is done. A seventh module would exceed the budget; `Board` and its packing are about 100 lines and read naturally beside `Position`. The parser also needs `Rules` now (F3: it rejects positions where the side not to move is in check), so it could not sit under `Rules` anyway. Cost accepted: perft tests import `ChessGame` for FEN and so rebuild when `Game` changes. |
-| (consequence of the module budget) `Game` and `Certificate` merged | **Merged** into `Chess.Game`, in four sections. | With `ChessGame` added, six modules forced one merge. `Game` already contained an executable decision procedure (`searchForces`), and certificates are a second one for the same semantics, so the merge follows the existing seam. The trusted reading is section 1 of the file only. If the file exceeds about 600 lines, certificates split off as `Chess.Game.Certificate` after the first draft. |
+| (consequence of the module budget) `Game` and `Certificate` merged | **Merged** into `Chess.Game`, in four sections; **split again** into four files under one module name in ROADMAP step 5 (the file had 748 lines; Game review C2). | With `ChessGame` added, six modules forced one merge. `Game` already contained an executable decision procedure (`searchForces`), and certificates are a second one for the same semantics, so the merge follows the existing seam. The trusted reading is section 1 of the file only. The certificates are the file `Chess/Game/Cert.lean`; no separate module `Chess.Game.Certificate` was made. |
 | A2: `Game.Move` "collides visually" with `Chess.Move` | **Kept.** | The field is always written qualified (`G.Move`, `Game.chess.Move`), and `Game.chess.Move` *is* `Chess.Move`, so the collision is a coincidence of meaning, not a confusion. Renaming it (`Action`) would make the abstract game read less like a game. The `Chess.Game` / `Chess.game` case collision is removed by `Game.chess`. |
-| C1: certificate attacker nodes check `Legal` instead of generating | **Deferred** to the `isLegal` option of Section 6.1. | The law `isLegal x m = true ↔ m ∈ moves x` is M4 for chess, a Stage 2 theorem. Generating moves at attacker nodes is correct now and its cost is measured first. |
+| C1: certificate attacker nodes check `Legal` instead of generating | **Deferred** to the `isLegal` option of Section 6.1. *Adopted in substance in ROADMAP step 6 (2026-11-02)*, without an `isLegal` field: attacker nodes decide `Legal p m` through `mem_chess_moves`. | The law `isLegal x m = true ↔ m ∈ moves x` is M4 for chess, a Stage 2 theorem. Generating moves at attacker nodes is correct now and its cost is measured first. M4 was then proved early (step 1), and step 6 measured the cost. |
 | C4: `AttacksFrom` as the exact Lean form | **Adopted in English; Lean form open** (Section 10). | The spec phase should compare a `match` on `b s`, an `Option` membership and a helper predicate for proof ergonomics; the English is fixed. |
 
 ---
@@ -1015,33 +1132,52 @@ Rejected or adopted only in part, with the reason:
 Not made here (the theorem architect owns that file); listed so the two documents converge.
 Made since by the `Chess.Position` refiner (Round 4, `docs/process/Position.md`): the §0.5
 `CastlingRights` and `Option PromoKind` renames, R2's list of enumerated types, R4's simp list, the
-R6 hazard and `get c w` wording, and the unconditional R8.
+R6 hazard and `get c w` wording, and the unconditional R8. Made since by a docs fix round
+(2026-11-02, `docs/process/Chess.md` Round 2): §1's headline and its goal sentence, C7's
+conclusion (budget counted at `x`), and two edits this list did not have, G2's
+`not_wins_of_stalemate` without a turn hypothesis and G1's implicit binders. §7's plan text
+("`MateIn .white 11 gotham`, exactly 11") was left as the plan, under its dated note that the
+claim changed.
 
-- §0.5: add "The names in DESIGN §2 are authoritative; this file follows them." Rename `Castling`
-  to `CastlingRights` (fields read by `get c w`), `promo : Option Kind` to `Option PromoKind`,
-  `Reach` to `Forces`, `searchWin` to `searchForces`, `Cert.mate` to `Cert.goal`, `pawnCapture` to
-  `PawnCaptureMove`, `Castling.get c side` to `get c w`, and the inductive `PseudoLegal` to the
-  disjunction of Section 5.4.
+Checked against THEOREMS on 2026-11-02 (a docs fix round, `docs/process/Chess.md` Round 4): each
+item below now says whether it is made. Made items are kept, marked, so the list still shows what
+the design asked for.
+
+- §0.5 (*in part*; made: `CastlingRights` read by `get c w`, `Option PromoKind`, `PawnCaptureMove`,
+  the disjunction `PseudoLegal`; pending: the sentence on authoritative names, `Reach`,
+  `searchWin`, `Cert.mate`): add "The names in DESIGN §2 are authoritative; this file follows
+  them." Rename `Castling` to `CastlingRights` (fields read by `get c w`), `promo : Option Kind`
+  to `Option PromoKind`, `Reach` to `Forces`, `searchWin` to `searchForces`, `Cert.mate` to
+  `Cert.goal`, `pawnCapture` to `PawnCaptureMove`, `Castling.get c side` to `get c w`, and the
+  inductive `PseudoLegal` to the disjunction of Section 5.4.
 - §1 and §7: the headline is `Chess.OnlyWinningMove gotham (uci "b7b2") ∧ Chess.WinsIn .black 11
   gotham` (Gotham is Black to move). Exact `MateIn` only for short mates; delete "exactly 11, using
   G5 or C4 for the lower bound", and change G5's and C4's "Why it matters" to say the same.
+  *(§1 made; §7's plan text left under its dated note, as said above; G5 and C4 not changed.)*
 - §1: replace "Every other legal move allows the opponent at least a draw. Therefore `m` is the
   unique optimal move." with "After every other legal move, the mover has no forced win. (That this
-  makes `m` the unique optimal move is O2, Stage 3.)"
+  makes `m` the unique optimal move is O2, Stage 3.)" *(Made.)*
 - R4: `play_board_dst` becomes `(p.play m).board m.dst = (p.board m.src).map (·.promote m.promo)`
-  under `PseudoLegal p m`; no `movedPiece`.
-- R6 hazard: `p.castling = CastlingRights.none` (all four rights false).
+  under `PseudoLegal p m`; no `movedPiece`. *(Made.)*
+- R6 hazard: `p.castling = CastlingRights.none` (all four rights false). *(Made.)*
 - R7: holds as stated under `PseudoLegal`, because `IsEnPassant` requires `dst` empty; cite it.
-- R8: unconditional, `(p.play m).castling ≤ p.castling` for every `m`.
+  *(Pending.)*
+- R8: unconditional, `(p.play m).castling ≤ p.castling` for every `m`. *(Made.)*
 - R9.4: "a pawn of colour `p.turn.other` stands one square beyond the target, away from
-  `p.turn.other`'s home rank, and both the target and the square behind it are empty."
+  `p.turn.other`'s home rank, and both the target and the square behind it are empty." *(Pending.)*
 - M3: delete `inCheck_eq_true_iff` (there is no executable `inCheck`); the super-piece test, when
   added, gets its own equation with `InCheck`. G1 and M4: `InCheck p`, not `inCheck p = true`.
+  *(Made: THEOREMS has neither `inCheck_eq_true_iff` nor `inCheck p = true`; M3 is marked done,
+  with `kingSafeAfter_iff` as the super-piece equation.)*
 - C7 and O2: the budget is counted at `x`; the conclusion is `OnlyWinningMove x best ∧
-  WinsIn (turn x) n x`.
+  WinsIn (turn x) n x`. *(Made in C7; O2 states no budget.)*
 - G9 and O6: traps are `Trap a T S` for a general target; `Holds d x := ¬ Wins d.other x`, indexed by
-  the defender (drop the reminder comment in O6).
+  the defender (drop the reminder comment in O6). *(Pending.)*
 - G15: flag `R = 2` versus `3` for the repetition claim alongside `L = 99` versus `100`.
+  *(Pending.)*
 - G-tier statements: `G` is an explicit first argument (`G.WinsIn a n x`); chess statements use
-  `Chess.WinsIn` and friends; `Chess.game` is `Game.chess`.
+  `Chess.WinsIn` and friends; `Chess.game` is `Game.chess`. *(In part: `Game.chess` made; `G.` is
+  written on fields such as `G.moves`, but not yet on the G-tier definitions, as in `WinsIn a n x`.)*
 - M7: add the two bug-class positions of Section 8.4, and the generator-versus-`Legal` checks.
+  *(In part: M7's status note names the bug-class positions of the test library; the
+  generator-versus-`Legal` checks are not mentioned in M7.)*

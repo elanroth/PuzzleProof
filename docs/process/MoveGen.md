@@ -306,3 +306,137 @@ spec and every spec definition docstring occurs in the Lean.
 **Checked and kept.** P1 (the cover traced case by case needs no attack or pin reasoning) and P6
 (nothing here forces `WellFormed` onto Stage 2) needed no change. `CastleMove.eq_castle` stays here
 until open item 3 (moving `Move.castle` to Rules) is decided.
+
+---
+
+## Note, 2026-11-02 (G8 round): one docstring repaired
+
+Found by the whole-library docstring check of the G8 round (`docs/process/ChessGame.Fide.md`): the
+Lean docstring of `candidates` still contained a fragment of its pre-M4 wording, "They are meant to
+include every pseudo-legal move of `p`" (with no full stop), directly before the new sentence
+"Every pseudo-legal move of `p` is a candidate …". The spec (D2.6, `candidates`) had the
+correct text. The fragment was deleted, so the Lean docstring is again the spec's, word for word.
+No code changed.
+
+
+---
+
+## Note, 2026-11-02 (test library round, ROADMAP step 3): the tests moved to `ChessTest/MoveGen.lean`
+
+Review C4 carried out. The section "Tests" (`epCheckPos`, `promoKnightPos` with their docstrings,
+the nine kernel examples and the `#guard`s) moved verbatim to `ChessTest/MoveGen.lean`, which
+imports `ChessTest/Rules.lean` for Rules' named positions. The module keeps four cheap `#guard`s
+(20 legal moves and perft 2 = 400 in the initial position, `agreesWithLegal Position.initial`, the
+empty board proposes nothing), with a pointer to the test file and to the perft suite
+(`ChessTest/Perft.lean`). The section "Testing against the specification" (`legalMovesBySpec`,
+`agreesWithLegal`, L5.1–L5.3) stays: it is cheap and its lemmas are library statements (spec open
+item 9 suggested moving it too; not done, since it costs nothing to build). Spec §6 says where the
+tests live and quotes the four `#guard`s; its closing paragraph points to the perft suite. Clean
+build of the module: 13 s before, 1.0 s after. Review C7 (time compiled perft 4 before fixing the
+test library's depths) is answered in `docs/process/ChessTest.md`: compiled perft 4 of the initial
+position takes 9.0 s once the position's board is tabulated (re-timed in the test library's Round 2;
+Round 1 reported 18 s, measured with a `chess-perft` that ran the search twice).
+
+---
+
+## Round 5 (2026-11-02, ROADMAP step 6): king safety for the kernel
+
+Inputs: ROADMAP §5 step 6, MoveGen review C2, Rules review C3, spec open item 4 and design choice
+10, THEOREMS M3. Spec first (§3: D3.2–D3.5, L3.3 and L3.6–L3.9; design choices 10 and 11; open
+item 4), then the Lean; the Lean docstrings were then compared with the spec, word for word.
+
+**Measured first.** Fifteen nodes of each kind were sampled from the generated Gotham certificate
+(`ChessDemo/GothamCert.lean`) and decided by `decide +kernel`, sequentially, in a scratch file:
+a mate leaf (`Game.chess.Mated p`) 2.0 s, a defender's move list 2.0 s, `m ∈ legalMoves p` 1.5 s,
+`Legal p m` 0.12 s, a checkpoint `p.play m = q` 0.11 s. Taking one mate leaf apart (kernel,
+`profiler`): `candidates` 0.09 s, `pseudoMoves` 0.42 s, `legalMoves p = []` 1.64 s. Of the 1.2 s of
+king safety, each of the 21 pseudo-legal moves paid about 28 ms to find the king on the board after
+the move (63 reads through `Board.setMany`; Black's king was on g8) and about 60–80 ms for
+`Board.Attacked`, which reads all 64 squares and decides `Reaches` from every enemy piece.
+
+**What was tried, in a scratch copy of the library** (15 mate leaves, total kernel time; `sorry` for
+the equivalences, measurement only): baseline 29.5 s; `Piece.ofCode` as a `match` 25.1 s; plus a
+ray-walk `Slides` instance in Rules 21.5 s; plus a super-piece test from the king's square on the
+board after the move 14.7 s; plus listing the kings from the position *before* the move 8.3 s. The
+last step works because the kernel caches the evaluation of a closed term: `kingSquares p.board
+p.turn` does not mention the move, so it is evaluated once per position (checked: the same closed
+term decided 21 times costs what it costs once). Without the `Slides` change and the `ofCode`
+change, the king-safety change alone gives 12.7 s.
+
+**What landed.**
+- `Board.kingSquares`, `Board.superpieceAttacked`, `kingSafeAfter` (D3.2–D3.4), and `legalMoves`
+  filters by `kingSafeAfter p` (D3.5; docstring unchanged). Its proof `kingSafeAfter_iff` (L3.9)
+  needs R3 (new in Rules, L2.10–L2.12), M1 (`mem_reachTargets`) and L3.8, which says where a king can
+  stand after a pseudo-legal move: on the destination, or where one stood before (the castling rook
+  write is a rook, by `CanCastle`).
+- L3.3 (`legalMoves_eq_filter`) keeps its statement, so nothing downstream changed: `mem_legalMoves`,
+  `checkmate_iff`, G8 and every test still go through it.
+- The `Slides` walk was not adopted (design choice 10): 15 % for moving `upToBlocker`,
+  `slideTargets` and M1 into the trusted file. `Piece.ofCode`'s `match` was adopted, as Position
+  spec §8 item 4's fallback (Position process log, Round 5).
+
+**Measured after** (same samples, real library): mate leaf 0.68 s, defender move list 0.72 s,
+`m ∈ legalMoves p` 0.47 s, `Legal p m` 0.09 s, checkpoint 0.04 s. The whole Gotham certificate:
+about 430 s and 4.3 GB before, 165 s and 1.1 GB after (`docs/process/ChessDemo.md`). Of what is
+left of a mate leaf, `pseudoMoves` is the larger part (0.24 s of 0.36 s on the leaf taken apart
+above, measured in the scratch copy with all three changes): Rules' `PseudoLegal` instance decided
+for every candidate.
+
+Not done: the `Slides` instance (above); M5 (`Nodup`) is unchanged.
+
+---
+
+## Round 5, review fix (2026-11-02, spec note only; no Lean change)
+
+D3.4's note said the kernel "caches the evaluation of a closed term". That mechanism was inferred
+from timings (the speed-up, and a closed term decided 21 times costing what it costs once), not
+checked against the kernel's code; the note now says so (review of ROADMAP step 7, low). The
+docstrings did not change. The text of Round 5 above is left as written.
+
+---
+
+## Round 6 (2026-11-02, readability round): one king finder; `agreesWithLegal` described as it is
+
+- **`Board.kingSquares` removed** (D3.2, L3.6). It was the same list as Position's
+  `b.squaresOf ⟨c, .king⟩` (by `rfl`), with no lemma linking the two. `kingSafeAfter` now lists the
+  kings with `p.board.squaresOf ⟨p.turn, .king⟩`, and the proof of `kingSafeAfter_iff` uses
+  `Board.mem_squaresOf`. The term the kernel evaluates once per position is the same up to one
+  more unfolding: `ChessDemo.GothamCert` took 164 s (160 s before), within noise.
+- **`Board.superpieceAttacked` → `Board.superpieceAttackedBy`** (and its `_iff`), with Rules'
+  `Board.AttackedBy` (Rules process log, Round 8).
+- **`agreesWithLegal`.** Since M4 its first conjunct holds at every position (checked again this
+  round: `simp [List.all_eq_true, mem_legalMovesBySpec, mem_legalMoves]` proves it for every `p`),
+  so the test checks only M5 at `p`. Its docstring says so; L5.2 lost its bold headline and says
+  it is superseded by `mem_legalMoves`; the module docstring's main statements list only L5.3. The
+  definitions stay in the library (the decision of the test-library note); spec §11 item 9 records
+  that decision instead of asking for the move, and spec D5.1's note and design choice 1 no
+  longer speak as if M4 were still only tested.
+- Spec: L2.4's proof note names `shift_kingHome_one_ne` in Basic (B7.5a).
+
+Checks: as in the Rules process log, Round 8. `scripts/check_docstrings.py Chess/MoveGen.lean`: 49
+docstrings, none missing.
+
+---
+
+## Note, 2026-11-02 (docs fix round): design choice 7 states the filter as it is
+
+Spec only; no Lean change, no docstring changed. Finding docs-02 of an audit: design choice 7 still
+said that `legalMoves` filters with `decide (¬ …)`, that L3.3 is `simp`, and that DESIGN §5.7 and
+the Lean are the same sentence, which D3.5's own notes contradicted since Round 5. It now says the
+filter is `kingSafeAfter p`, that L3.9 links it to `Legal`'s second conjunct, and that L3.3's proof
+is a case split with L3.9. D3.5's note and L3.3's proof note said "Up to Round 6" for a change
+made in Round 5; both now say "Before Round 5". Open item 5 records which of the DESIGN edits it
+asked for are now made (DESIGN §5.7 and §6.1 in the same round, `docs/process/Chess.md` Round 4).
+
+---
+
+## Note, 2026-11-02 (docs fix round): the module header hedges the kernel claim
+
+Module docstring only; no declaration, docstring or proof changed. Finding docs-09 of an audit: the
+Implementation notes said as fact that the kernel evaluates the king list of `kingSafeAfter` once
+per position. That is an inference from timings, and ROADMAP, DESIGN §5 and the spec's D3.4 notes
+all say so. The header now says "by the timings, the kernel appears to evaluate [it] once per
+position" and that the mechanism was not checked against the kernel's code. The earlier entries
+of this log that state it unhedged (Rounds 5 and 6) are left as written; their "checked" means
+a timing measurement (the same closed term decided 21 times costs what it costs once), not a
+reading of the kernel's code.

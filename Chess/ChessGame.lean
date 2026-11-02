@@ -36,9 +36,12 @@ definition below carries the docstring given there.
 ## Implementation notes
 
 * The chess game is built from the move generator, and `Mated` is the executable
-  `InCheck p ∧ legalMoves p = []`, so Stage 1 does not wait for the generator's completeness. In
-  Stage 2, G8 (planned at the end of this file) proves that the listed moves are exactly the
-  FIDE-legal ones and that being mated is `Checkmate`; no statement changes.
+  `InCheck p ∧ legalMoves p = []`, decided through the generator. G8, in
+  `Chess.ChessGame.Fide`, proves that the listed moves are exactly the FIDE-legal ones
+  (`mem_legalMoves`, M4), that being mated is `Checkmate`, and that `WinsIn`, `Wins`, `MateIn` and
+  `OnlyWinningMove` are equivalent to `SpecWinsIn`, `SpecWins`, `SpecMateIn` and
+  `SpecOnlyWinningMove` of `Chess.Spec.Winning`, which are written with `Chess.Rules` alone. No
+  statement of this file depends on G8.
 * `decMated` and `decEqMove` are given explicitly in `Game.chess`, so that a change of `Mated`
   visibly changes the decision procedure every certificate runs.
 * `Game.chess` and the four chess names are `abbrev`s, so that positions and moves pass where game
@@ -47,9 +50,11 @@ definition below carries the docstring given there.
   a proposed position or move, and a string is accepted only if writing the proposal back gives the
   string. The characterisations above are proved, so neither the readers nor the guards are
   trusted. What a reader of a headline must trust is: the definition of `Game.chess` and the four
-  abbreviations; the writers (section "Writing", with the letters of `Chess.Position` and the square
-  names of `Chess.Basic` that they use); the predicates `IsNumeral`, `ClockFields`, `IsFEN` and
-  `Position.Sane` (section "Accepting"); and the statements of `fen_eq_iff` and `uci_eq_iff`.
+  abbreviations, or instead, through the equivalences of `Chess.ChessGame.Fide`, the definitions
+  of `Chess.Spec.Winning`; the writers (section "Writing", with the letters of `Chess.Position` and
+  the square names of `Chess.Basic` that they use); the predicates `IsNumeral`, `ClockFields`,
+  `IsFEN` and `Position.Sane` (section "Accepting"); and the statements of `fen_eq_iff` and
+  `uci_eq_iff`.
 * A position records no clocks. The clock fields of a FEN must be two numerals, or absent, and are
   ignored, so a `WinsIn` stated with `fen "…"` may still be a draw under FIDE's fifty- and
   seventy-five-move rules (THEOREMS G15).
@@ -74,8 +79,9 @@ moves are those listed by the move generator `legalMoves`, a move is played by `
 the side to move has been mated when it is in check and the generator lists no move for it. Play
 ends only by mate or by the side to move having no listed move. There is no clock, no fifty- or
 seventy-five-move rule, no repetition rule and no dead-position rule, so a win here is a win under
-FIDE only when those rules do not intervene (THEOREMS G15). Until the generator is proved complete
-(Stage 2), 'available' means 'listed by `legalMoves`'. -/
+FIDE only when those rules do not intervene (THEOREMS G15). The listed moves are exactly the legal
+moves of `Chess.Rules` (`mem_legalMoves`), and `Chess.ChessGame.Fide` restates the notions of this
+game with `Legal` and `Checkmate` (THEOREMS G8). -/
 abbrev Game.chess : Game where
   State := Position
   Move := Chess.Move
@@ -136,7 +142,8 @@ theorem winsIn_zero_iff : WinsIn a 0 p ↔ p.turn = a.other ∧ InCheck p ∧ le
   Game.winsIn_zero_iff
 
 /-- In a position where the side to move is not in check and has no listed move (stalemate, as the
-generator sees it; G8 links it to FIDE stalemate), neither side wins. (THEOREMS G2.) -/
+generator sees it; `stalemate_iff` (M6) says it is FIDE stalemate), neither side wins. (THEOREMS
+G2.) -/
 theorem not_wins_of_stalemate (hc : ¬ InCheck p) (hl : legalMoves p = []) : ¬ Wins a p :=
   Game.not_wins_of_stalemate (G := Game.chess) (fun h => hc h.1) hl
 
@@ -245,11 +252,6 @@ White if there is none. -/
 def readTurn (cs : List Char) : Color :=
   (Color.all.find? fun c => [c.fenChar] = cs).getD .white
 
-/-- All sixteen castling rights, each once. -/
-def CastlingRights.all : List CastlingRights :=
-  [false, true].flatMap fun wk => [false, true].flatMap fun wq =>
-    [false, true].flatMap fun bk => [false, true].map fun bq => ⟨wk, wq, bk, bq⟩
-
 /-- The castling rights that a FEN field proposes: the rights whose FEN letters the field
 is, or no rights if there are none. -/
 def readCastling (cs : List Char) : CastlingRights :=
@@ -309,21 +311,6 @@ clocks. -/
 def IsFEN (s : String) (p : Position) : Prop :=
   ∃ cl, ClockFields cl ∧ s.toList = [' '].intercalate (p.fenFields ++ cl)
 
-/-- Reads the FEN `s`. Its fields are the pieces of `s` between occurrences of the space
-character; two adjacent spaces give an empty field, which no writer produces, so such a string is
-rejected, and tabs and other whitespace are not separators. The result is the position `p` proposed
-by the first four fields, provided those four fields are exactly the FEN writing of `p`
-(`Position.fenFields p`) and the remaining fields are acceptable clock fields; otherwise `none`. So
-`readFEN s = some p` exactly when `IsFEN s p` (`readFEN_eq_some_iff`). -/
-def readFEN (s : String) : Option Position :=
-  let fs := splitOn ' ' s.toList
-  let p := readFields fs
-  if p.fenFields = fs.take 4 ∧ ClockFields (fs.drop 4) then some p else none
-
-/-- The squares of `b` that hold the piece `pc`, in index order (a1, b1, …, h8). -/
-def Board.squaresOf (b : Board) (pc : Piece) : List Square :=
-  Square.all.filter fun t => b t = some pc
-
 /-- `p` passes the sanity checks that `parseFEN` makes: each side has exactly one king,
 the side not to move is not in check, and an en passant target, if any, lies on the rank that a
 pawn of the side not to move crosses in a two-square advance. This is weaker than
@@ -348,6 +335,17 @@ instance Position.Sane.decidable (p : Position) : Decidable p.Sane :=
       ¬ p.board.KingAttacked p.turn.other ∧ ∀ t, p.epTarget = some t → t.relRank p.turn = 5)
     ⟨fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩, fun ⟨h₁, h₂, h₃⟩ => ⟨h₁, h₂, h₃⟩⟩
 
+/-- Reads the FEN `s`. Its fields are the pieces of `s` between occurrences of the space
+character; two adjacent spaces give an empty field, which no writer produces, so such a string is
+rejected, and tabs and other whitespace are not separators. The result is the position `p` proposed
+by the first four fields, provided those four fields are exactly the FEN writing of `p`
+(`Position.fenFields p`) and the remaining fields are acceptable clock fields; otherwise `none`. So
+`readFEN s = some p` exactly when `IsFEN s p` (`readFEN_eq_some_iff`). -/
+def readFEN (s : String) : Option Position :=
+  let fs := splitOn ' ' s.toList
+  let p := readFields fs
+  if p.fenFields = fs.take 4 ∧ ClockFields (fs.drop 4) then some p else none
+
 /-- Parses the FEN `s`: the position whose FEN is `s` (`readFEN`), if it is sane
 (`Position.Sane`); otherwise `none`. The clock fields, if present, must be numerals and are
 ignored. -/
@@ -360,7 +358,10 @@ def parseFEN (s : String) : Option Position :=
 of which `s` is a FEN (`fen_eq_iff`; there is only one by `IsFEN.unique`). The clocks are not part
 of the position: `s` may end in any two numerals, or in none (see THEOREMS G15). The proof that `s`
 parses is found automatically, by evaluation, when the term is elaborated; a string that is not a
-FEN of a sane position is a compile-time error, never a default position. -/
+FEN of a sane position is a compile-time error, never a default position. The en passant field is
+read as written: after a two-square advance it must name the square passed over even when no
+capture is possible (`Position.fenFields`), which Stockfish, Lichess and python-chess's default
+output do not do. -/
 def fen (s : String) (h : (parseFEN s).isSome = true := by decide +kernel) : Position :=
   (parseFEN s).get h
 
@@ -478,17 +479,6 @@ theorem parseUCI_uci (h : (parseUCI s).isSome = true) : parseUCI s = some (uci s
 /-- The UCI writing of `uci s` is `s`. -/
 theorem toUCI_uci (h : (parseUCI s).isSome = true) : (uci s h).toUCI = s :=
   parseUCI_sound (parseUCI_uci h)
-
-/-- A square is among the squares holding `pc` exactly when it holds `pc`. -/
-theorem Board.mem_squaresOf {b : Board} {t : Square} : t ∈ b.squaresOf pc ↔ b t = some pc := by
-  simp [Board.squaresOf, Square.mem_all]
-
-/-- The list of all castling rights contains every castling rights value. -/
-theorem CastlingRights.mem_all (cr : CastlingRights) : cr ∈ CastlingRights.all := by
-  revert cr; decide
-
-/-- The list of all castling rights has sixteen entries. -/
-theorem CastlingRights.length_all : CastlingRights.all.length = 16 := by decide
 
 /-- Every piece is read back from its letter. -/
 theorem Piece.ofLetter?_letter (pc : Piece) : Piece.ofLetter? pc.letter = some pc := by
@@ -750,49 +740,19 @@ theorem uci_toUCI (h : (parseUCI m.toUCI).isSome = true) : uci m.toUCI h = m :=
 
 end Notation
 
-/-! ## Tests -/
+/-! ## Tests
 
--- Reading and writing the initial position.
-example : fen "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" = Position.initial := by
-  decide +kernel
+The tests of this module are in `ChessTest/ChessGame.lean` (`lake build ChessTest`). The checks
+below stay here as documentation; they are cheap. -/
+
+-- Writing the initial position, and reading it back from four fields.
 #guard Position.initial.toFEN == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
--- Four fields are accepted; the position is sane.
 #guard readFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -" == some Position.initial
-example : Position.initial.Sane := by decide +kernel
--- Writing and reading back the test positions of `Chess.MoveGen` (L5.20 on examples).
-#guard [Position.initial, foolsMate, epCheckPos, promoKnightPos].all
-  fun p => readFEN p.toFEN == some p
-#guard epCheckPos.toFEN == "k7/8/8/3pP3/4K3/8/8/8 w - d6 0 1"
--- Rejected: not canonical FEN.
-#guard (parseFEN "rnbqkbnr/pppppppp/44/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone   -- 44
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KqQk - 0 1").isNone   -- order
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0").isNone     -- 5 fields
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR  w KQkq - 0 1").isNone  -- 2 spaces
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ").isNone  -- trailing
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN w KQkq - 0 1").isNone    -- 7 files
--- Rejected: not sane.
-#guard (parseFEN "rnbqqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone   -- no k
-#guard (parseFEN "4k3/8/8/8/8/8/4R3/4K3 w - - 0 1").isNone   -- Black, not to move, in check
-#guard (parseFEN "4k3/8/8/8/8/8/4R3/4K3 b - - 0 1").isSome
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e3 0 1").isNone  -- ep rank
-#guard (parseFEN "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1").isSome
--- The clock fields are ignored: both strings denote the same position (THEOREMS G15).
-example : fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 149 80" = fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1" :=
-  by decide +kernel
+-- Rejected: not canonical FEN (`44`), and not sane (no Black king).
+#guard (parseFEN "rnbqkbnr/pppppppp/44/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone
+#guard (parseFEN "rnbqqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone
 -- UCI.
 #guard parseUCI "e7e8q" == some ⟨⟨4, 6⟩, ⟨4, 7⟩, some .queen⟩  -- e7, e8
-#guard (parseUCI "e7e8Q").isNone
-#guard (parseUCI "e2e9").isNone
-#guard (parseUCI "0000").isNone
-#guard (parseUCI "e2e4 ").isNone
 #guard (parseUCI "Nf3").isNone
--- Chess as a game: mate is a win, stalemate is not, and the headline vocabulary works.
-example : WinsIn .black 0 (fen "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3") :=
-  winsIn_zero_iff.2 ⟨rfl, by decide +kernel⟩                       -- Fool's mate
-example : MateIn .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1") := by decide +kernel
-example : WinsIn .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1") :=
-  Game.checkWin_sound (c := .move (uci "a1a8") .goal) (by decide +kernel)
-example : ¬ Wins .white (fen "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1") :=  -- stalemate
-  not_wins_of_stalemate (by decide +kernel) (by decide +kernel)
 
 end Chess

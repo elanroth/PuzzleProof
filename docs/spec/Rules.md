@@ -1,17 +1,23 @@
 # Specification of `Chess.Rules`
 
 Role: English specification writer (Round 1); revised by the translator (Rounds 2 and 3) and the
-refiner (Round 4).
+refiner (Round 4); extended in Round 5 (2026-11-02: L4.11 proved, `StepMove` renamed `PieceMove`).
 Date: 2026-11-01.
-Status: Round 4. The English was revised against the Round 1 critique (Round 2), against the Lean
+Status: Round 4, plus Rounds 5–7 (Round 7, 2026-11-02: R3, L2.10–L2.12). The English was revised against the Round 1 critique (Round 2), against the Lean
 translation in `Chess/Rules.lean` (Round 3), and against the Lean critique (Round 4);
 `docs/process/Rules.md` logs all three. The Lean file follows this document definition by
 definition and builds. Snippets marked *(checked)* were elaborated before the translation; every
 lemma tagged [core] or [sanity] is now proved in the library, and of the [later] lemmas only L4.6
-and L4.11 are not in the Lean file. IDs with a letter suffix (D2.5a, L2.6a, …) were inserted in
-Round 4; no existing ID was renumbered.
+is not in the Lean file (L4.11 was proved in Round 5, §7a). IDs with a letter suffix (D2.5a, L2.6a,
+…) were inserted in Round 4 or later; no existing ID was renumbered. Section 7a was added in
+Round 5, so that sections 8–13 keep their numbers. The readability round of 2026-11-02 split the
+file in three at the trust boundary (design choice 15), renamed `Board.Attacked` to
+`Board.AttackedBy`, moved general helpers to Basic and `CastlingRights.ofGet` to Position, and
+added the 0-based rank values and FIDE 1.4 to four docstrings; IDs were not renumbered.
 
-File: `Chess/Rules.lean`. Depends on: `Chess.Position` (and through it `Chess.Basic`); core only.
+Files: `Chess/Rules.lean` (the umbrella) and `Chess/Rules/Defs.lean`, `Chess/Rules/Laws.lean`,
+`Chess/Rules/Castling.lean` (see "Files and their contents"). Depends on: `Chess.Position` (and
+through it `Chess.Basic`); core only.
 Refines DESIGN §5 (all of it) and §8.3. Theorem targets: **R4** (frame lemmas), **R5** (square
 colour), **R8** (castling rights only disappear), **R11** (terminal positions). It also lays the
 foundations, with the shapes they need, of **R3** (attack symmetry; `Reaches` reads only squares
@@ -19,8 +25,9 @@ strictly between), **R7** (`Move.IsCapture`), **R9** (`Legal`'s second half), **
 six rule predicates) and **G1** (`play_turn`).
 
 This module is the trusted heart of the library: a chess player should be able to check every
-definition in sections 2–6 against the FIDE Laws by reading its docstring, and a Lean user should be
-able to check the Lean against the docstring.
+definition in sections 1–6 against the FIDE Laws by reading its docstring, and a Lean user should be
+able to check the Lean against the docstring. All of those definitions, and nothing else, are in
+`Chess/Rules/Defs.lean`.
 
 ## 0. How to read this document
 
@@ -33,7 +40,8 @@ The conventions of `docs/spec/Basic.md` §0 and `docs/spec/Position.md` §0 appl
   (checks that a definition says what the English says), or **[later]** (shaped now, proved when a
   Stage 2 theorem needs it; the translator may skip it). The Lean docstring of a lemma is its
   English column. Bold in the English column marks a headline lemma in this document only.
-- Tables are in proof order, which is also the order in the Lean file.
+- Definitions are in the order of `Chess/Rules/Defs.lean`. Lemma tables are in proof order, which
+  is the order of `Chess/Rules/Laws.lean` (and of `Chess/Rules/Castling.lean` for §7a).
 - **Binding rule.** Every name a docstring mentions is bound in the signature before the colon, or
   introduced by the docstring itself ("for some `i`", "for each wing `w`").
 - `autoImplicit = false`. Each section opens with the `variable` line it needs. A lemma meant to be
@@ -80,20 +88,40 @@ not move over intervening pieces), 3.6 (knight), 3.7.1 (pawn push), 3.7.2 (doubl
 (pawn capture), 3.7.3.1–3.7.3.2 (en passant, only on the next move), 3.7.3.3 (promotion), 3.8.1
 (king step), 3.8.2 (castling), 3.8.2.1 (right lost), 3.8.2.2 (castling prevented temporarily),
 3.9.1 (check, even by a pinned piece), 3.9.2 (no move may expose or leave one's king in check),
-5.1.1 (checkmate), 5.2.1 (stalemate).
+1.4 and 1.4.1 (checkmate: the king under attack and no legal move), 5.1.1 (a checkmate wins the
+game), 5.2.1 (stalemate).
 
-## Contents of the file, in order
+## Files and their contents, in order
+
+Since the readability round of 2026-11-02 the module is four files, split at the trust boundary as
+`Chess.Game` was (Game review C2; design choice 15). Every declaration kept its name (but for the
+rename of `Board.Attacked`), its docstring and its place relative to its neighbours in the same
+file.
+
+1. `Chess/Rules.lean`: `import` of the three files below, and a short module docstring.
+   Downstream code imports `Chess.Rules` as before.
+2. `Chess/Rules/Defs.lean` (imports `Chess.Position`), **the trusted part**: its module docstring,
+   then every definition of sections 1–6 below with its `Decidable` instance, in that order, under
+   the same headings, and the four `#guard`s of §10. No lemma.
+3. `Chess/Rules/Laws.lean` (imports `Defs`): its module docstring, then the lemmas of sections 1–4
+   (`namespace Board`, `section Reaching`, `section Shapes`, `section Movement`, each under the
+   heading of its section), then sections 7, 8 and 9.
+4. `Chess/Rules/Castling.lean` (imports `Laws`): its module docstring, then section 7a (L4.11).
+
+The sections, by topic:
 
 1. Board helpers: `Board.colorAt`, `Board.kindAt`, `Board.setMany`.
-2. Reaching and attacking: `Slides`, `Reaches`, `Board.AttacksFrom`, `Board.Attacked`,
+2. Reaching and attacking: `Slides`, `Reaches`, `Board.AttacksFrom`, `Board.AttackedBy`,
    `Board.KingAttacked`, `Board.HasKing`, `InCheck`.
 3. Shapes of moves: `Move.IsEnPassant`, `Move.IsCastle`, `Move.IsDoublePush`, `Move.epVictim`,
    `Move.PromotionRule`, `Move.IsCapture`.
-4. Movement rules: `StepMove`, `PushMove`, `DoublePushMove`, `PawnCaptureMove`, `EnPassantMove`,
+4. Movement rules: `PieceMove`, `PushMove`, `DoublePushMove`, `PawnCaptureMove`, `EnPassantMove`,
    `Position.CanCastle`, `CastleMove`, `PseudoLegal`.
-5. Playing a move: the six steps and `Position.play`.
+5. Playing a move: the six steps and `Position.play` (step 4 uses Position's
+   `CastlingRights.ofGet`).
 6. Legality and terminal positions: `Legal`, `Checkmate`, `Stalemate`.
 7. What a move changes (R4, R8).
+7a. The castling landing square (L4.11).
 8. Sanity theorems (R5 and the promotion promise).
 9. Terminal positions (R11).
 10. Tests.
@@ -249,21 +277,26 @@ The kind is read off the board, not quantified over (DESIGN §5.3). Instance *(c
 `by unfold Board.AttacksFrom; split <;> infer_instance`, docstring "Whether the piece on `s`
 attacks `t` is decided by reading `s` and then deciding `Reaches`."
 
-**D2.4 `Board.Attacked (b : Board) (c : Color) (t : Square) : Prop`.** *(checked)*
+**D2.4 `Board.AttackedBy (b : Board) (c : Color) (t : Square) : Prop`.** *(checked)*
 ```lean
-def Board.Attacked (b : Board) (c : Color) (t : Square) : Prop :=
+def Board.AttackedBy (b : Board) (c : Color) (t : Square) : Prop :=
   ∃ s, b.colorAt s = some c ∧ b.AttacksFrom s t
 ```
 Docstring: "Square `t` is attacked by colour `c`: some square holds a piece of colour `c` that
 attacks `t`. En passant captures are not counted; they never capture a king."
+Named `Board.Attacked` until the readability round of 2026-11-02. The name says which colour `c`
+is: `b.AttackedBy c t` reads "`t` is attacked by `c`", whereas in `b.KingAttacked c` (D2.5) `c` is
+the colour of the king attacked. Its lemmas were renamed with it (`Board.attackedBy_iff`,
+`Board.attackedBy_iff_superpiece`), and MoveGen's `superpieceAttacked` became
+`superpieceAttackedBy`.
 Decided by Basic's `∃` over squares (64 squares, never kinds or pieces). Instance *(checked)*:
-`by unfold Board.Attacked; infer_instance`, docstring "Whether `t` is attacked is decided by
+`by unfold Board.AttackedBy; infer_instance`, docstring "Whether `t` is attacked is decided by
 looking at every square."
 
 **D2.5 `Board.KingAttacked (b : Board) (c : Color) : Prop`.** *(checked)*
 ```lean
 def Board.KingAttacked (b : Board) (c : Color) : Prop :=
-  ∃ s, b s = some ⟨c, .king⟩ ∧ b.Attacked c.other s
+  ∃ s, b s = some ⟨c, .king⟩ ∧ b.AttackedBy c.other s
 ```
 Docstring: "A king of colour `c` is attacked: some square holding a king of colour `c` is attacked
 by the other colour. False on a board with no king of colour `c`."
@@ -301,12 +334,16 @@ Lemmas (`variable {k : Kind} {c : Color} {b b' : Board} {s t u : Square} {d : Di
 | L2.2 | A pawn reaches the squares diagonally forward (at most two). / A knight reaches the squares a knight's jump away. / A king reaches the adjacent squares (up to eight). / A bishop reaches what it slides to diagonally. / A rook reaches what it slides to along files and ranks. / A queen reaches what it slides to in any direction. | `theorem reaches_pawn : Reaches .pawn c b s t ↔ s.offset (-1) c.forward = some t ∨ s.offset 1 c.forward = some t` / `theorem reaches_knight : Reaches .knight c b s t ↔ ∃ j ∈ knightJumps, s.offset j.1 j.2 = some t` / `theorem reaches_king : Reaches .king c b s t ↔ ∃ d : Direction, s.shift d 1 = some t` / `theorem reaches_bishop : Reaches .bishop c b s t ↔ ∃ d ∈ Direction.diagonals, Slides d b s t` / `theorem reaches_rook : Reaches .rook c b s t ↔ ∃ d ∈ Direction.orthogonals, Slides d b s t` / `theorem reaches_queen : Reaches .queen c b s t ↔ ∃ d ∈ Direction.all, Slides d b s t` | core |
 | L2.3 | **No piece reaches its own square.** | `theorem reaches_ne (h : Reaches k c b s t) : t ≠ s` | core |
 | L2.4 | **Only the squares strictly between `s` and `t` are read: two boards that agree on every square other than `s` and `t` give the same answer.** / What stands on the attacker's square is not read. / What stands on the target square is not read. | `theorem reaches_congr (h : ∀ u, u ≠ s → u ≠ t → b u = b' u) : Reaches k c b s t ↔ Reaches k c b' s t` / `theorem reaches_set_src : Reaches k c (b.set s x) s t ↔ Reaches k c b s t` / `theorem reaches_set_dst : Reaches k c (b.set t x) s t ↔ Reaches k c b s t` | core |
+| L2.4a | Whatever reaches `t` from `s` on `b` reaches it on `b'`, provided that every line from `s` to `t` that is clear on `b` is clear on `b'`: whenever `t` is `i` steps from `s` in some direction `d` and every square strictly between is empty on `b`, every square strictly between is empty on `b'`. | `theorem reaches_of_clear (h : ∀ d i j u, 0 < j → j < i → s.shift d i = some t → s.shift d j = some u → (∀ j' < i, 0 < j' → (s.shift d j').bind b = none) → b' u = none) : Reaches k c b s t → Reaches k c b' s t` | core |
 | L2.5 | If `s` holds `pc`, the piece on `s` attacks `t` exactly when `pc` reaches `t` from `s`. | `theorem attacksFrom_of_eq_some (h : b s = some pc) : b.AttacksFrom s t ↔ Reaches pc.kind pc.color b s t` | core |
 | L2.6 | An empty square attacks nothing. | `theorem not_attacksFrom_of_eq_none (h : b s = none) : ¬ b.AttacksFrom s t` | core |
-| L2.6a | Square `t` is attacked by colour `c` exactly when some square holds a piece of colour `c` and some kind `k` that reaches `t`. | `theorem Board.attacked_iff : b.Attacked c t ↔ ∃ s k, b s = some ⟨c, k⟩ ∧ Reaches k c b s t` | core |
+| L2.6a | Square `t` is attacked by colour `c` exactly when some square holds a piece of colour `c` and some kind `k` that reaches `t`. | `theorem Board.attackedBy_iff : b.AttackedBy c t ↔ ∃ s k, b s = some ⟨c, k⟩ ∧ Reaches k c b s t` | core |
 | L2.7 | On the empty board no king is attacked. | `theorem not_kingAttacked_empty (c : Color) : ¬ Board.empty.KingAttacked c` | core |
 | L2.8 | One direction of `slides_symm`: a slide from `s` to `t` is a slide back from `t` to `s`. / Sliding is symmetric: a slider on `s` reaches `t` in direction `d` exactly when one on `t` reaches `s` in the opposite direction. | `theorem Slides.symm (h : Slides d b s t) : Slides d.opposite b t s` / `theorem slides_symm : Slides d b s t ↔ Slides d.opposite b t s` | later (R3), proved |
 | L2.9 | A board with no king of colour `c` has no attacked king of colour `c`. | `theorem not_kingAttacked_of_not_hasKing (h : ¬ b.HasKing c) : ¬ b.KingAttacked c` | core |
+| L2.10 | **(R3.1) For every kind but the pawn, reaching is symmetric: a piece of kind `k` on `s` reaches `t` exactly when one on `t` reaches `s`.** | `theorem reaches_symm (hk : k ≠ .pawn) : Reaches k c b s t ↔ Reaches k c b t s` | core (R3; Round 7) *(checked)* |
+| L2.11 | **(R3.2) A pawn of colour `c` on `s` reaches `t` exactly when a pawn of the other colour on `t` reaches `s`.** | `theorem reaches_pawn_symm : Reaches .pawn c b s t ↔ Reaches .pawn c.other b t s` | core (R3; Round 7) *(checked)* |
+| L2.12 | **(R3.3, the super-piece test) Square `t` is attacked by colour `c` exactly when, for some kind `k`, a piece of kind `k` and colour `c.other` standing on `t` would reach a square holding a piece of kind `k` and colour `c`.** | `theorem Board.attackedBy_iff_superpiece : b.AttackedBy c t ↔ ∃ k s, b s = some ⟨c, k⟩ ∧ Reaches k c.other b t s` | core (R3; Round 7) *(checked)* |
 
 Proofs.
 - L2.1 *(checked)*: `→` drops the bound; `←` gets `i < 8` from `Square.shift_eq_none_of_eight_le`
@@ -325,12 +362,30 @@ Proofs.
   `reaches_congr fun _ hu _ => Board.set_ne hu`, resp. `fun _ _ hu`. `reaches_congr` is the precise
   content of DESIGN §5.2's bold sentence, and the form R3, R6 and R9 will use; tagged [core] since
   Round 4 (Round 3 had the two `set` lemmas only, [sanity], with the same proof written twice).
+- L2.4a (Round 5): `cases k`; pawn, knight and king read no board (`exact id`); for a slider take
+  the slide apart (`rintro ⟨d, hd, i, hi8, hi, ht, hb⟩`), keep `d` and `i`, and for each `j` case
+  on `s.shift d j` (`none` is `rfl`, `some u` is `h`). It is the one-way form of L2.4 for boards
+  that differ between `s` and `t`: the hypothesis may use that the whole line is clear on `b`,
+  which L4.11 needs (an emptied square is ruled out because a neighbour on the same line is
+  occupied, not because it is equal on both boards).
 - L2.6a *(checked)*: `→` reads the piece on `s` (`cases hs : b s`; `none` contradicts L2.6, `some pc`
   gives `pc.color = c` from `colorAt` and the reach from L2.5); `←` by L1.1 and L2.5. This is
-  THEOREMS R3's definition of "attacked"; `Attacked` keeps reading the kind off the board for speed
+  THEOREMS R3's definition of "attacked"; `AttackedBy` keeps reading the kind off the board for speed
   (design choice 3), and proofs about attacks start from this lemma instead of unfolding `colorAt`,
   `AttacksFrom` and its `match`.
 - L2.5–L2.6 *(checked)*: `simp [Board.AttacksFrom, h]`.
+- L2.10 (Round 7) *(checked)*: one direction for all pairs of squares gives both (`suffices`);
+  `cases k`; the pawn contradicts `hk`; a knight jumps back by the negated jump
+  (`neg_mem_knightJumps`, `Square.offset_eq_some_iff_neg`); a king steps back in the opposite
+  direction (`Square.shift_eq_some_iff_opposite`); a slider slides back in the opposite direction,
+  which is again one of its directions (`Slides.symm`, `Kind.opposite_mem_slideDirections`).
+- L2.11 (Round 7) *(checked)*: the two disjuncts of `reaches_pawn` swap: the other colour steps
+  the other way (`Color.forward_other`), and an offset is reversed by its negation
+  (`Square.offset_eq_some_iff_neg`); `or_comm`.
+- L2.12 (Round 7) *(checked)*: from L2.6a, kind by kind: a pawn by L2.11; any other kind by L2.10,
+  after which the colour does not matter, since only a pawn's reach reads its colour (`cases k`,
+  `Iff.rfl`). This is the form `MoveGen`'s `Board.superpieceAttackedBy` decides: look from `t`
+  outward once per kind instead of at all 64 squares (MoveGen spec D3.3).
 - L2.7 *(checked)*: `simp [Board.KingAttacked]` (`Board.empty_apply`). L2.7 and L2.9 check
   nothing about attacks (there is no king to attack); they are the facts the terminal lemmas L9.4
   and L9.5 need. The positive sanity checks of `KingAttacked` are tests (§10, "Attack geometry"):
@@ -399,8 +454,8 @@ def Move.PromotionRule (c : Color) (m : Move) : Prop :=
   m.promo ≠ none ↔ m.dst.relRank c = 7
 ```
 Docstring: "The promotion rule for a pawn move `m` by colour `c`: `m` names a promotion choice
-exactly when it ends on `c`'s last rank. A pawn reaching the last rank must promote (FIDE
-3.7.3.3)."
+exactly when it ends on `c`'s last rank (`relRank c = 7`, counting from 0). A pawn reaching the last
+rank must promote (FIDE 3.7.3.3)."
 Used by the two pawn rules that can reach the last rank (`PushMove`, `PawnCaptureMove`). The other
 four rules require no promotion choice (`m.promo = none`), so no other move names one. Together they
 keep the promise of Position D3.1's `promo` field docstring, in both directions (L8.3).
@@ -444,16 +499,19 @@ One named, decidable predicate per FIDE rule, joined by a disjunction (DESIGN §
 decision 5). Each reads `p` only; `c` in the English is `p.turn`, the side to move. The conjuncts
 are ordered with the cheap reads first, the colour and kind of the source square leading.
 
-**D4.1 `StepMove (p : Position) (m : Move) : Prop`.** *(checked)*
+**D4.1 `PieceMove (p : Position) (m : Move) : Prop`.** *(checked)*
 ```lean
-def StepMove (p : Position) (m : Move) : Prop :=
+def PieceMove (p : Position) (m : Move) : Prop :=
   ∃ k, k ≠ .pawn ∧ p.board m.src = some ⟨p.turn, k⟩ ∧ Reaches k p.turn p.board m.src m.dst ∧
     p.board.colorAt m.dst ≠ some p.turn ∧ m.promo = none
 ```
-Docstring: "A step move is any non-pawn move other than castling: a knight, bishop, rook, queen or
+Docstring: "A piece move is any non-pawn move other than castling: a knight, bishop, rook, queen or
 king of the side to move goes from `m.src` to a square it reaches, which does not hold a piece of its
 own colour; no promotion choice (FIDE 3.1, 3.2–3.6, 3.8.1)."
-"Step" is the piece's own step, which for a slider is a slide of any length. `∃ k` ranges over the six kinds (Basic's `Kind.decidableExists`); only the kind actually on `m.src`
+"Piece" is meant as players use it, against "pawn": a knight, bishop, rook, queen or king (FIDE's
+own Article 2 counts pawns among the pieces, hence the docstring's first sentence). Until
+2026-11-02 the rule was called `StepMove`; Rules review C5 found that name wrong for a slide of
+any length, and the L4.11 round renamed it (process log, Round 5). `∃ k` ranges over the six kinds (Basic's `Kind.decidableExists`); only the kind actually on `m.src`
 passes the second conjunct, so one `Reaches` is evaluated. The king's ordinary step is here;
 castling is `CastleMove`.
 
@@ -472,8 +530,9 @@ def DoublePushMove (p : Position) (m : Move) : Prop :=
   m.IsDoublePush p ∧ m.src.relRank p.turn = 1 ∧
     (m.src.offset 0 p.turn.forward).bind p.board = none ∧ p.board m.dst = none ∧ m.promo = none
 ```
-Docstring: "A pawn of the side to move on its second rank goes two squares straight forward; the
-square it passes over and the square it lands on are both empty; no promotion choice (FIDE 3.7.2)."
+Docstring: "A pawn of the side to move on its second rank (`relRank p.turn = 1`, counting from 0)
+goes two squares straight forward; the square it passes over and the square it lands on are both
+empty; no promotion choice (FIDE 3.7.2)."
 "On its original square" (FIDE) is read as "on the side's second rank": a pawn on that rank has
 never moved, since pawns move only forward.
 
@@ -494,10 +553,10 @@ def EnPassantMove (p : Position) (m : Move) : Prop :=
     (m.dst.offset 0 p.turn.forward).bind p.board = none ∧ m.promo = none
 ```
 Docstring: "A pawn of the side to move captures en passant: it moves diagonally forward onto the en
-passant target, which is empty and lies on its sixth rank; a pawn of the other colour stands on the square
-beside the capturing pawn on the target's file (the victim square); the square that pawn would have
-come from, one square further forward than the target from the capturer's side, is empty; no
-promotion choice (FIDE 3.7.3.1–3.7.3.2)."
+passant target, which is empty and lies on its sixth rank (`relRank p.turn = 5`, counting from 0); a
+pawn of the other colour stands on the square beside the capturing pawn on the target's file (the
+victim square); the square that pawn would have come from, one square further forward than the
+target from the capturer's side, is empty; no promotion choice (FIDE 3.7.3.1–3.7.3.2)."
 This encodes "the enemy pawn has just advanced two squares" as far as one position can (DESIGN
 §5.4): the target is on the right rank (`relRank 5` for the capturer is the passed-over square of
 the opponent's double push), the victim is a pawn of the other colour beside the capturer, and the
@@ -514,7 +573,7 @@ whether it was actually played is outside the position: FIDE 3.7.3.2 ("only on t
 def Position.CanCastle (p : Position) (w : Wing) : Prop :=
   p.castling.get p.turn w = true ∧ p.board (rookHome p.turn w) = some ⟨p.turn, .rook⟩ ∧
     (∀ s ∈ betweenKingAndRook p.turn w, p.board s = none) ∧
-    ¬ InCheck p ∧ ¬ p.board.Attacked p.turn.other (rookCastleSquare p.turn w)
+    ¬ InCheck p ∧ ¬ p.board.AttackedBy p.turn.other (rookCastleSquare p.turn w)
 ```
 Docstring: "The side to move may castle to wing `w` now, as far as the position before the move
 decides: it still holds that castling right; its rook stands on its home square on wing `w`; every
@@ -555,8 +614,11 @@ Notes (DESIGN §5.4).
   square is a corner, so no line runs through it to the landing square. (Round 3's wording, "the
   only lines … run along the home rank", overlooked the file and diagonals that emptying the king's
   home square opens; they miss the landing square.) This is the one place where the Lean does not
-  say literally what FIDE says, so it is stated as L4.11 [later], to be proved before the module is
-  called final.
+  say literally what FIDE says. L4.11 (§7a, Round 5) proves that the two readings agree, on every
+  board, with no hypothesis on the number of kings. The proof is sharper than this note: the
+  landing square is attacked after the move exactly when it was attacked before, without
+  `¬ InCheck p`; that hypothesis is needed only for a second king of the side to move, which
+  the board after castling might show attacked.
 - Since Round 4 the move-independent conditions are one predicate, `Position.CanCastle` (D4.6a), and
   `CastleMove` is "shape, permission, no promotion choice".
 
@@ -587,17 +649,17 @@ does not depend on that compiler behaviour.
 **D4.7 `PseudoLegal (p : Position) (m : Move) : Prop`.** *(checked)*
 ```lean
 def PseudoLegal (p : Position) (m : Move) : Prop :=
-  StepMove p m ∨ PushMove p m ∨ DoublePushMove p m ∨ PawnCaptureMove p m ∨ EnPassantMove p m ∨
+  PieceMove p m ∨ PushMove p m ∨ DoublePushMove p m ∨ PawnCaptureMove p m ∨ EnPassantMove p m ∨
     ∃ w, CastleMove p w m
 ```
 Docstring: "Move `m` obeys the movement rules for the side to move in `p` (FIDE 3.1–3.8), ignoring
-whether its own king is attacked afterwards: it is a step, a push, a double push, a pawn capture, an
+whether its own king is attacked afterwards: it is a piece move, a push, a double push, a pawn capture, an
 en passant capture, or castling to some wing."
 `rcases h with h | h | h | h | h | ⟨w, h⟩` gives the case split an inductive would. A capture of a
 king is not excluded (DESIGN §5.4, §6.4).
 
 Instances for D4.1–D4.5 and D4.7: `X.decidable` by `by unfold X; infer_instance` *(checked)*,
-with docstrings naming the rule: "Whether `m` is a step move is decided by reading the position.",
+with docstrings naming the rule: "Whether `m` is a piece move is decided by reading the position.",
 "Whether `m` is a push is decided by reading the position.", "Whether `m` is a double push is
 decided by reading the position.", "Whether `m` is a pawn capture is decided by reading the
 position.", "Whether `m` is an en passant capture is decided by reading the position."; D4.7:
@@ -610,32 +672,31 @@ Lemmas (`variable {p : Position} {m : Move} {k : Kind} {w : Wing}`, in a `sectio
 | L4.1 | **A pseudo-legal move moves a piece of the side to move.** | `theorem PseudoLegal.colorAt_src (h : PseudoLegal p m) : p.board.colorAt m.src = some p.turn` | core |
 | L4.2 | A pseudo-legal move does not stay on its square. | `theorem PseudoLegal.dst_ne_src (h : PseudoLegal p m) : m.dst ≠ m.src` | core |
 | L4.3 | A pseudo-legal pawn move changes rank. | `theorem PseudoLegal.rank_ne_of_pawn (h : PseudoLegal p m) (hp : p.board m.src = some ⟨p.turn, .pawn⟩) : m.dst.rank ≠ m.src.rank` | core |
-| L4.4 | A pseudo-legal move of a piece that is neither a pawn nor a king is a step move. | `theorem PseudoLegal.stepMove_of_kindAt (h : PseudoLegal p m) (hk : p.board.kindAt m.src = some k) (hp : k ≠ .pawn) (hking : k ≠ .king) : StepMove p m` | core |
+| L4.4 | A pseudo-legal move of a piece that is neither a pawn nor a king is a piece move. | `theorem PseudoLegal.pieceMove_of_kindAt (h : PseudoLegal p m) (hk : p.board.kindAt m.src = some k) (hp : k ≠ .pawn) (hking : k ≠ .king) : PieceMove p m` | core |
 | L4.5 | A pseudo-legal move does not land on a piece of the mover's own colour. | `theorem PseudoLegal.colorAt_dst_ne (h : PseudoLegal p m) : p.board.colorAt m.dst ≠ some p.turn` | sanity |
-| L4.6 | A move obeys at most one of the six rules, and castles to at most one wing. | one lemma per pair, e.g. `theorem StepMove.not_pushMove (h : StepMove p m) : ¬ PushMove p m` | later (M5) |
+| L4.6 | A move obeys at most one of the six rules, and castles to at most one wing. | one lemma per pair, e.g. `theorem PieceMove.not_pushMove (h : PieceMove p m) : ¬ PushMove p m` | later (M5) |
 | L4.7 | A pseudo-legal move has the shape of a double push exactly when it is a double push. | `theorem PseudoLegal.isDoublePush_iff (h : PseudoLegal p m) : m.IsDoublePush p ↔ DoublePushMove p m` | core |
 | L4.8 | A pseudo-legal move has the shape of an en passant capture exactly when it is one. | `theorem PseudoLegal.isEnPassant_iff (h : PseudoLegal p m) : m.IsEnPassant p ↔ EnPassantMove p m` | core |
 | L4.9 | A pseudo-legal move has the shape of castling to wing `w` exactly when it castles to `w`. | `theorem PseudoLegal.isCastle_iff (h : PseudoLegal p m) : m.IsCastle p w ↔ CastleMove p w m` | core |
 | L4.10 | A pseudo-legal move onto a square holding a piece attacks that square. | `theorem PseudoLegal.attacksFrom_dst (h : PseudoLegal p m) (hd : p.board m.dst ≠ none) : p.board.AttacksFrom m.src m.dst` | core |
-| L4.11 | A castling move is legal exactly when the square the king lands on is not attacked by the other colour in the position before the move (FIDE 3.8.2.2, read literally). | roughly `theorem CastleMove.legal_iff (h : CastleMove p w m) : Legal p m ↔ ¬ p.board.Attacked p.turn.other (kingCastleSquare p.turn w)`, with a one-king hypothesis if the proof needs one | later (fidelity) |
+| L4.11 | A castling move is legal exactly when the square the king lands on is not attacked by the other colour in the position before the move (FIDE 3.8.2.2, read literally). | `theorem CastleMove.legal_iff (h : CastleMove p w m) : Legal p m ↔ ¬ p.board.AttackedBy p.turn.other (kingCastleSquare p.turn w)`; no one-king hypothesis | core (fidelity), proved in §7a |
 
 Proofs.
 - L4.1 *(checked)*: `rcases h with ⟨k, -, h, -⟩ | ⟨h, -⟩ | ⟨⟨h, -⟩, -⟩ | ⟨h, -⟩ | ⟨⟨h, -⟩, -⟩ |
   ⟨w, ⟨-, h, -⟩, -⟩ <;> simp [h]` (through L1.1). No `unfold` is needed: `rcases` sees through the
   definitions.
-- Four `private` helpers open the section, each with a docstring: `Color.forward_ne_zero` ("A
-  pawn's rank step is not zero."), `Color.two_mul_forward_ne_zero` ("A pawn's two-square rank step
-  is not zero."), `Square.file_eq_of_offset_zero` ("An offset with no file step stays on the
-  file.") and `shift_kingHome_one_ne` ("The king's castling square is not one king step from its
-  home square.", `revert d; cases c <;> cases w <;> decide`). The first two replace four copies of
-  `by cases p.turn <;> decide`; they belong in Basic (§12 item 5).
-- L4.2 *(checked)*: `rcases` into the six rules; step, pawn capture and en passant by `reaches_ne`;
+- Four helpers serve this section: `Color.forward_ne_zero`, `Color.two_mul_forward_ne_zero` (Basic
+  B6.2a), `Square.file_eq_of_offset_zero` (Basic B4.8a) and `shift_kingHome_one_ne` (Basic B7.5a).
+  Until the readability round of 2026-11-02 they were `private` lemmas opening this section; they
+  moved to Basic (Rules review C5, §12 item 5), public, unchanged. The first two replace four
+  copies of `by cases p.turn <;> decide`.
+- L4.2 *(checked)*: `rcases` into the six rules; piece move, pawn capture and en passant by `reaches_ne`;
   push and double push by `Square.offset_ne_self (.inr (Color.forward_ne_zero _))`, resp.
   `two_mul_forward_ne_zero`; castling by `rw [hs, hd]` and `kingCastleSquare_ne_kingHome`.
 - L4.3 *(checked)*: a local `have key : ∀ df dr : Int, dr ≠ 0 → m.src.offset df dr = some m.dst →
   m.dst.rank ≠ m.src.rank` (by `rw [Square.offset_eq_some_iff, e] at ho; omega`), applied in the
-  four pawn rules with rank step `p.turn.forward` or `2 * p.turn.forward`; the step and castling
-  cases contradict `hp` (the source holds a pawn, not a non-pawn, resp. a king).
+  four pawn rules with rank step `p.turn.forward` or `2 * p.turn.forward`; the piece-move and
+  castling cases contradict `hp` (the source holds a pawn, not a non-pawn, resp. a king).
 - L4.4 *(checked)*: `rcases h with h | ⟨h, -⟩ | ⟨⟨h, -⟩, -⟩ | ⟨h, -⟩ | ⟨⟨h, -⟩, -⟩ | ⟨w, ⟨-, h,
   -⟩, -⟩`; the first case is the goal, the others contradict `hk` (`simp [Board.kindAt, h] at hk`
   gives `.pawn = k` or `.king = k`).
@@ -646,8 +707,8 @@ Proofs.
 - L4.7: `←` is the first conjunct. `→`: in the five other rules, the shape's rank step `2 *
   p.turn.forward` (with file step 0) clashes with the rule's own step through Basic
   `steps_eq_of_offset_eq`: a push has rank step `p.turn.forward`, a pawn capture and en passant file
-  step ±1; a step move and castling have no pawn on `m.src`.
-- L4.8 *(checked)*: `←` is the first conjunct. `→`: a step move and castling have no pawn on
+  step ±1; a piece move and castling have no pawn on `m.src`.
+- L4.8 *(checked)*: `←` is the first conjunct. `→`: a piece move and castling have no pawn on
   `m.src`; a push and a double push stay on the file (`Square.file_eq_of_offset_zero`), which the
   shape forbids; a pawn capture needs a piece on `m.dst`, which the shape says is empty. R7 needs it
   to know that the en passant victim is really a pawn.
@@ -655,12 +716,13 @@ Proofs.
   which holds a king; a king's step is one square and castling moves it two
   (`shift_kingHome_one_ne`); a castling move to `w'` has `w' = w` (L3.1). L4.7–L4.9 are the formal
   content of "`play` and `PseudoLegal` cannot disagree" (D5.3).
-- L4.10 *(checked)*: the step and pawn-capture cases by L2.5; the other four rules land on an empty
+- L4.10 *(checked)*: the piece-move and pawn-capture cases by L2.5; the other four rules land on an empty
   square (castling because the castling square is between king and rook). With R9.5 it gives "no
   legal move captures a king" (R9).
-- L4.11: not proved. The argument is in D4.6's note "When the attack tests are read".
+- L4.11: proved in §7a (Round 5), after `play`'s lemmas, which it needs. The row stays here, in
+  the table of the rule it is about.
 - L4.6: deferred to Stage 2 with M5. The reasons it holds are recorded in DESIGN §5.4: the source
-  kind separates step from pawn moves from castling (a king `StepMove` changes file by one, castling
+  kind separates piece from pawn moves from castling (a king `PieceMove` changes file by one, castling
   by two), and `dst` occupied versus empty separates pawn capture from en passant and pushes.
 
 ---
@@ -743,25 +805,12 @@ faithful and why it replaces DESIGN §5.5 step 4's "if `src` holds a king". Inst
 `Move.Revokes.decidable` by `unfold; infer_instance` *(checked)*, docstring "Whether `m` costs a
 right is decided by comparing squares."
 
-**D5.7 `CastlingRights.ofGet (f : Color → Wing → Bool) : CastlingRights`.** *(checked)*
-```lean
-def CastlingRights.ofGet (f : Color → Wing → Bool) : CastlingRights :=
-  ⟨f .white .kingside, f .white .queenside, f .black .kingside, f .black .queenside⟩
-```
-Docstring: "The castling rights given by `f`: for every colour `c` and wing `w`, `c`'s right on `w`
-is held exactly when `f c w` is true."
-Written by its full name, `def CastlingRights.ofGet`, after Position's `CastlingRights` section,
-without reopening the namespace; it uses no `none` (Position D4.5's hazard does not arise). It is a
-general constructor and could add rights; `play` uses it only in step 4, whose `&&` can only clear
-them. Position's `CastlingRights` docstring ("changed only with `revoke` and `revokeAll`") is
-therefore out of date; §12 item 7 asks Position to restate it and to take `ofGet`.
-
-| ID | English | Lean | Tag |
-|---|---|---|---|
-| L5.1 | The rights built from `f` hold `c`'s right on `w` exactly when `f c w` is true. | `@[simp] theorem CastlingRights.get_ofGet (f : Color → Wing → Bool) (c : Color) (w : Wing) : (CastlingRights.ofGet f).get c w = f c w` | core |
-
-Proof *(checked)*: `cases c <;> cases w <;> rfl`. It sits right after D5.7, before step 4 uses it,
-and is the one lemma in §5.
+**D5.7 (moved) `CastlingRights.ofGet`**, and its lemma **L5.1 (moved)** `CastlingRights.get_ofGet`:
+in `Chess.Position` since the readability round of 2026-11-02 (Position D4.6b and P4.3b), as §12
+item 7 asked, with the same docstrings and proofs. It is a general constructor and could add
+rights; `play` uses it only in step 4, whose `&&` can only clear them. Position's `CastlingRights`
+docstring now says so; until that round it said rights were "changed only with `revoke` and
+`revokeAll`", which step 4 had made false. §5 now has no lemma.
 
 **D5.8 Step 4, `Move.castlingAfter (p : Position) (m : Move) : CastlingRights`.** *(checked)*
 ```lean
@@ -817,7 +866,11 @@ is legal is decided by deciding the rules and then playing the move."
 ```lean
 def Checkmate (p : Position) : Prop := InCheck p ∧ ∀ m, ¬ Legal p m
 ```
-Docstring: "The side to move is checkmated: it is in check and has no legal move (FIDE 5.1.1)."
+Docstring: "The side to move is checkmated: it is in check and has no legal move (FIDE 1.4 and 1.4.1;
+FIDE 5.1.1 makes it a win for the other side)."
+FIDE 1.4 and 1.4.1 define checkmate (the king under attack, and the player with no legal move);
+5.1.1 says only that it wins. The docstring cited 5.1.1 alone until the readability round of
+2026-11-02.
 
 **D6.3 `Stalemate (p : Position) : Prop`.** *(checked)*
 ```lean
@@ -842,7 +895,7 @@ without it). Never by `decide` in the library: the cheap decision is the generat
 ## 7. Section "What a move changes (R4, R8)"
 
 Lemmas (`variable {p : Position} {m : Move} {c : Color} {w : Wing} {t : Square}`, in a `section
-Play`). The helper lemmas L7.3–L7.6 come first, then R4, then R8.
+Play`). The helper lemmas L7.3–L7.5 come first, then R4, then R8.
 
 | ID | English | Lean | Tag |
 |---|---|---|---|
@@ -851,7 +904,7 @@ Play`). The helper lemmas L7.3–L7.6 come first, then R4, then R8.
 | L7.3 | For a move without the shape of en passant, step 2 writes nothing. / For a move with the shape of en passant, step 2 clears the victim square. | `theorem Move.enPassantWrites_of_not_isEnPassant (h : ¬ m.IsEnPassant p) : m.enPassantWrites p = []` / `theorem Move.enPassantWrites_of_isEnPassant (h : m.IsEnPassant p) : m.enPassantWrites p = [(m.epVictim, none)]` | core |
 | L7.4 | For a move with the shape of castling to no wing, step 3 writes nothing. / For a move with the shape of castling to wing `w`, step 3 moves what stands on that wing's rook home square to the square the king crosses. | `theorem Move.castleWrites_of_forall_not_isCastle (h : ∀ w, ¬ m.IsCastle p w) : m.castleWrites p = []` / `theorem Move.castleWrites_of_isCastle (h : m.IsCastle p w) : m.castleWrites p = [(rookHome p.turn w, none), (rookCastleSquare p.turn w, p.board (rookHome p.turn w))]` | core |
 | L7.5 | `t` is touched by `m` exactly when it is the source, the destination, the victim square of a move with the shape of en passant, or one of the rook's two squares of a move with the shape of castling. | `theorem Move.mem_touched : t ∈ m.touched p ↔ t = m.src ∨ t = m.dst ∨ (m.IsEnPassant p ∧ t = m.epVictim) ∨ ∃ w, m.IsCastle p w ∧ (t = rookHome p.turn w ∨ t = rookCastleSquare p.turn w)` | core |
-| L7.6 | The square a castling rook lands on is not a king's home square. | `theorem rookCastleSquare_ne_kingHome (c c' : Color) (w : Wing) : rookCastleSquare c w ≠ kingHome c'` | core |
+| L7.6 | (moved to Basic B7.9, `rookCastleSquare_ne_kingHome`, in the readability round) | | |
 | L7.7 | **(R4) A square that the move does not touch keeps its contents, whatever the move.** | `theorem play_board_of_not_mem (h : t ∉ m.touched p) : (p.play m).board t = p.board t` | core |
 | L7.7a | A pseudo-legal move writes no square twice. | `theorem PseudoLegal.touched_nodup (h : PseudoLegal p m) : (m.touched p).Nodup` | core |
 | L7.8 | **(R4) After a pseudo-legal move its source square is empty.** / **(R4) After a pseudo-legal move its destination holds the piece from the source, promoted as the move says.** / (R4) After a move with the shape of en passant the victim square is empty. / (R4) After a move with the shape of castling to wing `w` the rook's home square on `w` is empty. / (R4) After a move with the shape of castling to wing `w` the square the king crossed holds what stood on the rook's home square. | `theorem play_board_src (h : PseudoLegal p m) : (p.play m).board m.src = none` / `theorem play_board_dst (h : PseudoLegal p m) : (p.play m).board m.dst = (p.board m.src).map (·.promote m.promo)` / `theorem play_board_epVictim (h : m.IsEnPassant p) : (p.play m).board m.epVictim = none` / `theorem play_board_rookHome (h : m.IsCastle p w) : (p.play m).board (rookHome p.turn w) = none` / `theorem play_board_rookCastleSquare (h : m.IsCastle p w) : (p.play m).board (rookCastleSquare p.turn w) = p.board (rookHome p.turn w)` | core |
@@ -873,8 +926,8 @@ Proofs.
   `(∃ w, m.IsCastle p w ∧ (t = rookHome p.turn w ∨ t = rookCastleSquare p.turn w)) ↔
   t ∈ (m.castleWrites p).map (·.1)`; rewrite with both, then
   `simp [Move.touched, Move.boardWrites, Move.pieceWrites]`.
-- L7.6: `cases c <;> cases c' <;> cases w <;> decide` *(checked)*. It belongs in Basic beside
-  `kingCastleSquare_ne_kingHome`; stated here because this module may not edit Basic (§12 item 5).
+- L7.6 is Basic's `rookCastleSquare_ne_kingHome` (B7.9) since the readability round of 2026-11-02,
+  beside its five siblings (§12 item 5).
 - L7.7 *(checked)*: `Board.setMany_of_not_mem h` (the touched list is the write list's squares by
   definition). This is THEOREMS R4's frame lemma, unconditional.
 - L7.7a *(checked)*: after `List.append_assoc`, `List.nodup_append` splits the write squares into
@@ -899,12 +952,92 @@ Proofs.
   - `play_board_rookHome` and `play_board_rookCastleSquare`: step 2 writes nothing (L3.2), step 3 is
     L7.4's two writes, and `rookCastleSquare_ne_rookHome`. No `PseudoLegal` hypothesis is needed.
 - L7.9 *(checked)*: `get_play_castling` by `simp [Position.play, Move.castlingAfter]` (through
-  `CastlingRights.get_ofGet`, a `@[simp]` lemma proved by `cases c <;> cases w <;> rfl` right after
-  D5.7); `castling_play_le` is `fun _ _ h => (get_play_castling.mp h).1`.
+  `CastlingRights.get_ofGet`, Position P4.3b, a `@[simp]` lemma); `castling_play_le` is `fun _ _ h => (get_play_castling.mp h).1`.
 
 L7.8 replaces THEOREMS R4's `play_board_dst … = some (movedPiece p m)` by the total form DESIGN §12
 asks for. Together L7.7 and L7.8 say what every square holds after a pseudo-legal move. The last
 three rows need only the shape, so no pseudo-legality hypothesis is needed for them.
+
+---
+
+## 7a. Section "The castling landing square (L4.11)"
+
+Added in Round 5 (2026-11-02). FIDE 3.8.2.2 tests the square the king lands on in the position
+before castling; `CastleMove` does not test it, and `Legal` tests it after the move, with the king
+on it (D4.6's note "When the attack tests are read"). This section proves that the two readings
+agree, so that the trusted text needs no argument here, only a theorem.
+
+Lemmas (`variable {p : Position} {m : Move} {w : Wing} {t : Square}`, in a `section Castling`). The
+two `private` helpers carry the argument; L4.11 itself is a short proof on top of them (about a
+dozen lines; the extra work is the second-king case).
+
+| ID | English | Lean | Tag |
+|---|---|---|---|
+| L7a.1 | Castling is pseudo-legal. | `theorem CastleMove.pseudoLegal (h : CastleMove p w m) : PseudoLegal p m` | core |
+| L7a.1a | A side that may castle is not in check. | `theorem Position.CanCastle.not_inCheck (h : p.CanCastle w) : ¬ InCheck p` | core |
+| L7a.2 | After castling to wing `w`, every square other than the king's and the rook's home squares and the squares they land on holds what it held before. | `theorem CastleMove.play_board_of_ne (h : CastleMove p w m) (hK : t ≠ kingHome p.turn) (hG : t ≠ kingCastleSquare p.turn w) (hR : t ≠ rookHome p.turn w) (hF : t ≠ rookCastleSquare p.turn w) : (p.play m).board t = p.board t` | core |
+| L7a.3 | After castling the king's home square is empty. / After castling to wing `w` the king stands on its castling square. / After castling to wing `w` the rook stands on the square the king crossed. | `theorem CastleMove.play_board_kingHome (h : CastleMove p w m) : (p.play m).board (kingHome p.turn) = none` / `theorem CastleMove.play_board_kingCastleSquare (h : CastleMove p w m) : (p.play m).board (kingCastleSquare p.turn w) = some ⟨p.turn, .king⟩` / `theorem CastleMove.play_board_rookCastleSquare (h : CastleMove p w m) : (p.play m).board (rookCastleSquare p.turn w) = some ⟨p.turn, .rook⟩` | core |
+| L7a.4 | If after castling a square holds a king of the side that castled and is attacked by the other colour, it was attacked by the other colour before the move. | `private theorem CastleMove.attacked_of_play_attacked (h : CastleMove p w m) (ht : (p.play m).board t = some ⟨p.turn, .king⟩) (ha : (p.play m).board.AttackedBy p.turn.other t) : p.board.AttackedBy p.turn.other t` | helper |
+| L7a.5 | If the king's castling square is attacked by the other colour before castling, it is attacked after. | `private theorem CastleMove.play_attacked (h : CastleMove p w m) (ha : p.board.AttackedBy p.turn.other (kingCastleSquare p.turn w)) : (p.play m).board.AttackedBy p.turn.other (kingCastleSquare p.turn w)` | helper |
+| L4.11 | A castling move is legal exactly when the square the king lands on is not attacked by the other colour in the position before the move (FIDE 3.8.2.2, read literally). | `theorem CastleMove.legal_iff (h : CastleMove p w m) : Legal p m ↔ ¬ p.board.AttackedBy p.turn.other (kingCastleSquare p.turn w)` | core (fidelity) |
+
+Write `K`, `G`, `R`, `F` for the king's home square, its castling square, the rook's home square
+and the square the king crosses (`kingHome p.turn`, `kingCastleSquare p.turn w`,
+`rookHome p.turn w`, `rookCastleSquare p.turn w`). Before the move `K` holds the king, `R` the
+rook, and `F`, `G` are empty (they are between king and rook); after it `K` and `R` are empty, `G`
+holds the king and `F` the rook (L7a.3, R4's `play_board_rookHome`), and every other square is
+unchanged (L7a.2). So no piece of the other colour stands on any of the four squares, before or
+after, and the other colour's pieces stand where they stood.
+
+Proofs.
+- L7a.1: the sixth disjunct of `PseudoLegal`, `.inr (.inr (.inr (.inr (.inr ⟨w, h⟩))))`.
+- L7a.1a: the projection `h.2.2.2.1` (Round 6, so that L4.11 names the fact instead of projecting
+  four levels into `CastleMove`).
+- L7a.2: R4's `play_board_of_not_mem`, and L7.5 (`Move.mem_touched`) for the touched squares: the
+  source is `K` and the destination `G` (`Move.IsCastle`), the en passant case contradicts L3.2,
+  and the castling writes are on `w`'s squares by L3.1.
+- L7a.3: R4's `play_board_src` and `play_board_dst` with L7a.1 (no promotion choice, so the king
+  stays a king), and R4's `play_board_rookCastleSquare` with the rook on `R` (`CanCastle`). Inside
+  `namespace CastleMove` the unqualified `play_board_rookCastleSquare` would name the lemma being
+  defined, so the proof writes `Chess.play_board_rookCastleSquare`.
+- L7a.4: by L2.6a the attacker is a piece of the other colour on a square `s` with a kind `k`; it
+  stands on none of the four squares, so it stood on `s` before (L7a.2). Its reach transfers by
+  L2.4a: on a line from `s` to `t` clear after the move, show each square `u` strictly between is
+  empty before. `G` and `F` are occupied after, so they are not `u`. `R` is a corner: by Basic
+  B5.16a and B5.16b a line with `R` strictly inside would change neither rank nor file. If `u` is
+  `K`, the line runs along the home rank (B5.16a), hence along `w.direction` or against it
+  (B5.6a), so by B5.16c `F`, one step from `K` towards the rook (Basic `shift_kingHome_one`), is
+  `s`, `t` or strictly between. Each is impossible: `s` holds a piece of the other colour, `t` a
+  king, and squares strictly between are empty after, while `F` holds the rook. Every other `u` is
+  unchanged by L7a.2.
+- L7a.5: the same pattern on the board before the move. The attacker stands on none of the four
+  squares, so it is still on `s` after. A square `u` strictly between `s` and `G` that is empty
+  before is empty after: `K` and `R` are occupied before, `G` is the target (Basic
+  `steps_eq_of_shift_eq`), and if `u` is `F` the line runs along the home rank, so `K`, one step
+  back from `F` (`shift_eq_some_iff_opposite` on `shift_kingHome_one`), is `s` (which holds the
+  other colour), `G` (Basic `kingCastleSquare_ne_kingHome`) or strictly between, where it would
+  have to be empty before.
+- L4.11: `→`: if `G` is attacked before, it is attacked after (L7a.5), and the king stands on it
+  (L7a.3), so the king is attacked. `←`: castling is pseudo-legal (L7a.1); a king of the side that
+  castled attacked after the move was attacked before (L7a.4); on `G` that contradicts the
+  hypothesis, and on any other square the king stood there before (L7a.2; `K`, `R` and `F` do not
+  hold a king after), so the side to move was in check, which `CanCastle` excludes (L7a.1a).
+
+What the proof shows beyond the statement. The landing square is attacked after the move exactly
+when it was attacked before (L7a.4 with L7a.5), with no use of `¬ InCheck p`. That hypothesis is
+used only for a second king of the side to move (FIDE positions have one; the library does not
+assume it, design choice 11). This sharper fact is not exported: L7a.4 and L7a.5 are `private`, so
+no public theorem states it. Make it a public lemma if Stage 2 (R3's attack geometry or the board
+invariants) needs it.
+
+The proof uses neither `WellFormed` nor a count of kings, and no `decide` in this section. The
+geometry is Basic's B5.6a (by `decide` over direction pairs) and B5.16a–c (by `omega` on
+coordinates; B5.16a–b first turn a `Fin 8` literal into a number with a small `decide`).
+
+`#print axioms CastleMove.legal_iff`: `propext`, `Classical.choice`, `Quot.sound` (also through
+Basic's B5.16a–c, which use all three). `reaches_of_clear`: `propext`, `Quot.sound`.
+`Position.CanCastle.not_inCheck`: `propext`, `Quot.sound` (through the definitions it names; the
+proof is a projection).
 
 ---
 
@@ -920,12 +1053,13 @@ Lemmas (`variable {p : Position} {m : Move}`):
 | L8.3 | **A pseudo-legal move names a promotion choice exactly when a pawn reaches the last rank.** | `theorem PseudoLegal.promo_ne_none_iff (h : PseudoLegal p m) : m.promo ≠ none ↔ p.board m.src = some ⟨p.turn, .pawn⟩ ∧ m.dst.relRank p.turn = 7` | sanity |
 
 Proofs.
-- L8.1 *(checked)*: `obtain ⟨k, -, hsrc, hr, -⟩ := h.stepMove_of_kindAt hb (by decide) (by
+- L8.1 *(checked)*: `obtain ⟨k, -, hsrc, hr, -⟩ := h.pieceMove_of_kindAt hb (by decide) (by
   decide)`, `obtain rfl : k = .bishop := by simpa [Board.kindAt, hsrc] using hb`, then
   `obtain ⟨d, hd, i, -, -, hi, -⟩ := hr` and Basic's `Square.isLight_shift_of_mem_diagonals hd hi`.
 - L8.2 *(checked)*: the same, ending with `obtain ⟨j, hj, hjt⟩ := hr` and Basic's
   `Square.isLight_iff_of_mem_knightJumps hj hjt`.
-- L8.3: the six cases. Step and castling: `promo = none` and the source does not hold a pawn (step:
+- L8.3: the six cases. Piece move and castling: `promo = none` and the source does not hold a pawn
+  (piece move:
   `simp [hpr, hs, hk]`).
   Push and pawn capture: `PromotionRule` (`simpa [hs] using hpr`). Double push: `promo = none`, and
   `dst` is on relative rank 3 (Basic B6.7a, `relRank_of_offset_forward (dr := 2) ho`: `dr` must be
@@ -972,7 +1106,21 @@ piece. That is a king only if it was one (`promo = none`) and never otherwise
 
 ## 10. Section "Tests"
 
-As `example`s and `#guard`s at the end of the file, until the test library exists. Squares are
+**Where they live (2026-11-02).** These tests, and the named test positions with their docstrings,
+are in `ChessTest/Rules.lean`, in the test library `ChessTest` (`lake build ChessTest`; not built by
+`lake build`). They moved there because they were about 3.3 s of this module's 3.6 s build, paid by
+every module that imports it (MoveGen review C4). `Chess/Rules/Defs.lean` keeps only these cheap
+`#guard`s, at its end, as documentation (interpreted, well under 0.1 s together):
+
+```lean
+-- The initial position: no check; e2e4 is legal, e2e5 is not; after e2e4 the target is e3.
+#guard !decide (InCheck Position.initial)
+#guard decide (Legal Position.initial ⟨⟨4, 1⟩, ⟨4, 3⟩, none⟩)   -- e2e4
+#guard !decide (Legal Position.initial ⟨⟨4, 1⟩, ⟨4, 4⟩, none⟩)  -- e2e5
+#guard (Position.initial.play ⟨⟨4, 1⟩, ⟨4, 3⟩, none⟩).epTarget == some ⟨4, 2⟩
+```
+
+What follows specifies `ChessTest/Rules.lean`. Squares are
 written `⟨file, rank⟩` with the algebraic name in a comment (Basic review C4 is still open). Each
 named test position is a `def` with a docstring that lists its pieces, the side to move and the
 rights, in the words used below (for example "White king e1 and pawn e5; Black king e8 and pawn d7;
@@ -1040,9 +1188,36 @@ king and that rook on their home squares), so a test about a kept right tests a 
   - The rook may be attacked, on `rookAttackedPos`: white king e1 and rook h1, black king a8 and
     rook h8, White to move, rights `⟨true, false, false, false⟩`: e1g1 is legal although h1 is
     attacked; with a white knight on g1, or a black rook on g8 (g1 attacked), it is not.
+  - Added in Round 5 (L4.11): the first and the third of these again, through
+    `CastleMove.legal_iff`, deciding only `CastleMove` and the attack on g1 before the move.
   - A king may not capture a defended piece, on `defendedPos`: white king e1, black king e8, black
     rook e2 and bishop h5, White to move, no rights: e1e2 is not legal; with the bishop removed it
     is.
+
+**The docstrings of the named positions, word for word** (added 2026-11-02, when the positions
+moved to `ChessTest/Rules.lean`; before, this section described them without quoting them):
+
+- `foolsMate`: "Fool's mate: 1. f3 e5 2. g4 Qh4#."
+- `castlePos`: "White king e1, rooks a1 and h1; Black king e8, rooks f8 and b8; White to move,
+  White's two rights only (Black's rooks are not at home)."
+- `blackCastlePos`: "Black king e8 and rook h8; White king e1; Black to move, Black's kingside right
+  only."
+- `castleRookPos`: "White king e1, rooks a1 and h1; Black king b8 and a rook on `f`7; White to move,
+  White's two rights only."
+- `epPos`: "White king e1 and pawn e5; Black king e8 and pawn d7; Black to move, no rights; then
+  d7d5."
+- `epPinPos`: "White king a5 and pawn b5; Black king h8, rook h5 and pawn c7; Black to move, no
+  rights; then c7c5."
+- `kingsPos`: "White king e1, Black king e3; White to move, no rights."
+- `promoPos`: "White king e1 and pawn b7; Black king e8 and rooks a8 and h8; White to move, Black's
+  two rights only (White has no rooks)."
+- `blackPromoPos`: "Black king e8 and pawn a2; White king h8; Black to move, no rights."
+- `pinPos`: "White king e1 and bishop e2; Black king a8 and rook e8; White to move, no rights."
+- `blackEpPos`: "White king e1 and pawn e2; Black king e8 and pawn d4; White to move, no rights;
+  then e2e4."
+- `rookAttackedPos`: "White king e1 and rook h1; Black king a8 and rook h8; White to move, White's
+  kingside right only."
+- `defendedPos`: "White king e1; Black king e8, rook e2 and bishop h5; White to move, no rights."
 
 No test sweeps all moves by `decide` (`Checkmate` by `decide` would check 20 480 candidates in the
 kernel; measured in the file-level review: `Checkmate foolsMate` by `decide +kernel` does not finish
@@ -1058,13 +1233,13 @@ in 500 s). No `native_decide` (DESIGN §7.3).
    `Reaches` one line per kind.
 2. **`Reaches` matches on the kind, sliders sharing one arm** through `Kind.slideDirections`, so the
    queen is visibly rook-or-bishop and a reader sees all six kinds.
-3. **`AttacksFrom` reads the kind off the board** (a `match`), and `Attacked` quantifies over squares
+3. **`AttacksFrom` reads the kind off the board** (a `match`), and `AttackedBy` quantifies over squares
    only: 64 reads per attacked-square test, never 64 × 12.
 4. **`Board.colorAt` and `Board.kindAt`.** "Does not hold a piece of its own colour" is
    `colorAt dst ≠ some c`, FIDE 3.1's sentence, with no case split on "empty or enemy".
-5. **`StepMove` quantifies over the kind** (`∃ k`), unlike `Attacked`. A move is tested once, not
+5. **`PieceMove` quantifies over the kind** (`∃ k`), unlike `AttackedBy`. A move is tested once, not
    64 times, so six cheap reads are affordable, and `obtain ⟨k, hk, hsrc, hr, hdst, hpromo⟩` is the
-   most readable way to take a step move apart. Measured: deciding `StepMove` for all 20 480
+   most readable way to take a piece move apart. Measured: deciding `PieceMove` for all 20 480
    candidates of the initial position takes 0.29 s interpreted.
 6. **`Move.IsDoublePush`**, a third shape predicate beside DESIGN's two, because `DoublePushMove`
    and step 5 both need "a pawn of the side to move goes two squares straight forward"
@@ -1104,27 +1279,54 @@ in 500 s). No `native_decide` (DESIGN §7.3).
 9. **`CastleMove`'s `Decidable` instance is hand-written**, guarded by the shape (D4.6), for the
    measured 80× speedup of compiled decisions. Since Round 4 the guarded part is the named
    predicate `Position.CanCastle`, so the instance restates no condition, and the measurements
-   under D4.6 locate the slowdown (an attack test as a direct conjunct of a derived instance). All other instances are `by unfold X;
-   infer_instance`, which is the shortest form and is kernel-friendly (all checked under `decide`
+   under D4.6 locate the slowdown (an attack test as a direct conjunct of a derived instance). All
+   other instances unfold the definition and call `infer_instance` (after `cases k` for D2.2 and
+   `split` for D2.3), which is the shortest form and is kernel-friendly (all checked under `decide`
    and `decide +kernel`).
-10. **`CastlingRights.ofGet`** builds rights from their `get` function. Position's convention says
+10. **`CastlingRights.ofGet`** builds rights from their `get` function. Position's convention said
     rights are changed only by `revoke` and `revokeAll`; that convention was a means to R8, and with
     `ofGet` R8 is immediate from the definition of step 4 (`&&` can only turn a right off). The true
-    convention is now "`play` changes rights only through `Move.castlingAfter`, which can only clear
-    them"; Position's docstring should say that (§12 item 7).
+    convention is "`play` changes rights only through `Move.castlingAfter`, which can only clear
+    them"; since the readability round of 2026-11-02 Position's docstring says that, and `ofGet`
+    lives in Position (§12 item 7).
 13. **Named hypotheses over spelled-out ones** (Round 4): `Board.HasKing` for "has a king",
     `Position.CanCastle` for "may castle now", `reaches_congr` for "only the squares between are
     read". Each replaces a formula that appeared several times, and each is a phrase a player would
     use.
-14. **Rules stay conjunctions, not structures** (Round 4, considered and deferred). Proofs take the
-    rules apart by position (`⟨-, -, h5, -, -, hpr⟩`), so reordering a conjunct breaks them at build
-    time. Prop-valued structures with documented fields would read better (`h.promo`) and cost one
-    `decidable_of_iff` instance each. Deferred to the M2/M5 work, where the generator's completeness
-    proof will show which rules need it; `CanCastle` already cut `CastleMove` from seven conjuncts to
-    three.
+14. **Rules stay conjunctions, not structures** (Round 4, considered and deferred; decided in
+    Round 5, 2026-11-02: Rules review C1 is not adopted). Proofs take the rules apart by position
+    (`⟨-, -, h5, -, -, hpr⟩`), so reordering a conjunct breaks them at build time. Prop-valued
+    structures with documented fields would read better (`h.promo`) and cost one
+    `decidable_of_iff` instance each. Why not adopted:
+    - The positional patterns would stay positional. `rcases` and anonymous-constructor patterns on
+      a structure follow field order too (this is why the review could say they "keep working"), so
+      reordering fields would break the same ten six-way `rcases` here and
+      `PseudoLegal.mem_candidates` in MoveGen. Only proofs rewritten to field names would gain, and
+      those proofs read well now, with named pattern variables.
+    - Each structure needs a hand-written instance that restates its fields as a conjunction
+      (`decidable_of_iff (a ∧ b ∧ c ∧ d) ⟨…⟩`): seven restatements of trusted text, where every
+      instance but one is now `unfold; infer_instance` and restates nothing (design choice 9).
+    - The trusted text would grow: a one-formula definition whose docstring already names every
+      clause in order becomes one documented field per clause, more lines to check against FIDE.
+    - The work the deferral waited for is done: M2 and M4 (MoveGen's cover) and L4.11 were proved
+      against the conjunctions without friction. The one awkward spot was a deep projection into
+      `CanCastle` (`h.2.1.2.2.2.1`) in L4.11; since Round 6 it is the named accessor
+      `Position.CanCastle.not_inCheck` (L7a.1a), which is the pattern to follow where a positional
+      projection would otherwise recur.
+    Revisit if L4.6 (M5: fifteen pairwise exclusions) turns out painful with positional patterns.
+    The migration is mechanical and can go rule by rule: the review measured that existing patterns,
+    `decide` and `decide +kernel` all survive it.
 11. **A king capture is not excluded** (DESIGN §5.4); `parseFEN` rejects the positions where it
     could happen (DESIGN §6.4).
 12. **No executable `inCheck`**, no `movedPiece`, no `findKing`, no `get!`, no `default`.
+15. **Definitions and lemmas in separate files** (readability round, 2026-11-02). The 37 trusted
+    definitions were split across five places in one 1280-line file, between about 700 lines of
+    lemmas, so `Legal`, `Checkmate` and `Stalemate` first appeared at line 820. `Chess/Rules/Defs.lean`
+    now holds every definition and decision procedure, in reading order, and nothing else (about
+    400 lines with the module docstring); `Laws` and `Castling` hold the lemmas. This is what
+    `Chess.Game` did in its step 5 (Game review C2): an auditor reads one file and knows where to
+    stop. Nothing about meaning changed: the definitions, their order and their instances are as
+    before, and every lemma kept its statement and proof.
 
 ---
 
@@ -1138,28 +1340,43 @@ Open items:
 2. **Position review C1 (`Board` as a one-field structure).** Not forced by this module (design
    choice 7). If adopted, goals print `b.get s`, and `Board.setMany` and `colorAt` are unchanged in
    the source.
-3. **Basic review C2 (pawn direction as a `Direction`).** If adopted, `Reaches`' pawn arm, D3.3,
-   D4.2, D4.3, D4.5 and D5.9 change from `offset 0 (dr * c.forward)` to `shift c.pawnDirection dr`
-   (and the capture diagonals to two directions). Decide before the translation.
+3. **Basic review C2 (pawn direction as a `Direction`).** Decided in Round 5 (2026-11-02): not
+   adopted; pawn moves stay `offset df (dr * c.forward)`. If adopted, `Reaches`' pawn arm, D3.3,
+   D4.2, D4.3, D4.5 and D5.9 would change from `offset 0 (dr * c.forward)` to
+   `shift c.pawnDirection dr` (and the capture diagonals to two directions). Reasons: the cost the
+   review predicted, "every pawn proof starts with `cases c`", did not appear. Apart from two
+   one-line helpers (`Color.forward_ne_zero`, `Color.two_mul_forward_ne_zero`), no pawn proof in
+   this module or in MoveGen splits on the colour; they go through Basic's `relRank_of_offset_forward`,
+   `steps_eq_of_offset_eq` and `offset_eq_some_iff` with `omega` (L4.3, L4.7, L8.3, MoveGen's
+   cover). The captures would stay offsets (or become two more directions per colour), so pawn
+   moves would mix `shift` and `offset`; the gain is a nicer double push. Changing six trusted
+   definitions, MoveGen's `pawnTargets` and `reachTargets`, and the proofs above, for that gain,
+   is not worth it.
 4. **Position review C2 (`CastlingRights.none` → `empty`).** This module writes `.none` only in one
    test (`epPos`); the rename touches one line.
-5. **Basic additions this module would use** (proved locally here, to move when Basic is next
-   revised): `rookCastleSquare_ne_kingHome` (L7.6), `kingCastleSquare` injective in the wing (used in
-   L3.1), and the `private` helpers of §4 (`Color.forward_ne_zero`, `Color.two_mul_forward_ne_zero`,
-   `Square.file_eq_of_offset_zero`, `shift_kingHome_one_ne`). Possibly also
+5. **Basic additions this module would use.** Done in the readability round of 2026-11-02 for
+   `rookCastleSquare_ne_kingHome` (L7.6, now Basic B7.9) and the four helpers of §4
+   (`Color.forward_ne_zero`, `Color.two_mul_forward_ne_zero`, Basic B6.2a;
+   `Square.file_eq_of_offset_zero`, B4.8a; `shift_kingHome_one_ne`, B7.5a). Still open:
+   `kingCastleSquare` injective in the wing (used in L3.1). Possibly also
    `Piece.kind_promote_eq_king : (pc.promote o).kind = .king ↔ pc.kind = .king ∧ o = none`; L9.7 no
    longer needs it.
 6. **THEOREMS edits**: applied in Round 4 (R3, R4, R5, R8, R9, R11, M2 now name this module's
    statements). DESIGN §5.5 step 4 updated (item 1); DESIGN §5.4 does not yet mention
    `IsDoublePush` or `CanCastle`.
-7. **Position, next revision**: restate `CastlingRights`' convention as "`play` changes rights only
-   through `Move.castlingAfter`, which can only clear them", and move `CastlingRights.ofGet` and
-   `get_ofGet` (D5.7, L5.1) into Position. Not edited here: it is Position's file.
-8. **L4.11, the castling-landing fidelity lemma** ([later]): the one place where the Lean's reading
-   of FIDE is an argument, not a definition (D4.6 note). Prove before calling the module final.
+7. ~~**Position, next revision**~~: done in the readability round of 2026-11-02. Position's
+   `CastlingRights` docstring says that a move changes rights only through `Move.castlingAfter`,
+   which can only clear them, and `CastlingRights.ofGet` and `get_ofGet` (D5.7, L5.1) are Position
+   D4.6b and P4.3b.
+8. **L4.11, the castling-landing fidelity lemma.** Closed in Round 5 (2026-11-02): proved as
+   `CastleMove.legal_iff` (§7a), on every board, without a one-king hypothesis.
+9. **Rules review C5, the rest.** The rename `StepMove` → `PieceMove` is done (Round 5); moving
+   the general helpers (item 5) and Position's `CastlingRights` docstring (item 7) were done in the
+   readability round of 2026-11-02. Not done: writing the namespace convention into DESIGN §2.
+   (`Board.colorAt`, `Board.kindAt` and `Board.setMany`, which C5 also proposed moving to Position,
+   stay in §1 of this module: they are trusted definitions that only the rules use.)
 
 Not here, on purpose:
-- R3 symmetry and the super-piece test (Stage 2; L2.4 and L2.8 shape them).
 - R6 colour flip, R7 material, R9 `WellFormed`, R10 `Reachable`: `Chess/Invariants.lean`, Stage 2.
 - M5 exclusivity of the rules (L4.6) and the generator: `Chess.MoveGen`.
 - Draw rules, clocks and repetition: not part of the move layer (DESIGN §6.5).
@@ -1168,24 +1385,31 @@ Not here, on purpose:
 
 ## 13. Checklist for the translator
 
-- `import Chess.Position` only; add `import Chess.Rules` to `Chess.lean`.
-- Module docstring `/-! # Rules … -/` with `## Main definitions` (`Reaches` and `Slides`,
-  `Board.Attacked`, `Board.KingAttacked`, `InCheck`; the shape predicates; the six rules and
-  `PseudoLegal`; `Position.play` and its steps; `Legal`, `Checkmate`, `Stalemate`), `## Main
-  statements` (`play_board_of_not_mem`, `play_board_src`, `play_board_dst` (R4); `play_turn`;
-  `castling_play_le` (R8); the R5 pair; `checkmate_or_stalemate`, `not_checkmate_and_stalemate`
-  (R11); `reaches_set_src`/`reaches_set_dst`), and `## Implementation notes` summarizing design
-  choices 1, 7, 8 and 9 and the `o.bind b` idiom.
-- Section order as in "Contents" above; each a `/-! ## … -/` heading. Lemmas needing a `variable`
+- `Chess/Rules/Defs.lean` imports `Chess.Position` only; `Laws` imports `Defs`, `Castling` imports
+  `Laws`, and `Chess/Rules.lean` imports all three. `Chess.lean` imports `Chess.Rules`.
+- Module docstrings. `Chess/Rules/Defs.lean`: `/-! # Rules: definitions … -/` with `## Main
+  definitions` (`Reaches` and `Slides`, `Board.AttackedBy`, `Board.KingAttacked`, `InCheck`; the
+  shape predicates; the six rules and `PseudoLegal`; `Position.play` and its steps; `Legal`,
+  `Checkmate`, `Stalemate`) and `## Implementation notes` summarizing design choices 1, 7, 8 and
+  9, the `o.bind b` idiom and the 0-based relative ranks. `Chess/Rules/Laws.lean`:
+  `/-! # Rules: laws … -/` with `## Main statements` (`play_board_of_not_mem`, `play_board_src`,
+  `play_board_dst` (R4); `play_turn`; `castling_play_le` (R8); the R5 pair;
+  `checkmate_or_stalemate`, `not_checkmate_and_stalemate` (R11); `reaches_set_src`/`reaches_set_dst`;
+  `reaches_of_clear`; R3) and `## Implementation notes`. `Chess/Rules/Castling.lean`:
+  `/-! # Rules: the castling landing square … -/` with `CastleMove.legal_iff` (L4.11).
+  `Chess/Rules.lean`: `/-! # Rules … -/`, a summary that names the three files.
+- Section order as in "Files and their contents" above; each a `/-! ## … -/` heading. Lemmas needing a `variable`
   line go in a `section` or the namespace they live in (`namespace Board` for §1's lemmas).
 - Every `def`, `instance` and `theorem` carries the docstring given here. Nothing is `sorry`; no
   `native_decide`. [later] lemmas may be left out (L4.6 is).
 - Scopes: §1's lemmas in `namespace Board`; then `section Reaching`, `section Shapes`, `section
   Movement`, `section Play`, `section Sanity`, `section Terminal`, each opening with its table's
   `variable` line. Proof helpers that no other module needs are `private`, with a docstring, next
-  to the lemmas they serve (the four §4 helpers, and `PseudoLegal.not_mem_rest` for L7.7a).
+  to the lemmas they serve (`PseudoLegal.not_mem_rest` for L7.7a, and L7a.4–L7a.5); general facts
+  about squares and colours go to Basic.
 - `@[simp]` exactly on: `Board.colorAt_of_eq_some`, `Board.kindAt_of_eq_some`, `Board.setMany_nil`,
-  `Board.setMany_cons`, `CastlingRights.get_ofGet`, `play_turn`. Nothing else.
+  `Board.setMany_cons`, `play_turn`. Nothing else. (`CastlingRights.get_ofGet` is `@[simp]` in
+  Position.)
 - Instances: `by unfold X; infer_instance` (D2.3: `split <;> infer_instance`; D2.2: `cases k <;>
   unfold Reaches <;> infer_instance`), except `CastleMove.decidable`, written as in D4.6. Never put
   an attack test directly as a conjunct of a derived instance of a predicate that is decided for

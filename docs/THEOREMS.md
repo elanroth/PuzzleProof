@@ -58,7 +58,7 @@ Theorems marked **★** form the first milestone. They are listed together in Se
 
 ### 0.4 Trust labels
 
-Every headline theorem's docstring states one of:
+Every headline theorem has one of these labels:
 
 - **[kernel]**: `#print axioms` shows at most `propext`, `Classical.choice`, `Quot.sound`.
 - **[native]**: also `Lean.ofReduceBool` and `Lean.trustCompiler` (from `native_decide` or `bv_decide`).
@@ -67,6 +67,12 @@ Every headline theorem's docstring states one of:
 General theorems (Tiers 1 to 5) are all **[kernel]**. Only concrete instances (perft numbers, specific
 mates) may be **[native]**, and each should also have a kernel-only version when feasible
 (*lean-eng* §1, §10.2).
+
+The label is recorded where it is checked, not in docstrings: `ChessTest/Axioms.lean`,
+`ChessTest/AxiomsPerft.lean` and `ChessDemo/Axioms.lean` hold a `#guard_msgs in #print axioms`
+entry for each headline theorem, so a build fails if its axioms change (DESIGN §7.3). Every theorem
+listed there is **[kernel]** (2026-11-02). Only the perft theorems of `ChessTest/Perft.lean` also
+state the label in their docstrings.
 
 ### 0.5 Notation shared by every sketch
 
@@ -104,13 +110,16 @@ move is `WinsIn .white 3 p` (at most 3) or `MateIn .white 3 p` (exactly 3).
 The library exists to make statements of this shape true and checkable:
 
 > **Goal statement.** In position `p`, the move `m` wins by force: whatever the opponent does, the
-> mover can checkmate within `n` moves. Every other legal move allows the opponent at least a draw.
-> Therefore `m` is the unique optimal move.
+> mover can checkmate within `n` moves. After every other legal move, the mover has no forced win.
+> (That this makes `m` the unique optimal move is O2, Stage 3.)
 
 ```lean
 theorem gotham_only_move :
-    OnlyWinningMove (fen "…") (uci "…") ∧ WinsIn .white 11 (fen "…")   -- [kernel]
+    Chess.OnlyWinningMove gotham (uci "b7b2") ∧ Chess.WinsIn .black 11 gotham   -- [kernel]
 ```
+
+(Gotham is Black to move. The library proves the two halves as two theorems,
+`ChessDemo.gotham_onlyWinningMove` and `ChessDemo.gotham_winsIn`, about `Puzzles.gotham`; see §7.)
 
 Reading this statement down to the kernel requires every tier below:
 
@@ -180,16 +189,18 @@ The move layer: `Position`, `Legal`, `play`. Nothing here mentions clocks, histo
 
   theorem reaches_symm (hk : k ≠ .pawn) : Reaches k c b s t ↔ Reaches k c b t s
   theorem reaches_pawn_symm : Reaches .pawn c b s t ↔ Reaches .pawn c.other b t s
-  theorem attacked_iff_superpiece :
-      b.Attacked c t ↔ ∃ k, ∃ s, b s = some ⟨c, k⟩ ∧ Reaches k c.other b t s
+  theorem attackedBy_iff_superpiece :
+      b.AttackedBy c t ↔ ∃ k, ∃ s, b s = some ⟨c, k⟩ ∧ Reaches k c.other b t s
   ```
   where "some piece of colour `c` attacks `t`" is, as `Chess.Rules` states it,
-  `Board.attacked_iff : b.Attacked c t ↔ ∃ s k, b s = some ⟨c, k⟩ ∧ Reaches k c b s t`. (The
-  definition of `Board.Attacked` reads the kind off the board, for speed; `attacked_iff` is the
+  `Board.attackedBy_iff : b.AttackedBy c t ↔ ∃ s k, b s = some ⟨c, k⟩ ∧ Reaches k c b s t`. (The
+  definition of `Board.AttackedBy` reads the kind off the board, for speed; `attackedBy_iff` is the
   interface proofs use.)
 - **Done in `Chess.Rules`.** `Reaches` with sliders through `Slides` (index form, DESIGN §5.2);
   `reaches_congr` (only the squares strictly between `s` and `t` are read), `reaches_set_src`,
-  `reaches_set_dst`, `slides_symm`, `Board.attacked_iff`. What remains is R3.1–R3.3 themselves.
+  `reaches_set_dst`, `slides_symm`, `Board.attackedBy_iff`. **R3.1–R3.3 done** (2026-11-02, ROADMAP
+  step 6, Rules spec L2.10–L2.12) with the names and statements above (`attackedBy_iff_superpiece` is
+  `Board.attackedBy_iff_superpiece`).
 - **Forces.**
   - Attack must be *geometric* (FIDE 3.9.1: pinned pieces still give check). It must not consult
     legality.
@@ -351,7 +362,7 @@ The move layer: `Position`, `Legal`, `play`. Nothing here mentions clocks, histo
     a consistency invariant of its own. DESIGN decides.
   - `Legal` must be "pseudo-legal and, after the move, the mover's king is not attacked", so that
     component 5 of the *new* position is literally the second half of `Legal`.
-  - "Mover's king attacked" must be defined as `∃ s, b s = some ⟨c, .king⟩ ∧ Attacked b c.other s`,
+  - "Mover's king attacked" must be defined as `∃ s, b s = some ⟨c, .king⟩ ∧ AttackedBy b c.other s`,
     which is total and needs no "find the king" function. The prototype's `findKing` returned 64 on a
     kingless board and made such boards silently stalemated (*landscape* §2).
 - **Meta.** D1/D2. Stage 2. Kind: invariant.
@@ -380,7 +391,7 @@ The move layer: `Position`, `Legal`, `play`. Nothing here mentions clocks, histo
 ### R11 ★ Terminal positions
 
 - **English.** The side to move is **in check** if its king is attacked. It is **checkmated** if it is in
-  check and has no legal move (FIDE 5.1.1). It is **stalemated** if it is not in check and has no legal
+  check and has no legal move (FIDE 1.4–1.4.1). It is **stalemated** if it is not in check and has no legal
   move (FIDE 5.2.1). A position with no legal move is exactly one of the two.
 - **Lean.**
   ```lean
@@ -390,7 +401,7 @@ The move layer: `Position`, `Legal`, `play`. Nothing here mentions clocks, histo
   theorem checkmate_or_stalemate (h : ∀ m, ¬ Legal p m) : Checkmate p ∨ Stalemate p
   theorem not_checkmate_and_stalemate : ¬ (Checkmate p ∧ Stalemate p)
   ```
-- **Forces.** Definitions phrased word for word from FIDE 5.1.1 and 5.2.1, over `Legal`, not over the
+- **Forces.** Definitions phrased word for word from FIDE 1.4–1.4.1 and 5.2.1, over `Legal`, not over the
   generator. Their computable counterparts come in M6. Proved in `Chess.Rules`, with the facts about
   a side with no king (`not_inCheck_of_not_hasKing`, `legal_iff_pseudoLegal_of_not_hasKing`).
 - **Meta.** D0/D1. Stage 1 (statements and proofs are trivial; the point is that the definitions exist
@@ -432,7 +443,7 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
 - **Lean.** `theorem mem_pseudoMoves : m ∈ pseudoMoves p ↔ PseudoLegal p m`
 - **Forces.**
   - `PseudoLegal` as **one named predicate per FIDE rule**, joined by a disjunction (DESIGN §5.4;
-    built so in `Chess.Rules`): `StepMove` (non-pawn move or capture), `PushMove`, `DoublePushMove`,
+    built so in `Chess.Rules`): `PieceMove` (non-pawn move or capture), `PushMove`, `DoublePushMove`,
     `PawnCaptureMove`, `EnPassantMove`, `CastleMove w`. A chess player can review each rule against
     its FIDE article. The completeness proof is then a case split, `rcases h with h | h | h | h | h |
     ⟨w, h⟩`, as an inductive would give.
@@ -445,10 +456,17 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
     last rank. Otherwise `m.promo = none`. This kills the Lean-Hackathon bug where a position whose only
     moves are promotions was reported as having none (*prior-work* §6).
 - **Meta.** D2. Stage 2.
+- **Status (2026-11-02).** Done, as stated, in `section Completeness` of `Chess/MoveGen.lean`
+  (MoveGen spec L7.2), through the candidate cover rather than an inductive: `PseudoLegal` is the
+  disjunction of the six rules, and its proof is the case split described above.
 
-### M3 A fast check test is correct (deferred)
+### M3 A fast check test is correct (done, 2026-11-02)
 
-- **Status.** Deferred, not required. The design has no executable `inCheck`: tests and the game
+- **Status.** Done in ROADMAP step 6 (MoveGen spec D3.4, L3.9), because the kernel cost of king
+  safety was cut by a Boolean test in `Chess.MoveGen`. The statement needs `PseudoLegal p m`, since
+  the test looks only where a king can stand after a pseudo-legal move:
+  `kingSafeAfter_iff (h : PseudoLegal p m) : kingSafeAfter p m = true ↔ ¬ (p.play m).board.KingAttacked p.turn`.
+  The text below is the plan as it was. Earlier status: deferred, not required. The design has no executable `inCheck`: tests and the game
   use `decide (InCheck p)`, and the generator filters by `decide (¬ … KingAttacked …)`, both through
   Rules' instances (DESIGN §12, `docs/spec/MoveGen.md` design choice 11). M3 returns only if the
   kernel cost of king safety is cut by a Boolean test in `Chess.MoveGen` rather than by faster
@@ -478,19 +496,30 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
   ```
   with `Legal p m := PseudoLegal p m ∧ ¬ (p.play m).KingAttacked p.turn`.
 - **Forces.**
-  - `legalMoves p := (pseudoMoves p).filter fun m => decide (¬ (p.play m).board.KingAttacked
-    p.turn)`, with `pseudoMoves p` the geometric candidates filtered by `PseudoLegal`. This is the
-    FIDE definition read as a program (*representation* §4). Soundness is then one line and proved in
-    Stage 1 (`legalMoves_sound`); completeness reduces to the candidate cover
-    `PseudoLegal.mem_candidates` (`docs/spec/MoveGen.md` §7). Check masks and pin rays are a later
-    optimization, proved equal to this filter.
+  - `legalMoves p := (pseudoMoves p).filter (kingSafeAfter p)`, with `pseudoMoves p` the geometric
+    candidates filtered by `PseudoLegal`, and `kingSafeAfter p m` the super-piece test of M3.
+    `kingSafeAfter_iff` proves the test equal to `¬ (p.play m).board.KingAttacked p.turn` for every
+    pseudo-legal `m`, and `legalMoves_eq_filter` states the result as `candidates p` filtered by
+    `Legal`: the FIDE definition read as a program (*representation* §4). (Before ROADMAP step 6
+    the filter was `decide (¬ (p.play m).board.KingAttacked p.turn)` itself.) Soundness is then one
+    line, proved in Stage 1 (`legalMoves_sound`); completeness reduces to the candidate cover
+    `PseudoLegal.mem_candidates` (`docs/spec/MoveGen.md` §7). Check masks and pin rays would be a
+    later optimization, proved equal to the same filter.
   - **No `WellFormed` hypothesis.** This is achievable if `KingAttacked` is the total existential of R9
     and castling preconditions are explicit (M2). An unconditional theorem is simpler to use everywhere.
   - Phrased with `↔` on membership, not list equality, so move order stays an implementation freedom
     (*landscape* §3.3).
 - **Meta.** D2 in the original plan; D1 with the candidate cover (`docs/spec/MoveGen.md` §7).
-  Stage 2. Depends on the cover (or M2) and R4; not on M3. Retires the prototype's main caveat
+  Stage 2. Depends on the cover (or M2) and R4, and, since ROADMAP step 6, on M3
+  (`kingSafeAfter_iff`, through `legalMoves_eq_filter`). Retires the prototype's main caveat
   ("the generator is tested, not proved").
+- **Status (2026-11-02).** Done: `legalMoves_sound` (Stage 1) and `legalMoves_complete` and
+  `mem_legalMoves` in `section Completeness` of `Chess/MoveGen.lean` (MoveGen spec L7.3–L7.4),
+  with no `WellFormed` hypothesis. The generator filters by the Boolean test `kingSafeAfter` of
+  M3 rather than by `decide (¬ … KingAttacked …)`; `legalMoves_eq_filter` proves it equal to
+  `(candidates p).filter fun m => decide (Legal p m)`, in the same order. The sketched
+  instance was not added: `Legal p m` is decided by `Legal.decidable` of `Chess.Rules`, which
+  tests the definition directly.
 
 ### M5 No move is generated twice
 
@@ -513,6 +542,10 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
   instance : Decidable (Checkmate p) := decidable_of_iff _ checkmate_iff.symm
   ```
 - **Meta.** D1 given M4. Stage 2. Used by the game bridge G8.
+- **Status (2026-11-02).** Done: `checkmate_iff` and `stalemate_iff` in `section Completeness` of
+  `Chess/MoveGen.lean` (MoveGen spec L7.6–L7.7), with the instances `Checkmate.decidableByGen`
+  and `Stalemate.decidableByGen` (priority high, so they replace Rules' instances, which test
+  every move).
 
 ### M7 ★ Perft regression facts
 
@@ -536,6 +569,18 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
   chess-programming community reads FIDE. That is the one thing no Lean proof can establish
   (*landscape* §3.4). These theorems stay valuable forever.
 - **Meta.** D0. Stage 1. Kind: differential test of the spec.
+- **Status (2026-11-02).** Done, in the test library: `ChessTest/Perft.lean` proves the published
+  counts at depth 1 for all six positions and at depth 2 for the initial position and Position 3 by
+  `decide +kernel` (`perft_initial_1`, `perft_initial_2`, `perft_kiwipete_1`, `perft_position3_1`,
+  `perft_position3_2`, `perft_position4_1`, `perft_position5_1`, `perft_position6_1`, all
+  [kernel]); `#guard`s check depth 2 of the rest, depth 3 of all six and depth 4 of Position 3.
+  `perft_initial_3` in the kernel, as sketched above, was judged out of reach in step 3, when depth
+  2 of the initial position took 42 s and 3.9 GB. Since step 6 that takes 9.8 s (the whole module
+  39 s, 3.7 GB peak; `docs/spec/ChessTest.Perft.md` §3); depth 3 has not been tried since, so
+  whether it now fits is open (ROADMAP §5). No `_native` theorem was needed. The bug-class
+  positions are the named positions of `ChessTest/Rules.lean` and `ChessTest/MoveGen.lean`.
+  Beyond the build, the compiled `chess-perft` agrees with python-chess on all six positions to
+  depth 4 and on several hundred random positions (`docs/process/ChessTest.md`).
 
 ### M8 Perft counts legal lines
 
@@ -613,7 +658,11 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
 - **Status** (`docs/spec/ChessGame.md`, Round 4). M11.2 and the UCI half of M11.3 are proved in
   Stage 1, together with the characterisations `fen_eq_iff : fen s h = p ↔ p.Sane ∧ IsFEN s p` and
   `uci_eq_iff : uci s h = m ↔ m.toUCI = s`, so the parsers are out of the trusted base. M11.1 waits
-  for `WellFormed` (Stage 2). SAN is dropped (that spec's choice 13). Reading the halfmove clock,
+  for `WellFormed` (Stage 2) and for an owner decision: it holds only if `parseFEN`'s filter is
+  strengthened to include `WellFormed`, which ChessGame review C4 advises against (it would change
+  `fen_eq_iff`). Today's parser accepts positions no `WellFormed` would, for example
+  `4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1` (castling rights with no rook). See ChessGame spec §7 and
+  ROADMAP §5, open owner decisions. SAN is dropped (that spec's choice 13). Reading the halfmove clock,
   which G15 needs, is that spec's open item 5.
 - **Meta.** D1/D2 (string reasoning is tedious in core). Parsers in Stage 1 (tested); theorems in
   Stage 5. Until they are proved, every headline theorem's statement should also be checkable as a
@@ -643,8 +692,8 @@ L1). It can be tested on toy games where `decide` is instant.
     Mated : State → Prop
     [decMated : DecidablePred Mated]
     [decEqMove : DecidableEq Move]
-    turn_play : ∀ x m, m ∈ moves x → turn (play x m) = (turn x).other
-    moves_eq_nil_of_mated : ∀ x, Mated x → moves x = []
+    turn_play : ∀ {x m}, m ∈ moves x → turn (play x m) = (turn x).other
+    moves_eq_nil_of_mated : ∀ {x}, Mated x → moves x = []
 
   abbrev Game.chess : Game where
     State := Position
@@ -661,7 +710,8 @@ L1). It can be tested on toy games where `decide` is instant.
     no moves that is not mated, and the definitions below must make it a non-win (G2).
   - The game is G∞ in the terminology of *game-theory* §1.2: no clock, no repetition, infinite play is
     not a win for anyone. Clocked games are other instances (G12).
-- **Meta.** D0. Stage 1. Toy instances (a subtraction game, tic-tac-toe) live in `test/`.
+- **Meta.** D0. Stage 1. Toy instances: two take-away games, `Game.Toy.takeAway` and
+  `Game.Toy.takeAwayStalemate`, in `Chess/Game/Examples.lean`.
 
 ### G2 ★ Forced win within a budget
 
@@ -684,9 +734,11 @@ L1). It can be tested on toy games where `decide` is instant.
   def Wins (a : Color) (x : G.State) : Prop := ∃ n, WinsIn a n x
 
   theorem winsIn_zero_iff : WinsIn a 0 x ↔ G.turn x = a.other ∧ G.Mated x
-  theorem not_wins_of_stalemate (ht : G.turn x = a.other) (hm : ¬ G.Mated x) (h : G.moves x = []) :
-      ¬ Wins a x
+  theorem not_wins_of_stalemate (hnm : ¬ G.Mated x) (hl : G.moves x = []) : ¬ Wins a x
   ```
+
+  (As built in `Chess/Game/Laws.lean`: no hypothesis on whose turn it is, so the statement also
+  covers a stalemated attacker. An earlier sketch had `ht : G.turn x = a.other`.)
 - **Forces.**
   - The **"has at least one legal move"** guard in `replies`. Without it, a stalemated defender
     vacuously loses. dwrensha's `ForcedWin` has exactly this bug, marked `FIXME` (*prior-work* §5). Hurd
@@ -800,6 +852,16 @@ L1). It can be tested on toy games where `decide` is instant.
   ```
   where `SpecWinsIn` is the same inductive with `m ∈ moves` replaced by `Legal p m` and `Mated` by
   `Checkmate`, written out so a reader never has to look at the generator.
+- **Status (2026-11-02): proved**, [kernel] (`#print axioms`: `propext`, `Classical.choice`,
+  `Quot.sound`). Definitions in `Chess/Spec/Winning.lean` (imports `Chess.Rules` only):
+  `SpecForces`, `SpecWinsIn`, `SpecWins`, `SpecMateIn`, `SpecOnlyWinningMove`. Theorems in
+  `Chess/ChessGame/Fide.lean`: the three above, `forces_iff_specForces` (every target),
+  `wins_iff_specWins`, `mateIn_iff_specMateIn` and `onlyWinningMove_iff_specOnlyWinningMove`.
+  Specs: `docs/spec/Spec.Winning.md`, `docs/spec/ChessGame.Fide.md`.
+  As built, `SpecWinsIn` is not itself an inductive: it is an `abbrev` for
+  `SpecForces a (fun q => q.turn = a.other ∧ Checkmate q)`, and `SpecForces` is the inductive (the
+  three rules of `Game.Forces`, with `Legal p m` for `m ∈ moves` and a `replies` rule guarded by
+  `∃ m, Legal p m`).
 - **Why it matters.** Before this theorem, Stage 1 chess theorems are honestly labelled "according to
   `legalMoves`". After it, they are theorems about chess. No Stage 1 statement has to change.
 - **Meta.** D1 given M4, M6. Stage 2.
@@ -1048,6 +1110,15 @@ searcher never enters the trusted base (*game-theory* §5, the certifying-algori
   theorem forall_mem_cons_winsIn … ; theorem iff_refuted … ; theorem iff_best …
   ```
   as in the prototype's `Cert.lean`.
+- **Realized** (ROADMAP step 5) in `Chess/Game/Cert.lean`, `section PerNode`: `Forces.of_play_eq`,
+  `Forces.move_of_play_eq`, `Forces.replies_of_moves_eq`, `Forces.forall_mem_nil`,
+  `Forces.forall_mem_cons` and `WinsIn.of_mated` (Game spec §4.1, L4.8–L4.10, L4.12, L4.17,
+  L4.18). Step 7 added the only-move root glue `OnlyWinningMove.of_moves_eq`,
+  `OnlyWinningMove.refuted_nil`, `OnlyWinningMove.refuted_cons_self` and
+  `OnlyWinningMove.refuted_cons` (L4.19–L4.22), and, for chess, `mem_chess_moves`
+  (`Chess.ChessGame.Fide`), which shows an attacker's move available. The complete list of names a
+  generated file may use is in Game spec §4.3 and `scripts/README.md`; `ChessTest/Interface.lean`
+  records their signatures.
 - **Why it matters.** Kernel cost grows superlinearly with unnormalized chains of moves (*lean-eng* §5).
   Literal checkpoints keep each declaration small. This is how the prototype got a kernel-only mate in
   11 (320 theorems, about 80 s, about 6 GB).
@@ -1131,9 +1202,16 @@ searcher never enters the trusted base (*game-theory* §5, the certifying-algori
   def checkOnlyMove (n : Nat) (x : G.State) (best : G.Move) (c : Cert G.Move)
       (refs : List (G.Move × Refutation G)) : Bool
   theorem checkOnlyMove_sound (h : checkOnlyMove n x best c refs = true) :
-      OnlyWinningMove x best ∧ WinsIn (G.turn x) n (G.play x best)
+      OnlyWinningMove x best ∧ WinsIn (G.turn x) n x
   ```
 - **Forces.** G4 (`not_both`) for the `opponentWins` case; C5 for the `moverHeld` case.
+- **Realized** (ROADMAP step 5) as `checkOnlyMove n x best oc` with `oc : OnlyMoveCert`
+  (`next`, `refBudget`, `refs`), one refutation budget for all alternatives, and Stage 1
+  refutations only, so there is no `Refutation` type yet (Game spec D4.4–D4.5, choice 24).
+  The budget `n` is counted at `x`, before the best move: the conclusion is
+  `G.OnlyWinningMove x best ∧ G.WinsIn (G.turn x) n x`, not `… n (G.play x best)` as an earlier
+  sketch had it (DESIGN §7.2). So "mate in 11" with the best move as the first of the 11 is
+  `checkOnlyMove 11 x best oc`.
 - **Hazard.** The prototype's `onlyMove` could only use `opponentWins`, so it could not prove only-move
   theorems where an alternative merely draws (its `Line.lean` records this). That is why C5 exists.
 - **Meta.** D1. Stage 1 (wins only), Stage 3 (with traps).
@@ -1382,6 +1460,12 @@ definitions: `MateIn .white 11 gotham` (exactly 11, using G5 or C4 for the lower
 prototype could not state), and `OnlyWinningMove gotham best`, each in a **[kernel]** version, with
 `#print axioms` recorded.
 
+*Done (2026-11-02, ROADMAP step 7)*, with one change of claim: `WinsIn .black 11 Puzzles.gotham`
+(Black is to move; within 11, not exactly 11: no lower bound is proved) and
+`OnlyWinningMove Puzzles.gotham (uci "b7b2")`, both [kernel], in `ChessDemo/Gotham.lean`, also
+read through G8, with the refutations behind the only move stated too (`gotham_refuted`: after
+each other move of Black, White forces mate); exact `MateIn` is proved for three small mates (`ChessDemo/Mates.lean`): the mates in 1 and 2 by search, the mate in 3 by a certificate for the win and a search for minimality.
+
 **Decisions Stage 1 must make even though their theorems come later.**
 
 1. `Position` has no clock and no history (forced by M7, G12, G15).
@@ -1393,8 +1477,10 @@ prototype could not state), and `OnlyWinningMove gotham best`, each in a **[kern
 6. `WellFormed` is a predicate on plain data, or king squares are fields (R9).
 7. `checkWin` recursion: structural on the certificate, or fuel (C1).
 
-**Stage 2 headline:** M4 (`mem_legalMoves`) and G8 (`Chess.winsIn_iff_specWinsIn`). After these, every Stage 1
-theorem is a theorem about FIDE chess with no change to its statement.
+**Stage 2 headline:** M4 (`mem_legalMoves`) and G8 (`Chess.winsIn_iff_specWinsIn`). After these,
+every Stage 1 theorem is a theorem about FIDE chess under its rules of movement and checkmate
+(Articles 3 and 5.1), without the clock and draw rules (G15), with no change to its statement.
+*Both are proved (2026-11-02; M4 in `Chess/MoveGen.lean`, G8 in `Chess/ChessGame/Fide.lean`).*
 
 ---
 
@@ -1404,7 +1490,7 @@ theorem is a theorem about FIDE chess with no change to its statement.
 R1, R2 ─► R3 (geometry, symmetry) ─► M1 (targets) ─► M2 (pseudo-legal) ─► M4 ★★ mem_legalMoves
              │                           │                                  │    M5 nodup
              ▼                           ▼                                  ▼
-          R4 frame ─► R5 sanity      (M3 deferred)        M4 ──────────► M6 checkmate_iff
+          R4 frame ─► R5 sanity      M3 kingSafeAfter_iff M4 ──────────► M6 checkmate_iff
              │                                                              │
              ├─► R7 material, R8 castling ─► R9 WellFormed.play ─► R10 Reachable invariants
              │                                                              │

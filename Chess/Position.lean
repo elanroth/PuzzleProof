@@ -9,20 +9,26 @@ Boards, moves, castling rights and positions: the data of the move layer. Specif
 ## Main definitions
 
 * `Board`: a function from squares to `Option Piece`. `Board.set` is the only way to write to it.
-* `Piece.code` and `Piece.ofCode`: the one table of piece codes, and its inverse found by search.
+  `Board.squaresOf`: the squares holding a given piece.
+* `Piece.code` and `Piece.ofCode`: the table of piece codes, and its inverse, written as a second
+  table and proved equal to a search of `Piece.all` (`Piece.ofCode_eq_find?`).
 * `Board.pack` and `Board.unpack`: a board written as one natural number, one hexadecimal digit
   per square, for generated checkpoint literals.
 * `Move`: a source square, a destination square and an optional promotion choice, as in UCI.
-* `CastlingRights`: four FEN flags, by convention read with `get` and changed only by `revoke` and
-  `revokeAll`; `CastlingRights.none`, `CastlingRights.full`, and the pointwise order `≤`.
+* `CastlingRights`: four FEN flags, read with `get`. A move changes them through
+  `Move.castlingAfter` (`Chess.Rules`), which builds the new rights with `CastlingRights.ofGet`
+  and only clears flags. `CastlingRights.none`, `CastlingRights.full`, `CastlingRights.all` (the
+  sixteen values), the pointwise order `≤`, and `revoke` and `revokeAll`, which no move uses.
 * `Position`: board, side to move, castling rights and en passant target; `Position.initial`.
 
 ## Main statements
 
 * `Board.set_same`, `Board.set_ne`, `Board.set_comm`: the frame lemmas every move proof uses.
 * `Board.unpack_pack`: a packed literal unpacks to the board it was packed from.
-* (R8) `CastlingRights.revoke_le`, `CastlingRights.revokeAll_le`: revoking never adds a right.
-  `CastlingRights.get_revoke`, `CastlingRights.get_revokeAll`: what a revocation leaves held.
+* `CastlingRights.get_ofGet`: the rights built from a function hold exactly what it says.
+* `CastlingRights.revoke_le`, `CastlingRights.revokeAll_le`: revoking never adds a right.
+  `CastlingRights.get_revoke`, `CastlingRights.get_revokeAll`: what a revocation leaves held. That
+  a move adds no right (R8) is `castling_play_le`, in `Chess.Rules`.
 * `Board.initial_kingHome`, `Board.initial_rookHome`, `Board.initial_flip` and the other sanity
   theorems about the initial board.
 
@@ -33,9 +39,10 @@ Boards, moves, castling rights and positions: the data of the move layer. Specif
   disequalities as `t ≠ s`, read square first: with `h : s ≠ t`, `simp [h]` makes no progress.
 * `ext s` on boards overshoots into `Option.ext`; write `ext s : 1` or
   `refine Board.ext fun s => ?_`.
-* `Piece.code` is the only table of codes; `Piece.ofCode` searches `Piece.all` for a code, so the
-  inverse cannot disagree with it. If board reads ever dominate certificate checking, a `match`
-  can replace its body, proved equal by `decide`, with no other change.
+* `Piece.code` is the table of codes. `Piece.ofCode`, its inverse, is a second table, a `match`,
+  for the kernel's speed (Round 5). Two theorems tie the tables together, so they cannot disagree:
+  `Piece.ofCode_eq_find?` (it equals a search of `Piece.all` for the code) and
+  `Piece.ofCode_code` (it inverts `Piece.code`), both by `decide`.
 * Packed digits are read by division, `n / 16 ^ i % 16`, which core's `Nat` lemmas speak about and
   the kernel accelerates. Digit `i` belongs to the square with index `i`.
 * Castling rights are four `Bool`s behind `get`, so equality is structural and statements are
@@ -68,6 +75,10 @@ instance : Inhabited Board := ⟨Board.empty⟩
 has there. -/
 def Board.set (b : Board) (s : Square) (x : Option Piece) : Board :=
   fun t => if t = s then x else b t
+
+/-- The squares of `b` that hold the piece `pc`, in index order (a1, b1, …, h8). -/
+def Board.squaresOf (b : Board) (pc : Piece) : List Square :=
+  Square.all.filter fun t => b t = some pc
 
 namespace Board
 
@@ -105,6 +116,10 @@ theorem set_comm (h : s ≠ s') : (b.set s x).set s' y = (b.set s' y).set s x :=
   simp only [set]
   split <;> simp_all
 
+/-- A square is among the squares holding `pc` exactly when it holds `pc`. -/
+theorem mem_squaresOf {pc : Piece} : t ∈ b.squaresOf pc ↔ b t = some pc := by
+  simp [Board.squaresOf, Square.mem_all]
+
 end Board
 
 /-! ## Piece codes and packed boards -/
@@ -122,7 +137,12 @@ def Piece.code (pc : Piece) : Fin 16 :=
 /-- The piece whose code is `v`, or `none` if no piece has code `v` (code 0, which marks an empty
 square, and the unused codes 13 to 15). -/
 def Piece.ofCode (v : Fin 16) : Option Piece :=
-  Piece.all.find? fun pc => pc.code = v
+  match v.val with
+  | 1 => some ⟨.white, .pawn⟩  | 2 => some ⟨.white, .knight⟩  | 3 => some ⟨.white, .bishop⟩
+  | 4 => some ⟨.white, .rook⟩  | 5 => some ⟨.white, .queen⟩   | 6 => some ⟨.white, .king⟩
+  | 7 => some ⟨.black, .pawn⟩  | 8 => some ⟨.black, .knight⟩  | 9 => some ⟨.black, .bishop⟩
+  | 10 => some ⟨.black, .rook⟩ | 11 => some ⟨.black, .queen⟩  | 12 => some ⟨.black, .king⟩
+  | _ => none
 
 /-- The code of what stands on a square: 0 if it is empty, and the piece's code otherwise. -/
 def contentsCode (x : Option Piece) : Fin 16 :=
@@ -150,6 +170,11 @@ def Board.pack (b : Board) : Nat := ofHexDigits (Square.all.map fun s => content
 section PackedBoards
 
 variable {pc pc' : Piece} {v : Fin 16}
+
+/-- The piece with code `v` is the first piece of `Piece.all` whose code is `v`. -/
+theorem Piece.ofCode_eq_find? (v : Fin 16) :
+    Piece.ofCode v = Piece.all.find? fun pc => pc.code = v := by
+  revert v; decide
 
 /-- Reading back the code of a piece gives the piece. -/
 @[simp] theorem Piece.ofCode_code (pc : Piece) : Piece.ofCode pc.code = some pc := by
@@ -271,9 +296,10 @@ instance (priority := low) Move.decidableExists (P : Move → Prop) [DecidablePr
 /-! ## Castling rights -/
 
 /-- The castling rights: for each colour and wing, the FEN flag saying whether that colour still
-holds the right to castle on that wing. The four flags are in FEN order (K, Q, k, q). By
-convention they are read with `get` and changed only with `revoke` and `revokeAll`; the fields stay
-public for literals, so it is `Chess.Rules` (R8) that proves a move adds no right. -/
+holds the right to castle on that wing. The four flags are in FEN order (K, Q, k, q). They are read
+with `get`. A move changes them only through `Move.castlingAfter` (`Chess.Rules`), which builds the
+new rights with `ofGet` and can only clear a flag; the fields stay public for literals, so it is
+`Chess.Rules` (R8, `castling_play_le`) that proves a move adds no right. -/
 structure CastlingRights where
   /-- White's kingside castling flag (FEN `K`). -/
   whiteKingside : Bool
@@ -317,6 +343,16 @@ def none : CastlingRights := ⟨false, false, false, false⟩
 /-- All four castling rights, as at the start of a game. -/
 def full : CastlingRights := ⟨true, true, true, true⟩
 
+/-- All sixteen castling rights, each once. -/
+def all : List CastlingRights :=
+  [false, true].flatMap fun wk => [false, true].flatMap fun wq =>
+    [false, true].flatMap fun bk => [false, true].map fun bq => ⟨wk, wq, bk, bq⟩
+
+/-- The castling rights given by `f`: for every colour `c` and wing `w`, `c`'s right on `w` is held
+exactly when `f c w` is true. -/
+def ofGet (f : Color → Wing → Bool) : CastlingRights :=
+  ⟨f .white .kingside, f .white .queenside, f .black .kingside, f .black .queenside⟩
+
 /-- `∀` over castling rights is decided through the four flags: 16 cases. -/
 instance (priority := low) decidableForall (P : CastlingRights → Prop) [DecidablePred P] :
     Decidable (∀ cr, P cr) :=
@@ -350,6 +386,18 @@ variable {cr cr' cr'' : CastlingRights} {c c' : Color} {w w' : Wing}
 /-- `CastlingRights.full` holds every right. -/
 @[simp] theorem get_full (c : Color) (w : Wing) : CastlingRights.full.get c w = true := by
   revert c w; decide
+
+/-- The list of all castling rights contains every castling rights value. -/
+theorem mem_all (cr : CastlingRights) : cr ∈ CastlingRights.all := by
+  revert cr; decide
+
+/-- The list of all castling rights has sixteen entries. -/
+theorem length_all : CastlingRights.all.length = 16 := by decide
+
+/-- The rights built from `f` hold `c`'s right on `w` exactly when `f c w` is true. -/
+@[simp] theorem get_ofGet (f : Color → Wing → Bool) (c : Color) (w : Wing) :
+    (CastlingRights.ofGet f).get c w = f c w := by
+  cases c <;> cases w <;> rfl
 
 /-- A revoked right is not held. -/
 @[simp] theorem get_revoke_self (cr : CastlingRights) (c : Color) (w : Wing) :
@@ -397,11 +445,11 @@ theorem le_antisymm (h : cr ≤ cr') (h' : cr' ≤ cr) : cr = cr' := by
 /-- Inequalities between castling rights chain in `calc`. -/
 instance : Trans (α := CastlingRights) (· ≤ ·) (· ≤ ·) (· ≤ ·) := ⟨le_trans⟩
 
-/-- (R8) Revoking never adds a right. -/
+/-- Revoking never adds a right. -/
 theorem revoke_le (cr : CastlingRights) (c : Color) (w : Wing) : cr.revoke c w ≤ cr := by
   revert cr c w; decide
 
-/-- (R8) Revoking all of a colour's rights never adds a right. -/
+/-- Revoking all of a colour's rights never adds a right. -/
 theorem revokeAll_le (cr : CastlingRights) (c : Color) : cr.revokeAll c ≤ cr :=
   le_trans (revoke_le _ c .queenside) (revoke_le cr c .kingside)
 

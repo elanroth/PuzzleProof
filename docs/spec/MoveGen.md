@@ -3,7 +3,7 @@
 Role: English specification writer (Round 1); translator (Round 2, answering the Round 1 English
 critique); refiner (Round 4, answering the Lean critique F1–F6, R1–R6, P1–P6).
 Date: 2026-11-01.
-Status: Round 4, matched to the refined `Chess/MoveGen.lean` (built; no `sorry`); Round 2
+Status: Round 5 (2026-11-02: king safety by `kingSafeAfter`, D3.2–D3.5, L3.6–L3.9); Round 4 matched to the refined `Chess/MoveGen.lean` (built; no `sorry`); Round 2
 answered the English critique (A1–A8, B1–B14, C1–C4, D), Round 4 the Lean critique. Every definition,
 every lemma tagged [core] and every test below was elaborated in a scratch file importing the built
 `Chess.Rules` (scratchpad only; nothing in the library was written), and is marked *(checked)*.
@@ -70,7 +70,8 @@ victims or castling attacks. L7.1 is proved (§7), so nothing here is trusted.
 1. Targets: `Board.upToBlocker`, `slideTargets`, `reachTargets` (the list form of `Reaches`, M1).
 2. Candidates: `pawnTargets`, `pawnMovesTo`, `Move.castle`, `candidatesFrom`, `castleCandidates`,
    `candidates`.
-3. The generator: `pseudoMoves`, `legalMoves`.
+3. The generator: `pseudoMoves`, `Board.superpieceAttackedBy`, `kingSafeAfter`,
+   `legalMoves`.
 4. Perft: `perft`, `perftDivide`.
 5. Testing against the specification: `legalMovesBySpec`, `agreesWithLegal` (and the lemmas
    `mem_legalMovesBySpec`, `mem_legalMoves_of_agreesWithLegal`, `nodup_legalMoves_of_agreesWithLegal`).
@@ -86,7 +87,7 @@ choices, the open items and the translator's checklist.
 The list forms of `Slides` and `Reaches` (Rules D2.1, D2.2). Like `Reaches`, whether a square `t`
 is listed does not depend on what stands on the source or on `t` itself (L1.3 with Rules'
 `reaches_set_src`/`reaches_set_dst`); the list as a whole does read the board, since an occupied
-square ends a ray. Whether a target may be *moved to* is the rules' business (`StepMove`'s "does
+square ends a ray. Whether a target may be *moved to* is the rules' business (`PieceMove`'s "does
 not hold a piece of its own colour").
 
 `variable {b : Board} {l : List Square} {s t : Square} {d : Direction} {k : Kind} {c : Color}`
@@ -236,7 +237,7 @@ Notes.
   generator produces promotion choices, so the Lean-Hackathon bug (a position whose only moves are
   promotions reported as having none, *prior-work* §6) cannot arise once L7.1 is proved: every pawn
   candidate onto the last rank comes with all four choices, and `PawnCaptureMove`/`PushMove` accept
-  exactly those. Until then it is what `agreesWithLegal` tests.
+  exactly those. (Before L7.1 was proved, `agreesWithLegal` tested it position by position.)
 - The choice depends only on `t`, whatever the rule. Double-push and en passant destinations are on
   relative ranks 3 and 5, so they always get `none`, which is what `DoublePushMove` and
   `EnPassantMove` require.
@@ -306,12 +307,12 @@ Notes.
 - **Why the king clause.** Without it, a position holding a castling right with a *queen* on e1
   (excluded by `WellFormed`, but `legalMoves` is stated for every position) would propose e1g1
   twice: once from the queen (a slide) and once as castling. Both copies are `PseudoLegal` (the
-  first is a `StepMove`), so `legalMoves` would list e1g1 twice and M5 (`legalMoves_nodup`, stated
+  first is a `PieceMove`), so `legalMoves` would list e1g1 twice and M5 (`legalMoves_nodup`, stated
   without `WellFormed`) would be false. With the clause, a castling candidate's source holds a king,
   whose own candidates are one-square steps, never the two-square castling move.
 - **Why the rights clause.** It is implied by `CastleMove` (through `Position.CanCastle`). It
   changes `candidates`, but not `pseudoMoves` or `legalMoves`: without the right, the castling
-  candidate is not `CastleMove`, and with a king on its home square it is not a `StepMove` either
+  candidate is not `CastleMove`, and with a king on its home square it is not a `PieceMove` either
   (a king does not reach its castling square). It is kept because it makes `candidates` tighter at
   the cost of one flag read, not for speed: `CastleMove.decidable` tests `IsCastle` first,
   `CanCastle`'s first conjunct is the right itself, and core's `And` instance stops at the first
@@ -353,7 +354,7 @@ grind`, which hid which step did the work). L2.2: `obtain ⟨⟨hs, -, hd⟩, -,
 h; cases m; simp_all [Move.castle]`. L2.4 needs `Square.all_nodup`, L2.3, `PromoKind.all_nodup`,
 L1.5, `Square.steps_eq_of_offset_eq` with `c.forward ≠ 0` (the four pawn targets differ), and for
 the castling candidates: the king's steps from `kingHome c` never reach `kingCastleSquare c w`
-(Rules' private `shift_kingHome_one_ne`, which the Rules review C5 asks to move to Basic). L2.5:
+(`shift_kingHome_one_ne`, Basic B7.5a, moved there from Rules by the readability round). L2.5:
 `rfl`, because `candidatesFrom` reads only `p.board` and `p.turn`, and `castleCandidates` also
 `p.castling` (design choice 13). It is the reason G16 (`legalMoves_normalize`) can be stated as list
 equality: it then reduces to `List.filter_congr` pointwise.
@@ -377,25 +378,74 @@ Docstring: "The pseudo-legal moves of `p`: the candidate moves that obey the mov
 Notes. "The pseudo-legal moves of `p`" is the completeness claim M2 (L7.2), proved in §7 of this
 module (design choice 8: a promise is proved in the file that makes it).
 
-### D3.2 `legalMoves (p : Position) : List Move`
+### D3.2 (removed) `Board.kingSquares`
+
+Removed in the readability round of 2026-11-02. It was `Square.all.filter fun s => decide (b s =
+some ⟨c, .king⟩)`, the same list as `b.squaresOf ⟨c, .king⟩` (by `rfl`), and `Board.squaresOf` now
+lives in `Chess.Position` (Position D1.6), where `Position.Sane` also counts kings with it. So
+`kingSafeAfter` uses `squaresOf` directly, and L3.6 is Position's `Board.mem_squaresOf` (P1.8).
+
+### D3.3 `Board.superpieceAttackedBy (b : Board) (c : Color) (t : Square) : Bool` (Round 5)
+
+```lean
+def Board.superpieceAttackedBy (b : Board) (c : Color) (t : Square) : Bool :=
+  Kind.all.any fun k => (reachTargets k c.other b t).any fun s => decide (b s = some ⟨c, k⟩)
+```
+
+Docstring: "Whether colour `c` attacks `t` on `b`, tested from `t` outward (the super-piece method):
+for some kind `k`, one of the squares that a piece of kind `k` and colour `c.other` standing on `t`
+would reach holds a piece of kind `k` and colour `c`."
+
+Notes. This is Rules L2.12 (R3.3) read as a program, with `reachTargets` (M1) for `Reaches`. It
+walks at most eight lines from `t` and looks at the knight, king and pawn squares around it, where
+`Board.AttackedBy`'s own instance reads all 64 squares and decides `Reaches` from every piece of
+colour `c` (Rules design choice 3 keeps that instance, the obviously correct one).
+
+### D3.4 `kingSafeAfter (p : Position) (m : Move) : Bool` (Round 5)
+
+```lean
+def kingSafeAfter (p : Position) (m : Move) : Bool :=
+  !(m.dst :: p.board.squaresOf ⟨p.turn, .king⟩).any fun s =>
+    decide ((p.play m).board s = some ⟨p.turn, .king⟩) &&
+      (p.play m).board.superpieceAttackedBy p.turn.other s
+```
+
+Docstring: "After move `m` in `p`, no king of the mover's colour is attacked. Only the squares where
+such a king can stand after a pseudo-legal move are tested: the destination of `m`, and the
+squares that held one in `p`. Each is tested by the super-piece method."
+
+Notes. The two shortcuts are proved, not assumed: L3.8 says where a king can stand after a
+pseudo-legal move, Position's `Board.mem_squaresOf` and L3.7 say what the two tests compute, and L3.9 puts them together. The
+kings are listed from `p`, not from the board after `m`, for the kernel's sake: `p.board.squaresOf
+⟨p.turn, .king⟩` does not depend on `m`, so when `p` is a literal the kernel evaluates it once per position
+and reuses it for every move (so the timings indicate: the kernel appears to reuse the evaluation of
+a repeated closed term; the mechanism was not checked against its code), while the board after `m`
+would be searched once per move, through `Board.setMany`. Measured on the Gotham certificate's mate
+leaves: deciding `legalMoves p = []` went from about 2.0 s to about 0.7 s (process log, Round 5).
+THEOREMS M3 sketched this function under this name.
+
+### D3.5 `legalMoves (p : Position) : List Move`
 
 ```lean
 def legalMoves (p : Position) : List Move :=
-  (pseudoMoves p).filter fun m => decide (¬ (p.play m).board.KingAttacked p.turn)
+  (pseudoMoves p).filter (kingSafeAfter p)
 ```
 
 Docstring: "The legal moves of `p`: the entries of `pseudoMoves p` after which no king of the
 mover's colour is attacked (FIDE 3.9.2)."
 
-Notes. As for D3.1: "the legal moves of `p`" is M4 (L7.4), proved in §7 of this module. The filter's condition is, word for word,
-the second conjunct of `Legal` (Rules D6.1), so D3.1 and D3.2 together are "the candidates that are legal" (L3.3), DESIGN §5.7's sentence read as a
-program. Both use the `Decidable` instances fixed in `Chess.Rules`; see design choice 10 for what
-that means for speed-ups.
+Notes. As for D3.1: "the legal moves of `p`" is M4 (L7.4), proved in §7 of this module. Before
+Round 5 the filter's condition was, word for word, the second conjunct of `Legal` (Rules D6.1):
+`decide (¬ (p.play m).board.KingAttacked p.turn)`. Since Round 5 it is `kingSafeAfter p`, which
+L3.9 proves equal to that conjunct on every pseudo-legal move, so D3.1 and D3.5 together are still
+"the candidates that are legal" (L3.3), DESIGN §5.7's sentence read as a program, and L3.3's
+statement is unchanged. `pseudoMoves` still uses the `Decidable` instance of `PseudoLegal` fixed in
+`Chess.Rules`; see design choice 10.
 
 `legalMoves` is total and faithful to `Legal` on every position. On positions no game reaches, `Legal`
 itself admits unusual moves, and so does the generator: if the side to move has no king,
 `KingAttacked` is false, so `legalMoves p = pseudoMoves p`; if the side not to move is in check,
-`legalMoves` includes captures of that king, because `StepMove` and `PawnCaptureMove` allow
+`legalMoves` includes captures of that king, because `PieceMove` and `PawnCaptureMove` allow
 capturing any piece of the other colour.
 
 ### Lemmas of §3
@@ -407,13 +457,27 @@ capturing any piece of the other colour.
 | L3.3 | **`legalMoves p` is `candidates p` filtered by `Legal`, in the same order.** | `theorem legalMoves_eq_filter (p : Position) : legalMoves p = (candidates p).filter fun m => decide (Legal p m)` | [core] *(checked)* |
 | L3.4 | `m` is in `legalMoves p` exactly when it is a candidate of `p` and legal in `p`. | `theorem mem_legalMoves_iff_candidate : m ∈ legalMoves p ↔ m ∈ candidates p ∧ Legal p m` | [core] *(checked)* |
 | L3.5 | **Every entry of `legalMoves p` is legal in `p` (M4, soundness).** | `theorem legalMoves_sound (h : m ∈ legalMoves p) : Legal p m` | [core, M4] *(checked)* |
+| L3.6 | (removed with D3.2; its use is Position's `Board.mem_squaresOf`) | | |
+| L3.7 | **The super-piece test decides attack: `b.superpieceAttackedBy c t` is true exactly when `t` is attacked by colour `c`.** | `theorem Board.superpieceAttackedBy_iff {b : Board} {c : Color} {t : Square} : b.superpieceAttackedBy c t = true ↔ b.AttackedBy c t` | [core] (Round 5) *(checked)* |
+| L3.8 | After a pseudo-legal move, a king of the mover's colour stands only on the move's destination or on a square that held one before the move. | `theorem PseudoLegal.eq_dst_or_of_play_board_eq_king {s : Square} (h : PseudoLegal p m) (hs : (p.play m).board s = some ⟨p.turn, .king⟩) : s = m.dst ∨ p.board s = some ⟨p.turn, .king⟩` | [core] (Round 5) *(checked)* |
+| L3.9 | **For a pseudo-legal move, `kingSafeAfter` decides king safety: it is true exactly when no king of the mover's colour is attacked after the move.** | `theorem kingSafeAfter_iff (h : PseudoLegal p m) : kingSafeAfter p m = true ↔ ¬ (p.play m).board.KingAttacked p.turn` | [core] (Round 5) *(checked)* |
 
 Proof notes *(checked)*. L3.1: `simp [pseudoMoves]`. L3.2: `(mem_pseudoMoves_iff_candidate.mp
-h).2`. L3.3: `rw [legalMoves, pseudoMoves, List.filter_filter]; congr 1; funext m; simp [Legal,
-Bool.and_comm]`, with a comment giving the reason for `Bool.and_comm`: `List.filter_filter` puts the
-outer test (king safety) first, and `Legal` puts it second. (Round 4; the Round 3 one-line `simp`
-left the reordering to simp's AC normalization.) L3.4: `simp
-[legalMoves_eq_filter]`. L3.5: `(mem_legalMoves_iff_candidate.mp h).2`.
+h).2`. L3.3 (Round 5): `rw [legalMoves, pseudoMoves, List.filter_filter]; congr 1; funext m`, with
+the comment that `List.filter_filter` puts the outer test (king safety) first and `Legal` puts it
+second; then `by_cases h : PseudoLegal p m`: if it holds, `kingSafeAfter p m` is
+`!decide (… KingAttacked …)` by L3.9 (`Bool.eq_iff_iff`), and `simp [Legal, h, hk]`; if not, both
+sides are false (`simp [Legal, h]`). (Before Round 5, when the filter was `Legal`'s conjunct itself,
+the second step was `simp [Legal, Bool.and_comm]`.) L3.4: `simp [legalMoves_eq_filter]`. L3.5:
+`(mem_legalMoves_iff_candidate.mp h).2`. L3.7:
+unfold to `∃ k ∈ Kind.all, ∃ s, Reaches k c.other b t s ∧ b s = some ⟨c, k⟩` (`List.any_eq_true`,
+`mem_reachTargets`) and compare with Rules L2.12 (`Kind.mem_all`). L3.8: `Board.setMany_eq_or_mem`:
+either the square was not written (then it held the king before), or the king was written there:
+by step 1 only on the destination (the source is written `none`), never by step 2 (it writes
+`none`), and never by step 3, which writes `none` and the piece that stood on the rook's home
+square, a rook by `CanCastle` (through `PseudoLegal.isCastle_iff`). L3.9: unfold `kingSafeAfter`
+and `KingAttacked`, use L3.7; `←` is immediate; `→` needs every square holding a king after the
+move to be in the list, which is L3.8 with L3.6.
 
 **What L3.4 gives `Chess.Game` now.** DESIGN §6.1's optional `isLegal` field, with law `isLegal x m =
 true ↔ m ∈ moves x`, is available in Stage 1, not Stage 2: take `isLegal p m := decide (m ∈
@@ -515,10 +579,13 @@ def agreesWithLegal (p : Position) : Bool :=
 
 Docstring: "The generator agrees with the specification on `p`: every move `legalMovesBySpec` finds
 is listed by `legalMoves`, and `legalMoves` lists no move twice. (That every listed move is legal is
-a theorem, `legalMoves_sound`.)"
+a theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, the first half holds at every position, so
+only the second, M5 at `p`, still tests anything.)"
 
-Notes. A `true` here gives M4 and M5 at `p` as theorems: L5.2 and L5.3 below, through L3.5 and
-L5.1. So a test position can carry a kernel-checked "the generator lists exactly the legal moves
+Notes. Since M4 (L7.4, `mem_legalMoves`) the first conjunct is true at every position (by `simp
+[List.all_eq_true, mem_legalMovesBySpec, mem_legalMoves]`), so the test checks M5 at `p` and
+nothing else; L5.2 is kept for the tests that predate M4. A `true` here gives M4 and M5 at `p` as
+theorems: L5.2 and L5.3 below, through L3.5 and L5.1. So a test position can carry a kernel-checked "the generator lists exactly the legal moves
 here" by `decide +kernel` on `agreesWithLegal p = true` (about 5 s for a small position), not only
 a `#guard`, which trusts the interpreter. Soundness is not tested, because it is proved; a test of
 a proved fact would only add time.
@@ -528,7 +595,7 @@ a proved fact would only add time.
 | ID | English (= Lean docstring) | Lean statement | Tag |
 |---|---|---|---|
 | L5.1 | `m` is in `legalMovesBySpec p` exactly when it is legal in `p`. | `theorem mem_legalMovesBySpec : m ∈ legalMovesBySpec p ↔ Legal p m` | [sanity] |
-| L5.2 | **If the generator agrees with the specification on `p`, then `legalMoves p` lists exactly the legal moves of `p` (M4 at `p`).** | `theorem mem_legalMoves_of_agreesWithLegal (h : agreesWithLegal p = true) : m ∈ legalMoves p ↔ Legal p m` | [core] *(checked)* |
+| L5.2 | If the generator agrees with the specification on `p`, then `legalMoves p` lists exactly the legal moves of `p` (M4 at `p`). Superseded by `mem_legalMoves`, which needs no hypothesis. | `theorem mem_legalMoves_of_agreesWithLegal (h : agreesWithLegal p = true) : m ∈ legalMoves p ↔ Legal p m` | [core] *(checked)* |
 | L5.3 | If the generator agrees with the specification on `p`, then `legalMoves p` lists no move twice (M5 at `p`). | `theorem nodup_legalMoves_of_agreesWithLegal (h : agreesWithLegal p = true) : (legalMoves p).Nodup` | [core] *(checked)* |
 
 Proof notes *(checked)*. L5.1: `simp only [legalMovesBySpec, List.mem_filter, List.mem_flatMap,
@@ -544,7 +611,24 @@ in the same file.
 
 ## 6. Section "Tests"
 
-As `#guard`s and `example`s at the end of the file, until the test library exists. Two new named
+**Where they live (2026-11-02).** These tests, with the two positions below, are in
+`ChessTest/MoveGen.lean`, in the test library `ChessTest` (`lake build ChessTest`; not built by
+`lake build`). They were about 12 s of this module's 13 s build (review C4). The module keeps only
+these cheap `#guard`s, as documentation (interpreted, about 0.7 to 1 s together, split about
+evenly between perft 2 and the agreement test):
+
+```lean
+-- The initial position: 20 legal moves, 400 after two plies, and agreement with `Legal`.
+#guard (legalMoves Position.initial).length == 20
+#guard perft 2 Position.initial == 400
+#guard agreesWithLegal Position.initial
+-- The empty board: the castling rights alone propose nothing.
+#guard (candidates ⟨Board.empty, .white, CastlingRights.full, none⟩).isEmpty
+```
+
+The six standard perft positions are in `ChessTest/Perft.lean` (`docs/spec/ChessTest.Perft.md`).
+What follows specifies `ChessTest/MoveGen.lean`, which imports `ChessTest/Rules.lean` for Rules'
+named positions. Two new named
 positions, each a `def` with a docstring in the style of Rules §10; every other position is one of
 Rules' named test positions (`foolsMate`, `castlePos`, `blackCastlePos`, `castleRookPos f`, `epPos`,
 `epPinPos`, `kingsPos`, `promoPos`, `blackPromoPos`, `pinPos`, `blackEpPos`, `rookAttackedPos`,
@@ -582,10 +666,11 @@ docstrings say: `epCheckPos` has White to move, in check, en passant target d6 a
 
 ### The tests *(each checked; timings in parentheses)*
 
-Measured in the library build: the module elaborates in about 30 s (`lake build`; 24 s before
-Round 4 added the kernel-checked agreement on `kingsPos`, about 5 s), of which about 21 s is kernel
-checking of the nine `decide +kernel` examples (0.7 to 5 s each) and about 6 s the interpreted
-`#guard`s (0.3 to 0.7 s for each slow one). Each test carries a one-line comment
+Measured before the move to `ChessTest` (in the module build): the module elaborated in about 30 s
+(`lake build`; 24 s before Round 4 added the kernel-checked agreement on `kingsPos`, about 5 s), of
+which about 21 s was kernel checking of the nine `decide +kernel` examples (0.7 to 5 s each) and
+about 6 s the interpreted `#guard`s (0.3 to 0.7 s for each slow one). `ChessTest.MoveGen` now
+builds in about 15 s. Each test carries a one-line comment
 saying what it checks, as in Rules §10.
 
 - The two new positions are what their docstrings say: `#guard epCheckPos.turn == .white && decide
@@ -629,9 +714,9 @@ saying what it checks, as in Rules §10.
 
 Not here: perft depth 3 and beyond, and the six standard perft positions. `perft 3 Position.initial`
 takes 17 s interpreted *(checked: 8 902)*, too long for a module build, and the standard positions
-need `fen`, which lives in `Chess.ChessGame`. Both go to the test library, compiled, with the
-published counts (*representation* §2.7) at depth 3 for all six positions and deeper where time
-allows; any `native_decide` version is `_native` and lives only there (DESIGN §7.3).
+need `fen`, which lives in `Chess.ChessGame`. Both are in `ChessTest/Perft.lean` (2026-11-02; spec
+`docs/spec/ChessTest.Perft.md`), with the published counts; any `native_decide` version is
+`_native` and lives only in the test library (DESIGN §7.3).
 
 ---
 
@@ -673,7 +758,7 @@ move. This replaces the instance of `Chess.Rules`, which tests every move." Both
 | L7.7 | Stalemate is no check and no listed move. | `theorem stalemate_iff : Stalemate p ↔ ¬ InCheck p ∧ legalMoves p = []` | M6 |
 
 How each goes:
-- **L7.1, the cover.** `rcases h` into the six rules. A step move: its source holds a non-pawn piece
+- **L7.1, the cover.** `rcases h` into the six rules. A piece move: its source holds a non-pawn piece
   of the side to move and it `Reaches` its destination, so L1.3 puts the move in
   `candidatesFrom p m.src`. A push, double push, pawn capture or en passant capture: the rule's own
   geometric hypothesis puts `m.dst` in `pawnTargets` (D2.1 note), and L2.1 with the promotion rule
@@ -712,7 +797,7 @@ split). Open item 1 proposes pulling `Correct.lean` into Stage 1.
      drift from the first. The prototype's generator restated every rule in its own encoding
      (`pawnMoves`, `castleMoves`), and that is where its bug classes lived.
    - *Soundness in Stage 1.* L3.5 is one line. Before M4, the only trusted claim about the generator
-     is that it misses nothing, and that is exactly what `agreesWithLegal` tests.
+     was that it misses nothing, and that is what `agreesWithLegal` tested; since M4 it is proved.
    - *M4 becomes geometry.* The cover lemma L7.1 is a case split with no check, pin or blocker
      reasoning, and it is also the Rules review's C3.2 "candidate cover", obtained for free.
    - *Cost, measured.* Interpreted, on the initial position, per call: `candidates` 0.3 ms,
@@ -743,8 +828,12 @@ split). Open item 1 proposes pulling `Correct.lean` into Stage 1.
    meant for clients is about membership (and `Nodup`), as THEOREMS M4 asks, so a faster generator
    may order moves differently and still be proved equal up to permutation; L3.3 and L4.2 fix the
    order only internally.
-7. **`legalMoves` filters with `decide (¬ …)`**, the second conjunct of `Legal` verbatim, so L3.3
-   is `simp`, and DESIGN §5.7's sentence and the Lean are the same sentence.
+7. **`legalMoves` filters with `kingSafeAfter p`** (since Round 5; design choice 10), not with
+   `decide (¬ …)`, the second conjunct of `Legal`, as it did before. L3.9 (`kingSafeAfter_iff`)
+   proves the two equal on every pseudo-legal move, so L3.3 (`legalMoves_eq_filter`) still says
+   that `legalMoves p` is `candidates p` filtered by `Legal`; its proof is a case split on
+   `PseudoLegal p m` with L3.9, no longer `simp` alone. DESIGN §5.7 states the filter as it is
+   and names L3.9 and L3.3 as its link to `Legal`.
 8. **M1 here, not in `Correct.lean`.** DESIGN §8's table puts M1 in Stage 2. The target lists'
    docstrings say "exactly the squares it reaches"; that promise is proved where it is made, in
    about 45 checked lines. `Correct.lean` keeps the cover and what follows from it.
@@ -764,9 +853,16 @@ split). Open item 1 proposes pulling `Correct.lean` into Stage 1.
       `List.filter_congr` away, the cover and soundness proofs do not change, and the trusted Rules
       text stays the slow, obviously correct version.
     Which one is open item 4. Nothing in this spec's statements changes either way.
-11. **No executable `inCheck`, no king finder, no sentinel** (DESIGN §2, Rules design choice 12).
-    The only checks are `decide (InCheck p)` in tests and `decide (¬ … KingAttacked …)` in the
-    filter.
+    *Decided in Round 5 (2026-11-02): this module.* `legalMoves` filters by `kingSafeAfter`
+    (D3.4, L3.9), and Rules' text and instances are unchanged; Rules gained only the lemmas R3
+    (L2.10–L2.12) that the super-piece test needs. The ray-walk `Slides` instance in Rules was
+    measured (about 15 % on certificate nodes, in a scratch copy) and not adopted: it would move
+    `Board.upToBlocker`, `slideTargets` and L1.1–L1.2 into the trusted file for that gain.
+11. **No executable `inCheck`, no sentinel** (DESIGN §2, Rules design choice 12). The only checks
+    are `decide (InCheck p)` in tests and `kingSafeAfter` in the filter. Since Round 5 there is a
+    king finder, Position's `Board.squaresOf` applied to a king (D3.2 until the readability round),
+    used only inside `kingSafeAfter`; it lists every king of a colour, so nothing assumes one king
+    per side.
 12. **Tests in the module are small; the test library does the rest.** Kernel tests are limited to
     a few seconds each; deep perft and FEN positions wait for the test library (§6).
 13. **The candidates read the board, the side to move and the castling rights, never the en passant
@@ -784,26 +880,31 @@ Open items:
    skeleton is checked. Proving L7.1–L7.7 in Stage 1 would remove the generator from the trusted
    base before the first milestone, and would make the G8 bridge (`Game.chess` means FIDE chess)
    Stage 1 too. Cost: about 150 lines.
-2. **Rules review C1 and C5** (rules as structures; `StepMove` → `PieceMove`). This spec uses the
-   names in `Chess/Rules.lean` today. A rename is a `sed` here; structures would make L7.1's
-   `rcases` pattern independent of conjunct order, which is the main place this module takes the
-   rules apart.
+2. **Rules review C1 and C5** (rules as structures; `StepMove` → `PieceMove`). Settled in the L4.11
+   round (2026-11-02, `docs/process/Rules.md` Round 5): C5 adopted, so this spec now says
+   `PieceMove`; C1 not adopted, so L7.1's `rcases` pattern is unchanged (it is positional either
+   way: anonymous-constructor patterns on a structure follow field order too).
 3. **`Move.castle` in Rules?** `Move.IsCastle p w m` could then be read "`m` is `Move.castle p.turn w`
    and a king of the side to move stands on its home square". Not proposed now: it would change
    trusted text for no proof it enables.
-4. **Kernel cost of king safety: decide before certificate (C-tier) work starts.** (Owner of the
-   Rules/MoveGen boundary.) Measured in the kernel: `legalMoves Position.initial` 3.4 s,
-   `legalMoves foolsMate = []` 3.9 s; the prototype ran about 0.25 s per node. About 90 % is the
-   king-safety filter, which uses Rules' `Board.Attacked`: 64 squares per king, each through
-   `Slides`, which is quadratic per ray. The two ways out (design choice 10): faster instances in
-   Rules (C3.1; then `Board.upToBlocker`, `slideTargets`, L1.1 and L1.2 move to `Chess.Rules`, and
-   `Slides.decidable` becomes `decidable_of_iff _ mem_slideTargets` there), or a Boolean
-   `kingSafeAfter` here with its `_iff` lemma, leaving Rules' text untouched. This is the biggest
-   risk to the long-term goal of proving forced wins, since every certificate node pays it.
+4. **Kernel cost of king safety.** *Closed in Round 5.* Measured before (kernel): `legalMoves
+   Position.initial` 3.4 s, `legalMoves foolsMate = []` 3.9 s; about 2.0 s per mate leaf and per
+   defender node of the Gotham certificate. About 90 % was the king-safety filter (Rules'
+   `Board.AttackedBy` reads 64 squares per king and decides `Slides` from every enemy slider; the
+   board after the move was searched for the king once per move). Round 5 took the second way out
+   of design choice 10: `kingSafeAfter` (D3.4) with L3.9. Measured after, on 15 sampled nodes of
+   each kind: mate leaf 2.0 s → 0.68 s, defender node's move list 2.0 s → 0.72 s, membership of
+   one move in `legalMoves` 1.5 s → 0.47 s (process log, Round 5). Of what is left, about two
+   thirds is `pseudoMoves` (Rules' `PseudoLegal` instance, decided for every candidate).
 5. **DESIGN edits** (not made here): §5.7 should describe the generator as "candidates proposed by
    geometry, filtered by `PseudoLegal` and by king safety"; §7.3 should say that generator soundness
    is proved in Stage 1 (L3.5) and only completeness is trusted until M4; §8's table should list M1
    under `MoveGen`; §6.1's `isLegal` option is available in Stage 1 through L3.4.
+   *2026-11-02 (docs fix round, `docs/process/MoveGen.md`):* §5.7 now gives the filter as
+   `kingSafeAfter p`, with L3.9 and L3.3 as its link to `Legal`; §6.1 records that the `isLegal`
+   option was not needed (attacker nodes decide `Legal` through `mem_chess_moves`); §8's table
+   already lists M1 in `MoveGen`. §7.3 says M4 is proved, so the point about trusting completeness
+   is moot.
 6. **THEOREMS edits** (not made here): M1's sketch becomes `mem_slideTargets : t ∈ slideTargets d b s
    ↔ Slides d b s t` and `mem_reachTargets` (one lemma for all kinds; `OnRay`/`ClearBetween` are not
    used); M2's "Forces" should mention the candidate cover; M4's "Forces" should say `legalMoves`
@@ -820,8 +921,10 @@ Open items:
    `Chess.Basic` or a list-utilities module, not here. M8 needs only `List.length_flatMap` and
    `List.sum`.
 9. **Test-only code ships in the library module.** `legalMovesBySpec`, `agreesWithLegal`, L5.1–L5.3,
-   `epCheckPos` and `promoKnightPos` are imported by every downstream module. Move them to the test
-   library when it exists (keeping L5.2 and L5.3 next to `agreesWithLegal`).
+   `epCheckPos` and `promoKnightPos` are imported by every downstream module. The test library now
+   exists; they stay here by the decision of the test-library round (`docs/process/MoveGen.md`, note
+   of 2026-11-02: they cost nothing to build). Since M4 only the M5 half of `agreesWithLegal` tests
+   anything; when M5 is proved, `agreesWithLegal` and L5.1–L5.3 can go.
 10. **One expression for the pawn diagonals.** `[s.offset (-1) c.forward, s.offset 1 c.forward]`
     appears in Rules' `Reaches .pawn`, in D1.3 and in D2.1, on purpose (the cover is then `simp
     [pawnTargets, h]`). A shared `pawnCaptureSquares c s` used by all three would remove the

@@ -6,3 +6,21 @@ autoImplicit = false
 
 [[lean_lib]]
 name = "Chess"
+
+# The tests, the perft suite and the axioms ledger: `lake build ChessTest`. Not a default target,
+# so that `lake build` builds the library alone.
+[[lean_lib]]
+name = "ChessTest"
+
+# `lake exe chess-perft "<FEN>" <depth>` prints the divide and the perft of a position.
+[[lean_exe]]
+name = "chess-perft"
+root = "ChessPerft"
+
+# The Stage 1 closing demonstration (the Gotham puzzle, certified by `scripts/gen_cert.py`) and
+# small mates proved by search: `lake build ChessDemo`. Not a default target: it takes minutes.
+# Elaboration is sequential, which keeps the generated file's peak memory near 1 GB (about 3 GB
+# with parallel elaboration, for no gain in time).
+[[lean_lib]]
+name = "ChessDemo"
+leanOptions = { Elab.async = false }

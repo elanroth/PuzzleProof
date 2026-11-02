@@ -392,7 +392,8 @@ private theorem addCoord?_eq_none_iff {x : Fin 8} {δ : Int} :
   split <;> simp_all
 
 /-- **The offset of `s` by `(df, dr)` is `t` exactly when `t`'s file is `s`'s file plus `df`
-and `t`'s rank is `s`'s rank plus `dr`.** Every proof about offsets goes through this lemma. -/
+and `t`'s rank is `s`'s rank plus `dr`.** Other proofs use this lemma instead of unfolding
+`offset`. -/
 theorem offset_eq_some_iff :
     s.offset df dr = some t ↔ (t.file : Int) = s.file + df ∧ (t.rank : Int) = s.rank + dr := by
   unfold offset
@@ -448,6 +449,11 @@ theorem eq_of_offset_eq (h : s.offset df dr = some t) (h' : u.offset df dr = som
     s = u := by
   rw [offset_eq_some_iff] at h h'
   ext <;> omega
+
+/-- An offset with no file step stays on the file. -/
+theorem file_eq_of_offset_zero (h : s.offset 0 dr = some t) : s.file = t.file := by
+  rw [offset_eq_some_iff] at h
+  exact Fin.ext (by omega)
 
 /-- An offset by `(df, dr)` keeps the square's colour exactly when `df + dr` is even. (Here `%`
 is `Int.emod`, so `(-1) % 2 = 1`.) -/
@@ -569,6 +575,11 @@ theorem opposite_mem_orthogonals : d.opposite ∈ orthogonals ↔ d ∈ orthogon
 theorem opposite_mem_diagonals : d.opposite ∈ diagonals ↔ d ∈ diagonals := by
   cases d <;> decide
 
+/-- Two directions along a rank (neither changes rank) are equal or opposite. -/
+theorem eq_or_eq_opposite_of_dr_eq_zero (hd : d.dr = 0) (hd' : d'.dr = 0) :
+    d' = d ∨ d' = d.opposite := by
+  revert hd hd'; cases d <;> cases d' <;> decide
+
 end Direction
 
 /-- The directions along which a piece of kind `k` moves any number of squares without passing
@@ -651,7 +662,8 @@ theorem shift_add (h : s.shift d i = some t) : t.shift d j = s.shift d (i + j) :
   simp only [shift] at h ⊢
   rw [offset_offset h, Int.natCast_add, Int.add_mul, Int.add_mul]
 
-/-- If the square `i` steps away is on the board, so is every square `j ≤ i` steps away. -/
+/-- If the square `i` steps away is on the board, so is every square `j ≤ i` steps away (DESIGN
+§5.2: a square between two on-board squares is on the board). -/
 theorem isSome_shift_of_le (hji : j ≤ i) (h : (s.shift d i).isSome) : (s.shift d j).isSome := by
   rw [isSome_shift_iff] at h ⊢
   cases d <;> simp [Direction.df, Direction.dr] at h ⊢ <;> omega
@@ -699,6 +711,46 @@ theorem dir_eq_of_shift_eq (hi : 0 < i) (h : s.shift d i = some t) (h' : s.shift
   rw [shift_eq_some_iff] at h h'
   cases d <;> cases d' <;> simp [Direction.df, Direction.dr] at h h' ⊢ <;> omega
 
+/-- If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, and `u`
+is on the first or the last rank, then `d` does not change rank. -/
+theorem dr_eq_zero_of_between {u : Square} (hj0 : 0 < j) (hj : j < i) (hu : s.shift d j = some u)
+    (ht : s.shift d i = some t) (hr : u.rank = 0 ∨ u.rank = 7) : d.dr = 0 := by
+  replace hr : u.rank.val = 0 ∨ u.rank.val = 7 := by rcases hr with h | h <;> simp [h] <;> decide
+  rw [shift_eq_some_iff] at hu ht
+  have := t.rank.isLt
+  cases d <;> simp [Direction.df, Direction.dr] at hu ht ⊢ <;> omega
+
+/-- If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, and `u`
+is on the a-file or the h-file, then `d` does not change file. -/
+theorem df_eq_zero_of_between {u : Square} (hj0 : 0 < j) (hj : j < i) (hu : s.shift d j = some u)
+    (ht : s.shift d i = some t) (hf : u.file = 0 ∨ u.file = 7) : d.df = 0 := by
+  replace hf : u.file.val = 0 ∨ u.file.val = 7 := by rcases hf with h | h <;> simp [h] <;> decide
+  rw [shift_eq_some_iff] at hu ht
+  have := t.file.isLt
+  cases d <;> simp [Direction.df, Direction.dr] at hu ht ⊢ <;> omega
+
+/-- If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, then the
+square `v` one step from `u` in direction `d'`, which is `d` or its opposite, is `s`, `t`, or `j'`
+steps from `s` for some `j'` with `0 < j' < i`. -/
+theorem shift_one_of_between {u v : Square} (hj0 : 0 < j) (hj : j < i)
+    (hu : s.shift d j = some u) (ht : s.shift d i = some t) (hd' : d' = d ∨ d' = d.opposite)
+    (hv : u.shift d' 1 = some v) :
+    v = s ∨ v = t ∨ ∃ j', 0 < j' ∧ j' < i ∧ s.shift d j' = some v := by
+  rcases hd' with rfl | rfl
+  · -- One step along the line: `j + 1` steps from `s`, which is `t` when `j + 1 = i`.
+    rw [shift_add hu] at hv
+    by_cases e : j + 1 = i
+    · subst e
+      exact .inr (.inl (Option.some.inj (hv.symm.trans ht)))
+    · exact .inr (.inr ⟨j + 1, by omega, by omega, hv⟩)
+  · -- One step back: `j - 1` steps from `s`, which is `s` when `j = 1`.
+    have h := shift_eq_shift_opposite hu (Nat.sub_le j 1)
+    rw [show j - (j - 1) = 1 by omega, hv] at h
+    by_cases e : j = 1
+    · subst e
+      exact .inl (Option.some.inj (h.symm.trans shift_zero))
+    · exact .inr (.inr ⟨j - 1, by omega, by omega, h⟩)
+
 /-- A diagonal shift keeps the square's colour. -/
 theorem isLight_shift_of_mem_diagonals (hd : d ∈ Direction.diagonals)
     (h : s.shift d i = some t) : t.IsLight ↔ s.IsLight := by
@@ -729,7 +781,7 @@ theorem getElem?_ray (s : Square) (d : Direction) (i : Nat) :
   · exact (shift_eq_none_of_eight_le (by omega)).symm
 
 /-- `t` is on the ray from `s` in direction `d` exactly when it is a positive number of steps
-from `s` in that direction. -/
+from `s` in that direction (the geometric half of M1). -/
 theorem mem_ray_iff : t ∈ s.ray d ↔ ∃ i, 0 < i ∧ s.shift d i = some t := by
   rw [List.mem_iff_getElem?]
   simp only [getElem?_ray]
@@ -817,6 +869,14 @@ namespace Color
 @[simp] theorem forward_mul_forward (c : Color) : c.forward * c.forward = 1 := by
   cases c <;> rfl
 
+/-- A pawn's rank step is not zero. -/
+theorem forward_ne_zero (c : Color) : c.forward ≠ 0 := by
+  cases c <;> decide
+
+/-- A pawn's two-square rank step is not zero. -/
+theorem two_mul_forward_ne_zero (c : Color) : 2 * c.forward ≠ 0 := by
+  cases c <;> decide
+
 /-- White's home rank is rank 1. -/
 @[simp] theorem homeRank_white : Color.white.homeRank = 0 := rfl
 /-- Black's home rank is rank 8. -/
@@ -825,6 +885,10 @@ namespace Color
 /-- The two home ranks are mirror images. -/
 @[simp] theorem homeRank_other (c : Color) : c.other.homeRank = c.homeRank.rev := by
   cases c <;> rfl
+
+/-- A home rank is the first or the last rank. -/
+theorem homeRank_eq_zero_or_seven (c : Color) : c.homeRank = 0 ∨ c.homeRank = 7 := by
+  cases c <;> simp
 
 end Color
 
@@ -978,6 +1042,11 @@ theorem shift_kingHome_one (c : Color) (w : Wing) :
     (kingHome c).shift w.direction 1 = some (rookCastleSquare c w) := by
   cases c <;> cases w <;> decide
 
+/-- The king's castling square is not one king step from its home square. -/
+theorem shift_kingHome_one_ne (c : Color) (w : Wing) (d : Direction) :
+    (kingHome c).shift d 1 ≠ some (kingCastleSquare c w) := by
+  revert d; cases c <;> cases w <;> decide
+
 /-- The rook's home is the last square on the king's ray towards it. -/
 theorem getLast?_ray_kingHome (c : Color) (w : Wing) :
     ((kingHome c).ray w.direction).getLast? = some (rookHome c w) := by
@@ -1027,6 +1096,11 @@ theorem rookCastleSquare_ne_rookHome (c c' : Color) (w w' : Wing) :
     rookCastleSquare c w ≠ rookHome c' w' := by
   cases c <;> cases c' <;> cases w <;> cases w' <;> decide
 
+/-- The square a castling rook lands on is not a king's home square. -/
+theorem rookCastleSquare_ne_kingHome (c c' : Color) (w : Wing) :
+    rookCastleSquare c w ≠ kingHome c' := by
+  cases c <;> cases c' <;> cases w <;> decide
+
 /-- The king's home square is on its own relative rank 0. -/
 @[simp] theorem relRank_kingHome (c : Color) : (kingHome c).relRank c = 0 := by
   cases c <;> rfl
@@ -1059,8 +1133,9 @@ example : (Square.mk 0 0).offset (-1) 0 = none := by decide
 example : knightJumps.length = 8 := rfl
 -- Plain `decide` reaches all 64 squares through the `Fin 8` quantifiers (D3.6).
 example : ∀ s : Square, s.shift .north 8 = none := by decide
--- An en passant target square of a White double push (e3) is on White's relative rank 2 and on
--- Black's relative rank 5, where Black's capturing pawn lands.
+-- An en passant target square of a White double push (e3, on the third rank) has White's relative
+-- rank index 2 and Black's relative rank index 5 (counting from 0), where Black's capturing pawn
+-- lands.
 example : (Square.mk 4 2).relRank .white = 2 ∧ (Square.mk 4 2).relRank .black = 5 := by decide
 example : (∀ c : Color, ∀ w : Wing, (kingHome c).shift w.direction 2 = some (kingCastleSquare c w))
   := by decide

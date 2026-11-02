@@ -3,18 +3,20 @@
 Role: English specification writer (Round 1); revised by the translator (Rounds 2 and 3); refined
 (Round 4).
 Date: 2026-11-01.
-Status: Round 4, matched to the Lean of `Chess/ChessGame.lean` (see `docs/process/ChessGame.md`,
-Rounds 2–4). Every lemma of this document except the [later] ones of §7 is proved in the library,
-with no `sorry`. In Round 1, every definition, every lemma tagged [core] or [sanity], and every test
-was elaborated in a scratch file importing the built `Chess` library (scratchpad only; nothing in
-the library was written), and is marked *(checked)*. Timings are from that scratch file, on this
+Status: Round 5, matched to the Lean of `Chess/ChessGame.lean` (see `docs/process/ChessGame.md`,
+Rounds 2–5; Round 5, 2026-11-02, is G8). Every lemma of this document is proved in the library, with
+no `sorry`; the [later] lemmas of §7 since Round 5, in `Chess/ChessGame/Fide.lean`. In Round 1,
+every definition, every lemma tagged [core] or [sanity], and every test was elaborated in a
+scratch file importing the built `Chess` library (scratchpad only; nothing in the library was
+written), and is marked *(checked)*. Timings are from that scratch file, on this
 machine, one process at a time.
 
 File: `Chess/ChessGame.lean`. Depends on: `Chess.MoveGen` and `Chess.Game` (and through them
 `Chess.Rules`, `Chess.Position`, `Chess.Basic`); core only. Refines DESIGN §6.4 and §8.6. Theorem
 targets here: **G1** (the chess instance) and **M11** except M11.1 (the FEN and UCI readers, sound
-and complete, all proved in Stage 1). Planned in this file for Stage 2 (§7 below): **G8** (the chess
-game means FIDE chess) and M11.1.
+and complete, all proved in Stage 1). **G8** (the chess game means FIDE chess) is proved in its own
+files, `Chess/Spec/Winning.lean` and `Chess/ChessGame/Fide.lean` (§7 below, 2026-11-02); M11.1 is
+still planned.
 
 What a reader must trust from this module:
 
@@ -25,6 +27,11 @@ What a reader must trust from this module:
   `ClockFields` (D4.2), `IsFEN` (D4.2a) and `Position.Sane` (D4.5);
 - the **statements** of `fen_eq_iff` (L5.25) and `uci_eq_iff` (L5.27), which say what `fen "…"` and
   `uci "…"` denote in terms of the items above.
+
+Since G8 (§7), the first item can be replaced: a reader may read `WinsIn`, `Wins`, `MateIn` and
+`OnlyWinningMove` as `SpecWinsIn`, `SpecWins`, `SpecMateIn` and `SpecOnlyWinningMove` of
+`Chess.Spec.Winning` (which imports `Chess.Rules` only), by the equivalences of
+`Chess.ChessGame.Fide`. Then neither `Game.chess`, nor `Chess.Game`, nor the generator is trusted.
 
 A reader does **not** have to trust the readers of §3 (including `splitOn`, D3.0) or the bodies of
 `readFEN`, `parseFEN` and `parseUCI`. The readers only propose and the guards dispose, and three
@@ -46,11 +53,11 @@ The conventions of `docs/spec/Basic.md` §0, `docs/spec/Position.md` §0, `docs/
   quotation marks; the Lean docstring is that text, word for word.
 - Each lemma has an ID (`L5.2`), an English statement, the Lean statement, and a tag: **[core]**
   (proved in this file in Stage 1; later files may depend on it), **[sanity]** (checks that a
-  definition says what its docstring says), or **[later]** (Stage 2, §7; not written now). Rounds
-  1–3 also used **[target]** for lemmas allowed to slip to Stage 5; all of them (L5.15–L5.24) were
-  proved in Round 3 and are [core] since Round 4. The Lean docstring of a lemma is its English
-  column. IDs with a letter suffix (`L5.2a`, `D4.2a`) were added after Round 1, so that the Round 1
-  numbering stays stable.
+  definition says what its docstring says), or **[later]** (planned in Round 1 for Stage 2, §7;
+  since Round 5 proved in `Chess/ChessGame/Fide.lean`). Rounds 1–3 also used **[target]** for lemmas
+  allowed to slip to Stage 5; all of them (L5.15–L5.24) were proved in Round 3 and are [core] since
+  Round 4. The Lean docstring of a lemma is its English column. IDs with a letter suffix (`L5.2a`,
+  `D4.2a`) were added after Round 1, so that the Round 1 numbering stays stable.
 - **Binding rule.** Every name a docstring mentions is bound in the signature or introduced by the
   docstring itself.
 - `autoImplicit = false`. Each section opens with the `variable` line given for it.
@@ -88,9 +95,10 @@ are the list `legalMoves` that the generator computes, playing is `Position.play
 move has been mated when it is in check and the generator lists no move for it. The two laws of a
 game are one-liners: `play` always passes the turn (`play_turn`), and a mated side has an empty
 move list by the definition of mated. Headline theorems then speak chess, not game theory:
-`Chess.OnlyWinningMove (fen "…") (uci "…") ∧ Chess.WinsIn .black 11 (fen "…")`. Until Stage 2,
-"available move" means "listed by `legalMoves`", and the generator's completeness is trusted; in
-Stage 2 G8 proves that the listed moves are exactly the FIDE-legal ones, and no statement changes.
+`Chess.OnlyWinningMove (fen "…") (uci "…") ∧ Chess.WinsIn .black 11 (fen "…")`. "Available move"
+means "listed by `legalMoves`"; `Chess.MoveGen` proves that the listed moves are exactly the
+FIDE-legal ones (M4), and G8 (`Chess.ChessGame.Fide`) proves that the four notions are equivalent to
+their FIDE versions in `Chess.Spec.Winning`. No statement of this module changed for either.
 
 **Readers propose; the guard (writing back) disposes.** A FEN or UCI string in a headline is part of the claim, so
 its meaning must be as easy to audit as the rules. Writing is easy to audit: a writer is total, has
@@ -110,17 +118,18 @@ complete, so even that cannot happen for a canonical FEN (L5.19).
 2. Writing (trusted): `emptyRun`, `rowChars`, `Board.row`, `Board.fenChars`, `Color.fenChar`,
    `epChars`, `Position.fenFields`, `Position.toFEN`.
 3. Reading (untrusted proposals): `splitOn`, `emptyCount?`, `Piece.ofLetter?`, `readChar`,
-   `readRow`, `Board.ofRows`, `readBoard`, `readTurn`, `CastlingRights.all`, `readCastling`,
-   `Square.ofName?`, `readFields`, `readPromo`, `readMove`.
-4. Accepting: the trusted predicates `IsNumeral`, `ClockFields`, `IsFEN`, `Position.Sane` (with
-   `Board.squaresOf`), and the verified parsers `readFEN`, `parseFEN`, `fen`, `parseUCI`, `uci`.
+   `readRow`, `Board.ofRows`, `readBoard`, `readTurn`, `readCastling`, `Square.ofName?`,
+   `readFields`, `readPromo`, `readMove`.
+4. Accepting: first the trusted predicates `IsNumeral`, `ClockFields`, `IsFEN`, `Position.Sane`,
+   then the verified parsers `readFEN`, `parseFEN`, `fen`, `parseUCI`, `uci`. (Until the
+   readability round of 2026-11-02, `readFEN` and `Board.squaresOf` sat between the predicates.)
 5. Lemmas about notation (`section Notation`).
 6. Tests.
 
 The trusted reading of the file is §1, §2, the predicates of §4, and the statements of L5.25 and
 L5.27. §3 is marked untrusted in its heading, and the heading of §4 says which of its definitions
-are trusted. Sections 7–11 of this document are the Stage 2 plan (G8), the design choices, requests
-to other modules, the open items and the translator's checklist.
+are trusted. Sections 7–11 of this document are G8 (now in its own files), the design choices,
+requests to other modules, the open items and the translator's checklist.
 
 ---
 
@@ -153,8 +162,9 @@ moves are those listed by the move generator `legalMoves`, a move is played by `
 the side to move has been mated when it is in check and the generator lists no move for it. Play
 ends only by mate or by the side to move having no listed move. There is no clock, no fifty- or
 seventy-five-move rule, no repetition rule and no dead-position rule, so a win here is a win under
-FIDE only when those rules do not intervene (THEOREMS G15). Until the generator is proved complete
-(Stage 2), 'available' means 'listed by `legalMoves`'."
+FIDE only when those rules do not intervene (THEOREMS G15). The listed moves are exactly the legal
+moves of `Chess.Rules` (`mem_legalMoves`), and `Chess.ChessGame.Fide` restates the notions of this
+game with `Legal` and `Checkmate` (THEOREMS G8)."
 
 Notes.
 - `abbrev`, not `def` (Game review C1.2): `Game.chess.State` and `Game.chess.Move` must unfold to
@@ -164,16 +174,20 @@ Notes.
   toy games of `Chess.Game` are `abbrev`s for the same reason.
 - `decMated` and `decEqMove` are **given explicitly** (Game review C1.1), although instance search
   would find the same instances today. The reason is the trap the review describes: if `Mated`
-  were later changed to `Checkmate p`, instance search would silently pick Rules'
-  `Checkmate.decidable`, which enumerates 64 × 64 × 5 candidate moves (over 500 s in the kernel),
-  and every `goal` leaf of every certificate would time out with nothing failing to build. Writing
-  the instance next to the definition makes any change of `Mated` change it visibly too.
+  were later changed to `Checkmate p`, instance search would silently pick an instance for
+  `Checkmate` that the author of the change never looked at. When this note was written (Round 1)
+  that was Rules' `Checkmate.decidable`, which enumerates 64 × 64 × 5 candidate moves (over 500 s
+  in the kernel), and every `goal` leaf of every certificate would have timed out with nothing
+  failing to build. Since M4, `Chess.MoveGen` declares `Checkmate.decidableByGen` with high
+  priority, which decides `Checkmate` through the generator (`checkmate_iff`), so today the silent
+  choice would be fast. Writing the instance next to the definition still makes any change of
+  `Mated` change the decision procedure visibly too.
 - `Mated` is the **executable** form, `InCheck p ∧ legalMoves p = []` (DESIGN §6.4, THEOREMS open
-  question 3): `Checkmate p` would need the slow decision above. The conjunct order is FIDE's ("in
-  check and no legal move") and is also the cheap order: `instDecidableAnd` decides `InCheck p`
-  first, and in most positions that is false and ends the test. `legalMoves p = []` is decided by
-  list equality with `[]`, which the kernel evaluates lazily: it needs only the first listed move to
-  answer "no".
+  question 3): in Round 1, `Checkmate p` would have needed the slow decision above. The conjunct
+  order is FIDE's ("in check and no legal move") and is also the cheap order: `instDecidableAnd`
+  decides `InCheck p` first, and in most positions that is false and ends the test.
+  `legalMoves p = []` is decided by list equality with `[]`, which the kernel evaluates lazily: it
+  needs only the first listed move to answer "no".
 - `turn_play` gets the unconditional `play_turn p m : (p.play m).turn = p.turn.other` (Rules); the
   law asks it only for available moves. `moves_eq_nil_of_mated` is the second conjunct of `Mated`.
 - In `Move := Chess.Move` and `DecidableEq Chess.Move`, the qualification is required (§0)
@@ -241,7 +255,7 @@ Notes on D1.2–D1.5.
 - "Without move-count or repetition rules" is in each docstring because that is where a chess reader
   looks (Game review C8). It says which game the claim is about (DESIGN §6.5: G∞). Each docstring
   says "mated", not "checkmated": in Stage 1 the target is `InCheck ∧ legalMoves = []`, not Rules'
-  `Checkmate`; G8 (Stage 2) proves the two equal.
+  `Checkmate`; `checkmate_iff` (M6) and G8 (`Chess.ChessGame.Fide`) prove the two equal.
 - The definitions accept any position. Headlines obtain positions from `fen`, which are sane
   (L5.7). On positions that are not sane the definitions still have a meaning, but it is not chess
   (D4.5 notes): with no defending king, `WinsIn` is always false, because `InCheck` is false; with
@@ -268,7 +282,7 @@ Notes on D1.2–D1.5.
 | L1.3 | The side to move in chess is the position's turn. | `theorem Game.chess_turn (p : Position) : Game.chess.turn p = p.turn := rfl` | [core] *(checked)* |
 | L1.4 | In chess the side to move has been mated exactly when it is in check and `legalMoves` lists no move. | `theorem Game.chess_mated (p : Position) : Game.chess.Mated p ↔ InCheck p ∧ legalMoves p = [] := Iff.rfl` | [core] *(checked)* |
 | L1.5 | `WinsIn a 0 p` holds exactly when the other side is to move at `p`, is in check, and has no listed move: `a` has already won. (THEOREMS G2, read in chess.) | `theorem winsIn_zero_iff : WinsIn a 0 p ↔ p.turn = a.other ∧ InCheck p ∧ legalMoves p = [] := Game.winsIn_zero_iff` | [core] *(checked)* |
-| L1.6 | In a position where the side to move is not in check and has no listed move (stalemate, as the generator sees it; G8 links it to FIDE stalemate), neither side wins. (THEOREMS G2.) | `theorem not_wins_of_stalemate (hc : ¬ InCheck p) (hl : legalMoves p = []) : ¬ Wins a p := Game.not_wins_of_stalemate (G := Game.chess) (fun h => hc h.1) hl` | [core] *(checked)* |
+| L1.6 | In a position where the side to move is not in check and has no listed move (stalemate, as the generator sees it; `stalemate_iff` (M6) says it is FIDE stalemate), neither side wins. (THEOREMS G2.) | `theorem not_wins_of_stalemate (hc : ¬ InCheck p) (hl : legalMoves p = []) : ¬ Wins a p := Game.not_wins_of_stalemate (G := Game.chess) (fun h => hc h.1) hl` | [core] *(checked)* |
 
 Notes. L1.1–L1.4 are `rfl` and exist so that `rw` can move between the game's vocabulary and the
 chess vocabulary in proofs that are not by evaluation; they are named with the `Game.` prefix so
@@ -518,19 +532,11 @@ def readTurn (cs : List Char) : Color :=
 Docstring: "The side to move that a FEN field proposes: the colour whose letter the field is, or
 White if there is none."
 
-### D3.8 `CastlingRights.all : List CastlingRights`
+### D3.8 (moved) `CastlingRights.all`
 
-```lean
-def CastlingRights.all : List CastlingRights :=
-  [false, true].flatMap fun wk => [false, true].flatMap fun wq =>
-    [false, true].flatMap fun bk => [false, true].map fun bq => ⟨wk, wq, bk, bq⟩
-```
-
-Docstring: "All sixteen castling rights, each once."
-
-Notes. A finite-type enumeration in the style of R2; its natural home is `Chess.Position` (§9,
-request 2, still open at Round 4). Its `mem_all` and `length_all` are L5.14a and L5.14b *(checked
-by `decide`)*.
+Moved to `Chess.Position` (Position D4.6a, with its lemmas `mem_all` and `length_all`, Position
+P4.3a, formerly L5.14a and L5.14b) in the readability round of 2026-11-02, as §9 request 2 and
+ChessGame review C5 asked. `readCastling` searches it there.
 
 ### D3.9 `readCastling (cs : List Char) : CastlingRights`
 
@@ -598,9 +604,12 @@ and `Position.Sane` are trusted: they say what an accepted string means. The par
 describe."
 
 The guards. A string is accepted only if it is the writing of the proposal (D4.3, D4.8), and a FEN
-only if the position also passes the sanity filter (D4.4–D4.6). Until Round 3 the whole section
+only if the position also passes the sanity filter (D4.5, D4.6). Until Round 3 the whole section
 was trusted; the characterisations L5.4, L5.23 and L5.24 now verify the parsers, so only the
-predicates D4.1, D4.2, D4.2a and D4.5 (with D4.4, which D4.5 uses) are.
+predicates D4.1, D4.2, D4.2a and D4.5 (with Position's `Board.squaresOf`, which D4.5 uses) are.
+Since the readability round of 2026-11-02 the section lists the four trusted predicates first and
+the parsers after them, so the trusted text is one block: D4.1, D4.2, D4.2a, D4.5, then D4.3,
+D4.6–D4.9. The IDs were not renumbered.
 
 No `variable` line.
 
@@ -650,48 +659,6 @@ out three times (L5.3, L5.8, L5.23); naming it makes the contract three short st
 `fen s h = p ↔ p.Sane ∧ IsFEN s p` (L5.25). It is not decidable as written (the clock list is
 existential), and it does not need to be: `readFEN` decides it (L5.23). ***Canonical FEN*** means a
 string `s` with `IsFEN s p` for some position `p`.
-
-### D4.3 `readFEN (s : String) : Option Position`
-
-```lean
-def readFEN (s : String) : Option Position :=
-  let fs := splitOn ' ' s.toList
-  let p := readFields fs
-  if p.fenFields = fs.take 4 ∧ ClockFields (fs.drop 4) then some p else none
-```
-
-Docstring: "Reads the FEN `s`. Its fields are the pieces of `s` between occurrences of the space
-character; two adjacent spaces give an empty field, which no writer produces, so such a string is
-rejected, and tabs and other whitespace are not separators. The result is the position `p` proposed by the first four fields, provided those four fields are exactly the
-FEN writing of `p` (`Position.fenFields p`) and the remaining fields are acceptable clock fields;
-otherwise `none`. So `readFEN s = some p` exactly when `IsFEN s p` (`readFEN_eq_some_iff`)."
-
-Notes.
-- The guard `p.fenFields = fs.take 4` does all the syntax checking: wrong number of ranks, a rank of
-  the wrong length, an unknown letter, two adjacent digits (`44`), a digit `9` or `0`, castling
-  letters out of order (`kqKQ`) or repeated, Chess960 castling letters, a side to move other than `w`
-  or `b`, an en passant field that is not a square name or `-`, and fewer than four fields all fail
-  it, because no writer produces them *(each checked by a test, §6)*.
-- Every accepted string is canonical, that is, a FEN of some position (D4.2a, L5.3), and every
-  canonical string is accepted (L5.19). Stockfish, python-chess and Lichess
-  write canonical FEN for the board, side to move and castling fields; for the en passant field,
-  see choice 8.
-- `fenFields` has length 4, so the guard's first conjunct also says there are at least four fields;
-  `ClockFields (fs.drop 4)` then allows exactly four or exactly six.
-- `readFEN` does not judge the position; `parseFEN` (D4.6) does. Keeping the two apart makes
-  L5.19 and L5.20 (`readFEN p.toFEN = some p`) true for every position, sane or not.
-
-### D4.4 `Board.squaresOf (b : Board) (pc : Piece) : List Square`
-
-```lean
-def Board.squaresOf (b : Board) (pc : Piece) : List Square :=
-  Square.all.filter fun t => b t = some pc
-```
-
-Docstring: "The squares of `b` that hold the piece `pc`, in index order (a1, b1, …, h8)."
-
-Notes. Its lemma is L5.13 (`s ∈ b.squaresOf pc ↔ b s = some pc`). It is general so that material
-counts (THEOREMS R7) can reuse it.
 
 ### D4.5 `Position.Sane (p : Position) : Prop`, a structure, with a `Decidable` instance
 
@@ -743,6 +710,42 @@ Notes, one per condition (DESIGN §6.4).
   decided by the instances of `Color` quantifiers, `Board.KingAttacked` and `Square` quantifiers
   *(checked: `Position.initial.Sane` by `decide +kernel` in 1.5 s)*.
 
+### D4.4 (moved) `Board.squaresOf`
+
+Moved to `Chess.Position` (Position D1.6, with its lemma `Board.mem_squaresOf`, Position P1.8,
+formerly L5.13) in the readability round of 2026-11-02. It is trusted there; `MoveGen`'s
+king-safety test also uses it, in place of its own copy `Board.kingSquares`.
+
+### D4.3 `readFEN (s : String) : Option Position`
+
+```lean
+def readFEN (s : String) : Option Position :=
+  let fs := splitOn ' ' s.toList
+  let p := readFields fs
+  if p.fenFields = fs.take 4 ∧ ClockFields (fs.drop 4) then some p else none
+```
+
+Docstring: "Reads the FEN `s`. Its fields are the pieces of `s` between occurrences of the space
+character; two adjacent spaces give an empty field, which no writer produces, so such a string is
+rejected, and tabs and other whitespace are not separators. The result is the position `p` proposed by the first four fields, provided those four fields are exactly the
+FEN writing of `p` (`Position.fenFields p`) and the remaining fields are acceptable clock fields;
+otherwise `none`. So `readFEN s = some p` exactly when `IsFEN s p` (`readFEN_eq_some_iff`)."
+
+Notes.
+- The guard `p.fenFields = fs.take 4` does all the syntax checking: wrong number of ranks, a rank of
+  the wrong length, an unknown letter, two adjacent digits (`44`), a digit `9` or `0`, castling
+  letters out of order (`kqKQ`) or repeated, Chess960 castling letters, a side to move other than `w`
+  or `b`, an en passant field that is not a square name or `-`, and fewer than four fields all fail
+  it, because no writer produces them *(each checked by a test, §6)*.
+- Every accepted string is canonical, that is, a FEN of some position (D4.2a, L5.3), and every
+  canonical string is accepted (L5.19). Stockfish, python-chess and Lichess
+  write canonical FEN for the board, side to move and castling fields; for the en passant field,
+  see choice 8.
+- `fenFields` has length 4, so the guard's first conjunct also says there are at least four fields;
+  `ClockFields (fs.drop 4)` then allows exactly four or exactly six.
+- `readFEN` does not judge the position; `parseFEN` (D4.6) does. Keeping the two apart makes
+  L5.19 and L5.20 (`readFEN p.toFEN = some p`) true for every position, sane or not.
+
 ### D4.6 `parseFEN (s : String) : Option Position`
 
 ```lean
@@ -767,9 +770,17 @@ Docstring: "The position whose FEN is `s`, for use in statements: `fen "…"`. I
 position of which `s` is a FEN (`fen_eq_iff`; there is only one by `IsFEN.unique`). The clocks are
 not part of the position: `s` may end in any two numerals, or in none (see THEOREMS G15). The proof
 that `s` parses is found automatically, by evaluation, when the term is elaborated; a string that is
-not a FEN of a sane position is a compile-time error, never a default position."
+not a FEN of a sane position is a compile-time error, never a default position. The en passant field
+is read as written: after a two-square advance it must name the square passed over even when no
+capture is possible (`Position.fenFields`), which Stockfish, Lichess and python-chess's default
+output do not do."
 
 Notes.
+- The last sentence of the docstring was added in the readability round of 2026-11-02 (ChessGame
+  review C6, recommendation (a)): the `fen` docstring is where a headline's author looks. A FEN
+  copied from Lichess after `1. e4` (`… b KQkq - 0 1`) is accepted, but it denotes a position
+  whose `epTarget` is `none`, which is not `Position.initial.play (uci "e2e4")` (checked by `decide
+  +kernel` in the round's scratch file). Both positions have the same legal moves.
 - `by decide +kernel` rather than `by decide`: the same answer, measured 1.9 s against 2.9 s for
   parsing and sanity-checking Kiwipete, and it does not depend on the elaborator's reduction of the
   `Decidable` instances. A bad string fails with "Tactic `decide` proved that the proposition
@@ -842,9 +853,8 @@ were added in Round 4.
 | L5.11 | If `parseUCI` accepts `s` with move `m`, then `s` is the UCI writing of `m`. | `theorem parseUCI_sound (h : parseUCI s = some m) : m.toUCI = s` | [core] *(checked: `dsimp only [parseUCI] at h; split at h`, then `String.toList_inj`)* |
 | L5.11a | `parseUCI s` returns `uci s`: it is `some (uci s h)`. | `theorem parseUCI_uci (h : (parseUCI s).isSome = true) : parseUCI s = some (uci s h)` | [core] (Round 4: the UCI twin of L5.6, `(Option.some_get h).symm`) |
 | L5.12 | The UCI writing of `uci s` is `s`. | `theorem toUCI_uci (h : (parseUCI s).isSome = true) : (uci s h).toUCI = s` | [core] *(Round 4 proof: `parseUCI_sound (parseUCI_uci h)`)* |
-| L5.13 | A square is among the squares holding `pc` exactly when it holds `pc`. | `theorem Board.mem_squaresOf {b : Board} {t : Square} : t ∈ b.squaresOf pc ↔ b t = some pc` | [core] *(checked: `simp [Board.squaresOf, Square.mem_all]`)* |
-| L5.14a | The list of all castling rights contains every castling rights value. | `theorem CastlingRights.mem_all (cr : CastlingRights) : cr ∈ CastlingRights.all` | [sanity] *(checked by `revert cr; decide`)* |
-| L5.14b | The list of all castling rights has sixteen entries. | `theorem CastlingRights.length_all : CastlingRights.all.length = 16` | [sanity] *(checked by `decide`)* |
+| L5.13 | (moved to Position P1.8, `Board.mem_squaresOf`) | | |
+| L5.14a, L5.14b | (moved to Position P4.3a, `CastlingRights.mem_all` and `length_all`) | | |
 | L5.14c | Every piece is read back from its letter. | `theorem Piece.ofLetter?_letter (pc : Piece) : Piece.ofLetter? pc.letter = some pc` | [sanity] *(checked by `revert pc; decide`)* |
 | L5.14d | `emptyCount?` reads no piece letter as a run of empty squares. | `theorem emptyCount?_letter (pc : Piece) : emptyCount? pc.letter = none` | [sanity] *(checked by `revert pc; decide`)* |
 | L5.14e | For `k` from 1 to 8, the digit `k` is read back as `k` empty squares. | `theorem emptyCount?_digitChar : ∀ k ∈ List.range' 1 8, emptyCount? k.digitChar = some k` | [sanity] *(checked by `decide`)* |
@@ -906,7 +916,7 @@ Round 3 it took about 220 lines including docstrings and the helpers, all proved
   `List.getElem?_map`, `List.getElem?_reverse`). Side to move, castling rights and en passant target:
   each is a finite check (`∀ c` by `decide`; `∀ cr` and `∀ t` by `decide +kernel`, because they
   reduce `String.toList`; `Option Square` has no `Decidable ∀` instance, so `e` is split into
-  `none` and `some t`), using L5.14a.
+  `none` and `some t`), using `CastlingRights.mem_all` (Position P4.3a, formerly L5.14a).
 - L5.18 from L5.17 (apply `readFields` to both sides). L5.19 from L5.16 with `sep := ' '` (no field
   contains a space: finite checks, the row lemma, and for the clock fields `IsNumeral`, since a
   digit is not a space) and L5.17. L5.20 is L5.19 with the clocks `toFEN` writes. L5.21 from L5.20
@@ -937,9 +947,29 @@ readers nor the guards' code is part of the meaning of `fen "…"` or `uci "…"
 
 ## 6. Section "Tests"
 
-Under `/-! ## Tests -/`, in this order. Kernel tests use `decide +kernel`; `#guard` runs compiled
-code. All passed in the scratch file; the whole scratch module (definitions, lemmas, tests)
-elaborated in 21 s, of which about 20 s is kernel checking of the tests.
+**Where they live (2026-11-02).** These tests are in `ChessTest/ChessGame.lean`, in the test
+library `ChessTest` (`lake build ChessTest`; not built by `lake build`), which imports
+`ChessTest/MoveGen.lean` for `epCheckPos` and `promoKnightPos` and `ChessTest/Rules.lean` for
+`foolsMate`. They were about 10 s of this module's 11 s build, paid by every file that imports this
+module, generated certificate files included (review C3). The module keeps only these cheap
+`#guard`s under `/-! ## Tests -/`, as documentation (interpreted, about 0.1 s together):
+
+```lean
+-- Writing the initial position, and reading it back from four fields.
+#guard Position.initial.toFEN == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#guard readFEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -" == some Position.initial
+-- Rejected: not canonical FEN (`44`), and not sane (no Black king).
+#guard (parseFEN "rnbqkbnr/pppppppp/44/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone
+#guard (parseFEN "rnbqqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").isNone
+-- UCI.
+#guard parseUCI "e7e8q" == some ⟨⟨4, 6⟩, ⟨4, 7⟩, some .queen⟩  -- e7, e8
+#guard (parseUCI "Nf3").isNone
+```
+
+What follows specifies `ChessTest/ChessGame.lean`, in this order. Kernel tests use
+`decide +kernel`; `#guard` is evaluated by the interpreter. All passed in the scratch file; the
+whole scratch module (definitions, lemmas, tests) elaborated in 21 s, of which about 20 s is kernel
+checking of the tests.
 
 ```lean
 -- Reading and writing the initial position.
@@ -984,81 +1014,80 @@ example : WinsIn .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1") :=
   Game.checkWin_sound (c := .move (uci "a1a8") .goal) (by decide +kernel)
 example : ¬ Wins .white (fen "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1") :=  -- stalemate
   not_wins_of_stalemate (by decide +kernel) (by decide +kernel)
+-- The diagnostic: nothing fails in the certificate above; `a1a7` is legal but does not mate, so
+-- the leaf after it is not in the target; `a1h8` is not legal.
+#guard Game.chess.firstFailureWin .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1")
+  (.move (uci "a1a8") .goal) == none
+#guard Game.chess.firstFailureWin .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1")
+  (.move (uci "a1a7") .goal) == some ([uci "a1a7"], .notInTarget)
+#guard Game.chess.firstFailureWin .white 1 (fen "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1")
+  (.move (uci "a1h8") .goal) == some ([], .unavailable (uci "a1h8"))
 ```
 
 Notes.
+- The three `firstFailureWin` guards (added in ROADMAP step 5, `docs/spec/Game.md` §4.2) run the
+  diagnostic on chess: the accepted certificate of the example above, a legal move that does not
+  mate, and an illegal move. They are interpreted (`#guard`), as the generator would run them.
 - The `MateIn` example decides "not within 0" by search (`searchForces`) and is the module's one
   exact-distance check; it takes about 3 s. `#print axioms` on it shows `propext`,
   `Classical.choice` and `Quot.sound` *(checked)*, so it is [kernel].
 - The two `#guard`s on `parseFEN … isSome` are the positive controls of the two rejections above
   them: the same strings with only the offending detail changed are accepted.
 - `MoveGen`'s perft and agreement tests that need FEN (DESIGN §8.4's standard perft positions) live
-  in the test library, which imports this module; they are not repeated here.
+  in the test library (`ChessTest/Perft.lean`), which imports this module; they are not repeated
+  here.
 
 ---
 
-## 7. Stage 2: G8, the chess game means chess under FIDE's move and checkmate rules (planned, not translated now)
+## 7. Stage 2: G8, the chess game means FIDE chess (done, in two other files)
 
 "FIDE chess" here means FIDE's rules of movement and checkmate (Articles 3 and 5.1), without the
 rules of Articles 5.2.2 (dead position) and 9 (repetition, fifty and seventy-five moves).
 
-Written at the end of `Chess/ChessGame.lean` once `Chess/MoveGen/Correct.lean` proves
-`mem_legalMoves : m ∈ legalMoves p ↔ Legal p m` (M4). The file then imports `Chess.MoveGen.Correct`.
-Every lemma here is [later].
+*Round 1 planned this section at the end of `Chess/ChessGame.lean`. On 2026-11-02 it was carried
+out in two separate files instead (ChessGame review C2, open item 2 below), and this section now
+only records where each planned item went.* The English and Lean of each item are in
+`docs/spec/Spec.Winning.md` and `docs/spec/ChessGame.Fide.md`.
 
-### D7.1 `SpecForces (a : Color) (T : Position → Prop) : Nat → Position → Prop` (Stage 2)
-
-```lean
-inductive SpecForces (a : Color) (T : Position → Prop) : Nat → Position → Prop
-  | goal {n : Nat} {p : Position} : T p → SpecForces a T n p
-  | move {n : Nat} {p : Position} (m : Move) : p.turn = a → Legal p m →
-      SpecForces a T n (p.play m) → SpecForces a T (n + 1) p
-  | replies {n : Nat} {p : Position} : p.turn = a.other → (∃ m, Legal p m) →
-      (∀ m, Legal p m → SpecForces a T n (p.play m)) → SpecForces a T n p
-```
-
-Docstring: "`SpecForces a T n p`: forcing in chess as FIDE defines its moves, written out without
-the move generator: from `p`, the side `a` forces play into `T` using at most `n` moves of its own.
-`Game.Forces` for `Game.chess`, with 'listed by `legalMoves`' replaced by `Legal`."
-
-### D7.2–D7.4 (Stage 2)
-
-```lean
-def SpecWinsIn (a : Color) (n : Nat) (p : Position) : Prop :=
-  SpecForces a (fun q => q.turn = a.other ∧ Checkmate q) n p
-def SpecWins (a : Color) (p : Position) : Prop := ∃ n, SpecWinsIn a n p
-def SpecOnlyWinningMove (p : Position) (m : Move) : Prop :=
-  Legal p m ∧ SpecWins p.turn (p.play m) ∧ ∀ m', Legal p m' → m' ≠ m → ¬ SpecWins p.turn (p.play m')
-```
-
-Docstrings: "`SpecWinsIn a n p`: from `p`, the side `a` forces FIDE checkmate of the other side
-using at most `n` moves of its own, moves being FIDE-legal moves.", "`SpecWins a p`: `SpecWinsIn a
-n p` for some `n`.", "`SpecOnlyWinningMove p m`: `m` is legal at `p`, the side to move wins after
-it, and after no other legal move."
-
-### Lemmas of §7 [later]
-
-| ID | English | Lean |
+| Round 1 plan | Now | Where |
 |---|---|---|
-| L7.1 | The moves available in chess are exactly the legal moves. | `theorem mem_chess_moves : m ∈ Game.chess.moves p ↔ Legal p m` (`mem_legalMoves`) |
-| L7.2 | In chess, being mated is FIDE checkmate. | `theorem chess_mated_iff_checkmate : Game.chess.Mated p ↔ Checkmate p` (from L7.1 and `List.eq_nil_iff_forall_not_mem`) |
-| L7.3 | Forcing in the chess game is forcing in FIDE chess, for every target. | `theorem forces_iff_specForces {T : Position → Prop} : Game.chess.Forces a T n p ↔ SpecForces a T n p` (induction both ways, with L7.1) |
-| L7.4 | `WinsIn` is `SpecWinsIn`. (THEOREMS G8, `Chess.winsIn_iff_spec`.) | `theorem winsIn_iff_specWinsIn : WinsIn a n p ↔ SpecWinsIn a n p` (L7.3 with the target rewritten by L7.2) |
-| L7.5 | `Wins` is `SpecWins`; `MateIn` is exact distance in FIDE chess. | `theorem wins_iff_specWins : Wins a p ↔ SpecWins a p`; `theorem mateIn_iff_spec : MateIn a n p ↔ SpecWinsIn a n p ∧ ∀ k < n, ¬ SpecWinsIn a k p` |
-| L7.6 | `OnlyWinningMove` is `SpecOnlyWinningMove`. | `theorem onlyWinningMove_iff_spec : OnlyWinningMove p m ↔ SpecOnlyWinningMove p m` |
+| D7.1 `SpecForces` | `SpecForces`, as planned, with constructor docstrings | `Chess.Spec.Winning`, D1.1 |
+| D7.2 `SpecWinsIn` | `SpecWinsIn`, an `abbrev` | `Chess.Spec.Winning`, D1.2 |
+| D7.3 `SpecWins` | `SpecWins` | `Chess.Spec.Winning`, D1.3 |
+| (not planned) | `SpecMateIn`, so that L7.5's `MateIn` half reads like the others | `Chess.Spec.Winning`, D1.4 |
+| D7.4 `SpecOnlyWinningMove` | `SpecOnlyWinningMove`, as planned | `Chess.Spec.Winning`, D1.5 |
+| L7.1 `mem_chess_moves` | as planned | `Chess.ChessGame.Fide`, L1.1 |
+| L7.2 `chess_mated_iff_checkmate` | as planned | `Chess.ChessGame.Fide`, L1.2 |
+| L7.3 `forces_iff_specForces` | as planned | `Chess.ChessGame.Fide`, L1.3 |
+| L7.4 `winsIn_iff_specWinsIn` | as planned (THEOREMS G8) | `Chess.ChessGame.Fide`, L1.4 |
+| L7.5 `wins_iff_specWins`; `mateIn_iff_spec` | `wins_iff_specWins`; `mateIn_iff_specMateIn` | `Chess.ChessGame.Fide`, L1.5, L1.6 |
+| L7.6 `onlyWinningMove_iff_spec` | `onlyWinningMove_iff_specOnlyWinningMove` | `Chess.ChessGame.Fide`, L1.7 |
 
-L7.3 needs a congruence for `Forces` in its target (`T ↔ T'` pointwise gives `Forces a T n x ↔
-Forces a T' n x`). `Chess.Game` already gives it: `Forces.trans` with `k := 0`, since `n + 0`
-reduces to `n` (Round 4 critique, checked: `w.trans (k := 0) fun y hy => .goal (hTU y hy) :
-Game.chess.Forces a U n p`). No new lemma is needed.
+Also added: `specWinsIn_zero_iff` and `not_specWins_of_stalemate` (THEOREMS G2 in FIDE terms,
+`Chess.Spec.Winning` L2.1, L2.2), proved from the definitions without the generator.
 
-After L7.4–L7.6, a reader of a Stage 1 headline can read `SpecWinsIn` and `SpecOnlyWinningMove`
-instead of `Chess.Game`, `legalMoves` and the abbreviations; no Stage 1 statement changes.
+After these, a reader of a headline can read `SpecWinsIn`, `SpecMateIn` and `SpecOnlyWinningMove`
+instead of `Chess.Game`, `legalMoves` and the abbreviations; no statement of this module changed.
 
-### Stage 2 change to the sanity filter
+### Stage 2 and the sanity filter: an open owner decision
 
-When `Chess/Invariants.lean` defines `WellFormed` (R9), `parseFEN`'s filter is strengthened from
-`p.Sane` to `p.Sane ∧ WellFormed p`, and M11.1 (`parseFEN_wellFormed : parseFEN s = some p →
+*Undecided (2026-11-02).* This section was written in Round 2 as the plan. ChessGame review C4
+recommends the opposite: keep `fen`'s filter at `Sane` for good, and check `WellFormed (fen "…")`
+per literal, by `decide`, where a lemma needs it. Until the owner decides (ROADMAP §5, open owner
+decisions), a Stage 2 worker must not change `parseFEN`: either choice changes what M11.1 can say,
+and the first changes the trusted statement `fen_eq_iff`. The two options:
+
+- *Keep `Sane` (review C4).* `fen_eq_iff` and the meaning of every `fen "…"` literal stay as they
+  are. M11.1 as stated (`parseFEN s = some p → WellFormed p`) is then false, for any `WellFormed`
+  that checks castling rights, pawn ranks or the en passant victim: today `parseFEN` accepts
+  `4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1` (castling rights with no rook), `k7/8/8/8/8/8/8/K6P w - - 0 1`
+  (a pawn on the last rank) and `4k3/8/8/8/8/8/8/4K3 w - e6 0 1` (an en passant target with no
+  pawn). M11.1 is dropped or restated as the per-literal check.
+- *Strengthen the filter (the Round 2 plan, below).* `fen_eq_iff` gains a conjunct, and the
+  literals whose positions are not `WellFormed` become compile-time errors.
+
+The Round 2 plan, kept as written: when `Chess/Invariants.lean` defines `WellFormed` (R9),
+`parseFEN`'s filter is strengthened from `p.Sane` to `p.Sane ∧ WellFormed p`, and M11.1 (`parseFEN_wellFormed : parseFEN s = some p →
 WellFormed p`) is proved beside L5.5. The new filter never accepts a string that Stage 1 rejected,
 and an accepted string still denotes the same position, because the position comes from `readFEN`.
 Stage 1 strings whose positions are not `WellFormed` (for example castling rights `KQkq` with no
@@ -1071,8 +1100,8 @@ needing `WellFormed → Sane`.
 ## 8. Design choices, with reasons
 
 1. **The chess game is built from the generator, and `Mated` is executable** (DESIGN §6.4,
-   THEOREMS open question 3). Stage 1 is not blocked on M4; G8 links both to FIDE in Stage 2 with
-   no statement changing.
+   THEOREMS open question 3). Stage 1 was not blocked on M4; G8 (`Chess.ChessGame.Fide`) links
+   both to FIDE with no statement changing.
 2. **`decMated` and `decEqMove` are explicit** (D1.1 notes; Game review C1.1): a change of `Mated`
    must not silently change the decision procedure every certificate runs.
 3. **`abbrev` for `Game.chess` and the four chess names** (Game review C1.2): positions and moves
@@ -1101,9 +1130,13 @@ needing `WellFormed → Sane`.
    empty squares as one digit, single spaces, lower-case `w`/`b`. This is what every engine and
    library writes for the board, side to move and castling fields. For the en passant field, see
    choice 8. A non-canonical string is a compile-time error, the safe direction. The gain is
-   that a position has exactly one FEN (L5.18), so FEN text can serve as a key in generated files.
-6. **Four or six fields; clocks read as numerals and ignored** (DESIGN §8.6 says six; four are
-   accepted too). `Position` has no clock (DESIGN §4.6), and puzzle collections and EPD-style
+   that a position has exactly one FEN up to its clock fields (its four fields are a function of
+   it, `Position.fenFields`), and a string is a FEN of at most one position (L5.18, L5.23a). So the
+   four-field text, or `toFEN` with its fixed `0 1`, can serve as a key in generated files. The
+   full string cannot: `IsFEN` accepts any two numerals as clocks, or none (choice 6), so one
+   position has many FENs.
+6. **Four or six fields; clocks read as numerals and ignored** (DESIGN §8.6 said six until
+   2026-11-02; it now says four or six). `Position` has no clock (DESIGN §4.6), and puzzle collections and EPD-style
    sources often omit the clock fields. `toFEN` writes six, with `0 1`. The clocks are not useless:
    the halfmove clock is exactly what THEOREMS G15 needs (`Fide.winsIn_of … (hc : c + 2 * n ≤ L)`)
    and M11 assigns it to the game layer (G12). In Stage 1 it is dropped, so a `WinsIn` stated with
@@ -1111,8 +1144,9 @@ needing `WellFormed → Sane`.
    clock is open item 5.
 7. **The sanity filter is three named conditions, separate from reading** (D4.5): reading is the
    exact inverse of writing for every position (L5.19), and judging is a decidable predicate a
-   reader can check against DESIGN §6.4. The third condition (en passant rank) is added to DESIGN's
-   two because it catches a real transcription error at no cost and FEN itself requires it.
+   reader can check against DESIGN §6.4. The third condition (en passant rank) is added to the two
+   of DESIGN §6.4 because it catches a real transcription error at no cost and FEN itself requires
+   it. DESIGN §6.4 and §8.6 name all three since 2026-11-02.
 8. **The en passant target is written as stored** (D2.7), after every double push, matching
    `play` (DESIGN §4.6). Stockfish, Lichess and python-chess's default `en_passant="legal"` write `-`
    when no en passant capture is possible. Such a FEN is accepted, but it denotes a *different*
@@ -1162,26 +1196,31 @@ Requests (not made here; each owner decides):
    stands at `Chess/Position.lean` line 548 and `Chess/Basic.lean` line 1036. This is the most
    important fidelity defect outside this file: a reader told those definitions are untrusted would
    skip auditing part of the meaning of `fen` and `uci`.
-2. **`Chess.Position`, `CastlingRights.all`.** D3.8 and its two lemmas belong beside the other
-   enumerations (R2). If Position adds them first, this module uses them and drops D3.8.
+2. ~~**`Chess.Position`, `CastlingRights.all`.**~~ Done in the readability round of 2026-11-02:
+   D3.8 and its two lemmas are Position D4.6a and P4.3a, and `Board.squaresOf` (D4.4, L5.13) is
+   Position D1.6 and P1.8.
 3. **`Chess.Invariants` (Stage 2), `WellFormed`** (optional). Including "the en passant target is on
    the sixth rank counted from the side to move" (D4.5's third condition) and proving
-   `WellFormed.sane` would let the Stage 2 filter (§7) be `WellFormed` alone. It is not needed: the
-   filter is `p.Sane ∧ WellFormed p`.
+   `WellFormed.sane` would let a strengthened Stage 2 filter (§7, undecided) be `WellFormed` alone.
+   It is not needed: that plan's filter is `p.Sane ∧ WellFormed p`. Under review C4's option the
+   filter stays `p.Sane`, and `WellFormed.sane` would only let a lemma that has `WellFormed` skip
+   `Sane`.
 
 Deviations:
 
-- DESIGN §8.6 says `parseFEN` "reads and ignores the two clock fields"; here the clock fields may
-  also be absent (choice 6), and a third rejection is added (choice 7).
+- DESIGN §8.6 said `parseFEN` "reads and ignores the two clock fields"; here the clock fields may
+  also be absent (choice 6), and a third rejection is added (choice 7). (DESIGN §6.4, §6.5 and
+  §8.6 were brought in line on 2026-11-02, `docs/process/ChessGame.md` Round 8.)
 - DESIGN §10 open question "board through `unpack` or `set`s": resolved, neither (D3.5).
 - THEOREMS M11.2 was `parseFEN_toFEN (h : WellFormed p) : parseFEN (toFEN p) = some p.normalize`.
   Here it is L5.21 with `p.Sane` and no `normalize`, because `toFEN` writes the stored target, so
   nothing is lost. THEOREMS M11's soundness parts move to Stage 1 (L5.3, L5.8, L5.11). (Round 4:
   THEOREMS M11 now states what is proved.)
-- G8 names, here: `mem_chess_moves`, `chess_mated_iff_checkmate`, `winsIn_iff_specWinsIn` (§7), so
-  that the names say which side of the `↔` is which; G1's chess game is `Game.chess` (DESIGN §2).
-  (Round 4: THEOREMS was updated to these names; it used `Chess.mem_moves_iff`, `Chess.mated_iff`,
-  `Chess.winsIn_iff_spec` and `Chess.game`.)
+- G8 names, here: `mem_chess_moves`, `chess_mated_iff_checkmate`, `winsIn_iff_specWinsIn` (§7; since
+  2026-11-02 also `wins_iff_specWins`, `mateIn_iff_specMateIn`,
+  `onlyWinningMove_iff_specOnlyWinningMove`), so that the names say which side of the `↔` is which;
+  G1's chess game is `Game.chess` (DESIGN §2). (Round 4: THEOREMS was updated to these names; it
+  used `Chess.mem_moves_iff`, `Chess.mated_iff`, `Chess.winsIn_iff_spec` and `Chess.game`.)
 - THEOREMS M11.3 includes `parseSAN_toSAN`. There is no SAN here (choice 13), so it is dropped.
 
 ---
@@ -1192,11 +1231,11 @@ Deviations:
    failed. An untrusted `#eval`-able `explainFEN : String → String` that names the first failing
    check (which field differs from its writing, or which sanity condition fails) would help
    authors. Not needed for correctness.
-2. **Where G8 lives.** This spec follows DESIGN §8 and the task: G8 is added to this file, which
-   then imports `Chess.MoveGen.Correct`. Every generated certificate file imports this module, so
-   any change to the Stage 2 proofs rebuilds them all. The alternative is
-   `Chess/ChessGame/FIDE.lean`, importing this module and `MoveGen.Correct`. Decide when Stage 2
-   starts.
+2. **Where G8 lives.** *Decided 2026-11-02* (ChessGame review C2): not in this file. The FIDE
+   definitions are in `Chess/Spec/Winning.lean` (imports `Chess.Rules` only) and the equivalences
+   in `Chess/ChessGame/Fide.lean` (imports this module and `Chess.Spec.Winning`; M4 is in
+   `Chess.MoveGen` itself, so no `MoveGen.Correct` file exists). This module did not change except
+   for comments and two docstrings, so certificate files that import it do not depend on G8.
 3. **Headlines checkable without the reader.** THEOREMS M11 suggests that until M11 is proved, each
    headline's position also be checkable as a literal. With L5.25 proved in Stage 1 the reader is
    already out of the trusted base, so this is optional; the pattern, if wanted, is a test
@@ -1227,7 +1266,8 @@ Deviations:
   `Position.fenFields_injective`, the round trips, and `winsIn_zero_iff`, `not_wins_of_stalemate`),
   and `## Implementation notes` summarizing design choices 1, 2, 3, 4 (readers propose, the guard
   disposes, with the list of what is trusted from the header of this spec), 5, 6 (the clocks) and 7,
-  and saying that G8 is planned for Stage 2 in this file.
+  and saying where G8 is proved (`Chess.ChessGame.Fide`, since 2026-11-02) and that no statement of
+  this file depends on it.
 - Section order as in "Contents"; each a `/-! ## … -/` heading; §3's heading says
   "Reading (untrusted: the guards check every result)"; §4's heading is "Accepting", followed by
   the comment quoted at the start of §4. Lemmas in `section Notation` (§5), with its
@@ -1235,7 +1275,7 @@ Deviations:
 - `Chess.Move` qualified inside every `Game.…` declaration (§0).
 - Every `def`, `abbrev`, `structure`, structure field, `instance` and `theorem` carries the docstring
   given here, word for word. `splitOn.go` carries the docstring in D3.0. Nothing is `sorry`; no
-  `native_decide`. [later] lemmas are not written.
+  `native_decide`. No [later] lemmas remain in this file; §7 records where they went.
 - No `@[simp]` (Round 4: it was on L1.1–L1.4, where `simp` did not use it; L1 notes).
 - Instances: `IsNumeral.decidable`, `ClockFields.decidable`, `Position.Sane.decidable`. No others.
 - Tests at the end under `/-! ## Tests -/`, as in §6, in that order. The module should elaborate in

@@ -381,3 +381,219 @@ Spec §12: the owner's final word on step 4 by squares (item 1); Position review
 and 4); Basic review C2 (item 3); Basic additions (item 5); DESIGN §5.4 does not yet mention
 `IsDoublePush` or `CanCastle` (item 6); Position's `CastlingRights` convention and `ofGet` (item
 7); L4.11 (item 8).
+
+
+---
+
+## Note, 2026-11-02 (test library round, ROADMAP step 3): the tests moved to `ChessTest/Rules.lean`
+
+The section "Tests" (the examples, the `#guard`s and the thirteen named test positions with their
+docstrings) moved verbatim to `ChessTest/Rules.lean` in the new test library `ChessTest`
+(`lake build ChessTest`, not a default target). It was about 3.3 s of this module's 3.6 s build
+(measured: 3.65 s with the section, 0.39 s without, `lake env lean`), paid again by every module
+that imports Rules. The module keeps four cheap `#guard`s under `/-! ## Tests -/` (no check in the
+initial position, e2e4 legal, e2e5 not, the target after e2e4), with a pointer. Spec §10 now says
+where the tests live and quotes the four `#guard`s; the rest of §10 specifies the test file. No
+definition, docstring or proof of the library changed. Clean build of the module: 3.6 s before,
+0.4 s after.
+
+---
+
+## Round 5: L4.11 and the review's naming and shape decisions (ROADMAP step 4)
+
+Date: 2026-11-02. Author role: overnight agent, ROADMAP step 4. Files edited: `Chess/Rules.lean`,
+`Chess/Basic.lean` (four geometry lemmas, logged in `docs/process/Basic.md`),
+`ChessTest/Axioms.lean` (two entries), `docs/spec/Rules.md`, `docs/spec/Basic.md`,
+`docs/spec/MoveGen.md`, `docs/spec/ChessTest.Axioms.md`, `docs/DESIGN.md`, `docs/THEOREMS.md`,
+`docs/ROADMAP.md`. `lake build` green (11 jobs), no warnings from `lake env lean Chess/Rules.lean`,
+no `sorry`, no `native_decide`, all lines at most 100 characters. The docstring check (Rules review
+C8's script, run from a scratch directory) finds all 145 Lean docstrings of this module in the spec
+(136 before the round, all found then too); Basic's count of paraphrased lemma docstrings is
+unchanged (78 of 192, none of them new).
+
+### L4.11 proved: `CastleMove.legal_iff`
+
+English first. Spec §7a (new, so that §8–§13 keep their numbers) states six lemmas: L7a.1
+`CastleMove.pseudoLegal`; L7a.2 `CastleMove.play_board_of_ne` (castling changes only `K`, `G`, `R`,
+`F`); L7a.3 what those four squares hold after the move; two `private` helpers, L7a.4 (an attack
+after castling on a square holding a king of the mover was an attack before) and L7a.5 (an attack
+on `G` before castling is an attack after); and L4.11 itself, whose row in §4 now has the exact
+statement. §2 gained L2.4a, `reaches_of_clear`, the one-way transfer of a reach between boards. The
+D4.6 note, §12 item 8 and the spec's status line now say L4.11 is proved.
+
+Then the Lean, in a new section `/-! ## The castling landing square (L4.11) -/` after `section Play`
+(the lemmas need `play`'s R4 lemmas and `Legal`). About 140 lines including docstrings.
+
+- **No one-king hypothesis.** Rules review C2 guessed none would be needed; it is not. The
+  argument (spec §7a): the other colour's pieces do not move, leapers read no board, the rook's home
+  square is a corner (strictly inside no line, Basic B5.16a–b), and a line through the king's home
+  square (emptied) or the crossed square (filled) strictly inside it runs along the home rank
+  (B5.16a), where the crossed square, resp. the king's home square, is an end of the segment or
+  strictly inside it (B5.16c) and blocks.
+- **Sharper than the statement.** The landing square is attacked after castling exactly when it was
+  attacked before, without `¬ InCheck p`. That hypothesis only handles a second king of the mover.
+- **`reaches_of_clear` instead of `reaches_congr`.** The two boards differ on squares strictly
+  between attacker and target, so `reaches_congr` does not apply. The new lemma's hypothesis may
+  use that the whole line is clear on the first board, which is exactly what rules out the emptied
+  king's home square (its neighbour on the line is occupied).
+- **Name clash.** Inside `CastleMove.play_board_rookCastleSquare` the unqualified
+  `play_board_rookCastleSquare` names the lemma being defined (Lean reported a structural recursion
+  failure); the proof writes `Chess.play_board_rookCastleSquare`.
+- **`obtain … := h` clears `h`**, which later lines still needed (`h.pseudoLegal`,
+  `h.play_board_of_ne`). Where `h` is used again the facts are taken out by projection with their
+  types written (`have hR : p.board (rookHome p.turn w) = some ⟨p.turn, .rook⟩ := h.2.1.2.1`).
+- `#print axioms`: `CastleMove.legal_iff` uses `propext`, `Classical.choice`, `Quot.sound`;
+  `reaches_of_clear` uses `propext`, `Quot.sound`. Both are now in the axioms ledger
+  (`ChessTest/Axioms.lean`, 120 entries; 128 with the perft file).
+- Elaboration cost: `lake env lean Chess/Rules.lean` takes 0.41 s wall clock after the round. No
+  `decide` is used in the new Rules proofs; Basic's B5.6a and B5.16a–b use it for finite case
+  checks.
+- Tests: two examples in `ChessTest/Rules.lean` (after the `rookAttackedPos` tests) decide e1g1
+  through `CastleMove.legal_iff`, deciding only `CastleMove` and the attack on g1 before the move;
+  spec §10 lists them. `lake build ChessTest` is green; `ChessTest.Rules` builds in 3.5 s.
+
+### Rules review C5: `StepMove` renamed `PieceMove` (adopted)
+
+The definition, its instance, `PseudoLegal`'s body and docstring ("it is a piece move, a push, …"),
+L4.4 (`PseudoLegal.pieceMove_of_kindAt`) and a comment in L8.3's proof. Six occurrences in the
+Lean, none outside this module (MoveGen takes the rules apart by pattern, not by name; `ChessTest`
+does not name it). Current text renamed in specs Rules and MoveGen, DESIGN and THEOREMS; process
+logs and reviews keep the old name, as history. Reason: "step" was wrong for a slide of any length,
+and "piece move" is the chess player's word for a non-pawn move. The docstring keeps its first
+sentence ("A piece move is any non-pawn move other than castling"), because FIDE's own Article 2
+counts pawns among the pieces. The other parts of C5 (namespace convention in DESIGN §2, moving
+helpers to Basic and Position, Position's `CastlingRights` docstring) are not done; spec §12 item 9.
+
+### Rules review C1: structures (not adopted)
+
+Weighed and declined; spec design choice 14 has the full reasons. In short: anonymous-constructor
+and `rcases` patterns on a structure are positional too, so the brittleness the review names would
+not go away without rewriting the proofs to field names; seven hand-written `decidable_of_iff`
+instances would restate trusted text that the derived instances now do not; and M2, M4 and L4.11
+were proved against the conjunctions without friction. To revisit if L4.6 (M5) is painful.
+
+### Basic review C2: `Color.pawnDirection : Direction` (not adopted)
+
+Decided here because it changes this module's trusted definitions (spec §12 item 3 has the
+reasons): the predicted cost ("every pawn proof starts with `cases c`") did not appear; captures
+would stay offsets, so pawn moves would mix `shift` and `offset`; six trusted definitions,
+MoveGen's pawn targets and their proofs would change for a nicer double push.
+
+---
+
+## Round 6: review fixes for Round 5
+
+Date: 2026-11-02. Author role: overnight agent, fixing the review of Round 5 (L4.11). Files edited:
+`Chess/Rules.lean`, `Chess/Basic.lean` (one lemma, logged in `docs/process/Basic.md`),
+`docs/spec/Rules.md`, `docs/spec/Basic.md`, `docs/process/Rules.md`, `docs/ROADMAP.md`.
+
+Wording, all in spec §7a and §4–§8 proof notes unless said:
+- **Where `decide` is used.** §7a said the proof uses no `decide` and that B5.16a–c are proved by
+  `omega`. Wrong for the round as a whole: B5.6a is `cases d <;> cases d' <;> decide`, and B5.16a–b
+  turn a `Fin 8` literal into a number with a small `decide` before `omega`. §7a now says "no
+  `decide` in this section" and names both. Round 5's log above is corrected the same way.
+- **Length of L4.11's proof.** "Two lines on top of them" became "a short proof (about a dozen
+  lines; the extra work is the second-king case)".
+- **Axioms.** The parenthetical blaming `simp` and `by_cases` for `Classical.choice` was a guess.
+  `#print axioms` shows that B5.16a–c each use `propext`, `Classical.choice`, `Quot.sound`, so the
+  spec now says the axioms come in through them as well.
+- **"Step" after the rename.** L4.2, L4.3, L4.10 and L8.3 still called the piece-move rule "step";
+  now "piece move". (`play`'s numbered steps keep the word.)
+- **The sharper fact is not exported.** §7a now says so: L7a.4 and L7a.5 are `private`; promote
+  them if Stage 2 needs the statement.
+- **Docstring count.** Round 5's header now reads "(136 before the round, all found then too)".
+- **ROADMAP step 4** no longer says this removes "the last literal-fidelity gap": it closes the
+  one gap the D4.6 note flagged; the en passant readings in the fidelity assessment are separate.
+
+Lean, the optional readability nit, taken because it was cheap:
+- `Color.homeRank_eq_zero_or_seven` (Basic B6.3a, "A home rank is the first or the last rank.")
+  replaces three inline `(by cases p.turn <;> simp)` in L7a.4 and L7a.5. One lemma about the home
+  rank, rather than one per home square as the review suggested, because each home square's rank
+  is `c.homeRank` by `rfl` (Basic B7.2), so the same term fits all three call sites.
+- `Position.CanCastle.not_inCheck` (L7a.1a, "A side that may castle is not in check.") replaces
+  `have hcheck : ¬ InCheck p := h.2.1.2.2.2.1` in L4.11 by `h.2.1.not_inCheck`. Design choice 14's
+  last bullet now cites it. The two other projections into `CanCastle` in L7a.5 (`h.2.1.2.1`,
+  `h.2.1.2.2.1`) stay, with their types ascribed; one accessor per use would add more names than
+  it saves.
+- The file-square fact for the rook's home square (`by cases w <;> simp [rookHome,
+  Wing.rookFile]`) occurs once, so it stays inline.
+
+Checks: `lake build` green (11 jobs); `lake env lean Chess/Rules.lean` 0.40 s and
+`Chess/Basic.lean` 2.4 s, no warnings. `#print axioms`: `CastleMove.legal_iff` unchanged
+(`propext`, `Classical.choice`, `Quot.sound`); `Position.CanCastle.not_inCheck` `propext`,
+`Quot.sound` (through the definitions in its statement); `Color.homeRank_eq_zero_or_seven`
+`propext`. Docstring check: all 146 Rules docstrings are in the spec; Basic's paraphrased count is
+still 78 (of 193), the new one not among them. `lake build ChessTest` (rebuilt from Basic up):
+green, 21 jobs, 525 s wall clock, 4.98 GB maximum resident set size as `/usr/bin/time -l` reports
+it (ChessTest.Perft 256 s and ChessTest.PerftDeep 266 s, rebuilt because Basic changed;
+ChessTest.Rules 5.2 s).
+
+---
+
+## Round 7 (2026-11-02, ROADMAP step 6): R3, attack symmetry
+
+Inputs: THEOREMS R3, MoveGen spec design choice 10 (decided in MoveGen's Round 5 for a Boolean
+king-safety test in `MoveGen`), Rules review C3. Spec first (§2, L2.10–L2.12 with proof notes;
+R3 removed from §12's "not here"), then the Lean.
+
+- `reaches_symm` (R3.1), `reaches_pawn_symm` (R3.2), `Board.attacked_iff_superpiece` (R3.3), in
+  section `Reaching`, with the names THEOREMS R3 sketched. R3.3 is stated with `Reaches k c.other`
+  for every kind, as THEOREMS has it: for kinds other than the pawn the colour is not read.
+- Proofs are short because Basic already had the pieces: `neg_mem_knightJumps`,
+  `Square.offset_eq_some_iff_neg`, `Square.shift_eq_some_iff_opposite`,
+  `Kind.opposite_mem_slideDirections`, and this file's `Slides.symm`.
+- No definition and no instance changed: the trusted text is as it was. The module docstring's
+  "Main statements" gained one item.
+- The ray-walk `Slides` instance (review C3.1) was measured and not adopted (MoveGen process log,
+  Round 5).
+- Axioms ledger: the three theorems are [kernel] (`ChessTest/Axioms.lean`).
+
+---
+
+## Round 8 (2026-11-02, readability round): definitions in their own file, `AttackedBy`, helpers moved
+
+Inputs: an independent readability and fidelity audit whose findings two skeptics each reproduced
+(trusted definitions interleaved with lemmas; the colour argument of `Attacked`; misplaced helpers,
+Rules review C5; stale instance note; checkmate citation; 0-based ranks without a note). Spec
+first, then the Lean, then `scripts/check_docstrings.py` (new, Rules review C8) on every file.
+
+- **The split.** `Chess/Rules.lean` (1280 lines) is now an umbrella over three files, as
+  `Chess.Game` was split in its step 5. `Chess/Rules/Defs.lean` (396 lines, about 50 of them the
+  module docstring) holds every definition and `Decidable` instance, in the old order, and the four
+  `#guard`s, and nothing else: 36 `def`s and 24 `instance`s, no theorem (37 `def`s before the
+  round; `CastlingRights.ofGet` moved to Position). `Legal`, `Checkmate` and
+  `Stalemate` are at lines 363–379 instead of 820–841. `Chess/Rules/Laws.lean` (739 lines) holds
+  the lemma sections in their old order; `Chess/Rules/Castling.lean` (174 lines) holds §7a, L4.11.
+  The split was made by a script that cut the old file at its section markers and checked that
+  every non-blank line landed in exactly one file (only four section headings were added, so that
+  each lemma section of `Laws` sits under the heading of its topic). Each file has a module
+  docstring in the library's format; the old module docstring was divided between them (main
+  definitions and the notes on definitions in `Defs`, main statements and proof notes in `Laws`).
+  Downstream imports are unchanged (`import Chess.Rules`). Spec: "Files and their contents"
+  replaces "Contents of the file"; design choice 15.
+- **`Board.Attacked` → `Board.AttackedBy`**, `Board.attacked_iff` → `Board.attackedBy_iff`,
+  `Board.attacked_iff_superpiece` → `Board.attackedBy_iff_superpiece`, and in MoveGen
+  `Board.superpieceAttacked(_iff)` → `Board.superpieceAttackedBy(_iff)`. The colour argument of
+  `AttackedBy` is the attacker, of `KingAttacked` the colour of the king attacked; the new name
+  says which. Docstrings unchanged. Renamed in the Lean, the axioms ledger, the specs, DESIGN,
+  THEOREMS, ROADMAP and README; not in the process logs and reviews, which are history.
+- **Helpers moved** (rest of Rules review C5, spec §12 items 5 and 7): the four `private`
+  helpers of §4 and L7.6 `rookCastleSquare_ne_kingHome` are public lemmas of `Chess.Basic` (B6.2a,
+  B4.8a, B7.5a, B7.9); `CastlingRights.ofGet` and `get_ofGet` (D5.7, L5.1) are in `Chess.Position`
+  (D4.6b, P4.3b). Statements, docstrings and proofs unchanged. `Board.colorAt`, `kindAt` and
+  `setMany` stay here (spec §12 item 9 says why). Still not done: the namespace rule in DESIGN §2.
+- **Docstrings** (spec first). `Move.PromotionRule`, `DoublePushMove` and `EnPassantMove` give the
+  0-based value beside the rank's name ("(`relRank p.turn = 1`, counting from 0)"); `Checkmate`
+  cites FIDE 1.4 and 1.4.1, which define checkmate, and says 5.1.1 makes it a win (it cited 5.1.1
+  alone, which only states the result; the article texts were checked by two reviewers against
+  the FIDE handbook, not by this round). The `EnPassantMove` docstring was rewrapped.
+- **Module docstring**: the instance note said every other instance is `by unfold X;
+  infer_instance`, but `Reaches.decidable` uses `cases` and `AttacksFrom.decidable` `split`; it now
+  says so (`Defs`' notes, spec design choice 9).
+
+Checks: `lake build` green (20 jobs); `lake build ChessTest` green (32 jobs, 161 s, 3.4 GB maximum
+resident set size); `lake build ChessDemo` green (`GothamCert` 164 s, as before; 2.8 GB);
+`lake build chess-perft` green. `#print axioms` of `CastleMove.legal_iff`, `castling_play_le`,
+`Board.attackedBy_iff_superpiece` and the moved lemmas: standard axioms only. Docstring check:
+every docstring of `Defs` (60), `Laws` (73) and `Castling` (9) is in the spec. No `sorry`,
+`native_decide`, `axiom`, `unsafe` or `implemented_by` in `Chess/`. No line over 100 characters.

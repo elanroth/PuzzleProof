@@ -307,3 +307,145 @@ was the Lean restructured, without changing any definition's meaning.
 
 **ID changes this round** (for readers of the critique): `readFEN_intercalate` → `readFEN_of_isFEN`
 (L5.19); `splitOn` D2.9 → D3.0; new D4.2a, L5.11a, L5.19a, L5.23a, L5.25–L5.28. No other ID moved.
+
+---
+
+## Round 5: G8 moved out (Stage 2 headline)
+
+Date: 2026-11-02. Author role: overnight implementer (ROADMAP step 2). Lean written: comments and
+two docstrings in `Chess/ChessGame.lean`; the G8 code itself is in two new modules, each with its
+own spec and process log (`docs/spec/Spec.Winning.md`, `docs/spec/ChessGame.Fide.md`).
+
+**Decision: G8 does not go at the end of this file** (ChessGame review C2, spec open item 2). The
+FIDE definitions (§7's D7.1–D7.4, plus a new `SpecMateIn`) are in `Chess/Spec/Winning.lean`, which
+imports `Chess.Rules` only; the equivalences (§7's L7.1–L7.6) are in `Chess/ChessGame/Fide.lean`.
+Reasons as in the review: certificate files import this module and should not depend on, or rebuild
+for, the G8 proofs; and the trusted reading after Stage 2 should not contain `MoveGen` or `Game`.
+`MoveGen/Correct.lean`, which the Round 1 plan expected G8 to import, does not exist: M4 landed
+inside `Chess.MoveGen` (section `Completeness`).
+
+**English → Lean, this module.**
+- D1.1 (`Game.chess`) docstring, last sentence. Was: "Until the generator is proved complete
+  (Stage 2), 'available' means 'listed by `legalMoves`'." That was stale after M4. Now: "The listed
+  moves are exactly the legal moves of `Chess.Rules` (`mem_legalMoves`), and `Chess.ChessGame.Fide`
+  restates the notions of this game with `Legal` and `Checkmate` (THEOREMS G8)." Spec first, then
+  Lean.
+- L1.6 (`not_wins_of_stalemate`) docstring. "G8 links it to FIDE stalemate" was imprecise: the link
+  is `stalemate_iff` (M6), not G8. Now "`stalemate_iff` (M6) says it is FIDE stalemate".
+- Module docstring, implementation notes: the G8 note now says where G8 is and what it proves; the
+  trust note says a reader may read the four names through `Chess.Spec.Winning` instead of
+  `Game.chess` and the abbreviations.
+- Spec: header (theorem targets, what a reader must trust), the "ideas" paragraph, §7 (now a table
+  from the Round 1 plan to where each item went), D1.2–D1.5 notes, choice 1, the G8 name deviation,
+  open item 2 (decided), checklist.
+
+**Not changed.** No statement, no definition body, no test. The docstrings of D1.2–D1.5 still say
+"chess as computed by the move generator", which remains true and is what the definitions say;
+the FIDE reading is now one theorem away. The build is green; the module's elaboration time is
+unchanged (its tests dominate).
+
+**Checked.** Every Lean docstring of `Chess/ChessGame.lean` (102) occurs word for word in the spec
+(whitespace-normalised script, scratch). No line over 100 characters.
+
+## Round 6: review fixes for G8
+
+Date: 2026-11-02. Author role: overnight implementer, fixing the review of the G8 round (ten
+issues, all low). Lean written: one sentence of the module docstring.
+
+**English → Lean, this module.** The first implementation note ended with "No statement of this
+file changed.", which is edit history, not a description of the file. Now: "No statement of this
+file depends on G8." The spec checklist item that describes the module docstring now says so too.
+Spec first, then Lean.
+
+**Spec only.**
+- §0: the **[later]** tag now reads "planned in Round 1 for Stage 2, §7; since Round 5 proved in
+  `Chess/ChessGame/Fide.lean`" instead of "not written now". The checklist says that no [later]
+  lemmas remain in this file and that §7 records where they went.
+- D1.1 notes: the note on explicit `decMated` was written when the only `Checkmate` instance was
+  Rules' slow one. It now says so, and adds that since M4 `Chess.MoveGen` declares
+  `Checkmate.decidableByGen` (priority high, decided through `checkmate_iff`), so a silent switch
+  of `Mated` to `Checkmate p` would today pick a fast instance; the reason for writing the instance
+  explicitly (the decision procedure changes visibly with `Mated`) is unchanged. The `Mated` note
+  says "in Round 1, `Checkmate p` would have needed the slow decision".
+- §7 heading shortened to "G8, the chess game means FIDE chess"; the paragraph under it already
+  defines "FIDE chess" as Articles 3 and 5.1 without 5.2.2 and 9.
+- Lines over 100 characters rewrapped (§0 [later] item, the `Mated` note, the G8 name deviation).
+
+**Other documents** (same round): ROADMAP §0 timing (`Spec.Winning` about 0.2 s, not 1.4 s; clean
+build about 37 s), the stale "trusted UNTIL STAGE 2" sentence removed from the risk table, the
+`MoveGen` fidelity bullet rewritten in the past tense, step 2 rewrapped, and a strict file review
+of `Spec/Winning` (and `ChessGame/Fide`) scheduled at the start of step 7, before the demo's
+headline is stated. DESIGN §6.4 and THEOREMS' Stage 2 headline sentence now qualify "FIDE chess"
+(Articles 3 and 5.1, without the clock and draw rules, G15); the DESIGN §8 row for
+`Chess/MoveGen/Correct.lean` says it is not created yet and M5 is still planned there (as the
+MoveGen spec §7 says). THEOREMS G8's status line says that `SpecWinsIn` is an `abbrev` for
+`SpecForces` with the checkmate target, not an inductive of its own. Long lines rewrapped in
+`docs/spec/Spec.Winning.md`, `docs/spec/ChessGame.Fide.md` (whitespace only) and two lines of
+Round 5 above; one line of the DESIGN §3 diagram shortened.
+
+**Checked.** `lake build` green (11 jobs). All 102 Lean docstrings of `Chess/ChessGame.lean` occur
+word for word in the spec (whitespace-normalised). No Lean line over 100 characters.
+
+
+---
+
+## Note, 2026-11-02 (test library round, ROADMAP step 3): the tests moved to `ChessTest/ChessGame.lean`
+
+Review C3 carried out. The section "Tests" moved verbatim to `ChessTest/ChessGame.lean`, which
+imports `ChessTest/MoveGen.lean` (for `epCheckPos`, `promoKnightPos` and, through it, `foolsMate`).
+The module keeps six cheap `#guard`s (writing the initial position, reading it from four fields,
+one non-canonical and one insane FEN rejected, one UCI move read and one rejected), with a pointer.
+Spec §6 says where the tests live and quotes the six `#guard`s; its first paragraph now says
+"`#guard` is evaluated by the interpreter" where it said "`#guard` runs compiled code", which was
+not so. Clean build of the module: 11 s before, 1.5 s after, so every future file that imports
+`Chess.ChessGame` no longer waits for these tests.
+
+**Found on the way** (recorded in `docs/process/ChessTest.md` and ROADMAP §4, not changed here): a
+board read by `readBoard` re-reads the FEN text at every square read in compiled and interpreted
+code. Perft 3 of the initial position read from its FEN takes 20 s compiled, against 0.7 s for the
+same position tabulated. `ChessTest.Tabulate` works around it for tests and for `chess-perft`. In
+the kernel the effect is small: perft 1 of Kiwipete took 4.7 s through `fen` and 3.9 s through a
+packed `Board.unpack` literal.
+
+---
+
+## Round 7 (2026-11-02, readability round): the trusted predicates in one block; `fen`'s ep warning
+
+- **Order of section "Accepting".** The trusted predicates and the untrusted parsers alternated
+  (`IsNumeral`, `ClockFields`, `IsFEN`, `readFEN`, `Board.squaresOf`, `Position.Sane`, …). Now the
+  four trusted predicates come first (`IsNumeral`, `ClockFields`, `IsFEN`, `Position.Sane` with its
+  instance), then `readFEN`, `parseFEN`, `fen`, `parseUCI`, `uci`. Spec D4.3 moved after D4.5; IDs
+  not renumbered. No definition changed.
+- **Moved out to `Chess.Position`** (§9 request 2; review C5): `CastlingRights.all` with `mem_all`
+  and `length_all` (D3.8, L5.14a–b; now Position D4.6a, P4.3a) and `Board.squaresOf` with
+  `Board.mem_squaresOf` (D4.4, L5.13; now Position D1.6, P1.8).
+- **`fen` docstring** (review C6, recommendation (a)), spec first: one sentence saying that the en
+  passant field is read as written, so it must name the passed-over square after every two-square
+  advance, which Stockfish, Lichess and python-chess's default output do not do. Checked this round
+  by `decide +kernel`: `fen "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1" ≠
+  Position.initial.play (uci "e2e4")`, and the same string with `e3` is equal to it.
+
+Checks: as in the Rules process log, Round 8. `scripts/check_docstrings.py Chess/ChessGame.lean`:
+97 docstrings, none missing.
+
+## Round 8 (2026-11-02, docs fix round): FEN keys, DESIGN's account of the parser, the Stage 2 filter
+
+Audit findings notation-1, notation-3 and notation-4 (each low, each reproduced by two skeptics).
+Only `docs/spec/ChessGame.md` changed here; no Lean and no docstring changed. The DESIGN, THEOREMS
+and ROADMAP edits of the same round are logged in `docs/process/Chess.md` Round 6.
+
+- **notation-1** (design choice 5). It said "a position has exactly one FEN (L5.18)", against the
+  `IsFEN` docstring ("a position has many FENs, which differ only in their clocks"), and L5.18 says
+  the converse (the fields determine the position). Reworded: one FEN up to the clock fields (the
+  four fields are a function of the position), a string is a FEN of at most one position (L5.18,
+  L5.23a), so the four-field text or `toFEN`'s fixed `0 1` form can be a key, the full string not.
+- **notation-3.** DESIGN §6.4, §6.5 and §8.6 now describe the parser as it is (see the Chess log).
+  Choices 6 and 7 and the deviation list say when DESIGN was brought in line.
+- **notation-4** (§7, "Stage 2 change to the sanity filter"). Review C4 recommends never making this
+  change, and nothing recorded a decision. Not decided here (it is the owner's call: it changes the
+  trusted statement `fen_eq_iff` or the statement of M11.1). §7 is retitled "an open owner
+  decision", states both options with three strings `parseFEN` accepts today (checked by `#eval`),
+  and keeps the Round 2 plan as written below them; §9 request 3 no longer says the filter "is"
+  `p.Sane ∧ WellFormed p`.
+
+**Checks.** `lake build` green; `scripts/check_docstrings.py` as before (no docstring changed).

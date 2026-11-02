@@ -20,8 +20,10 @@ lemmas that R3, R5, R6 and M1 will need, stated here once so that `Rules`, `Move
   - **[sanity]**: checks that the definition says what the English says (FIDE or folklore); proved,
     usually by `decide`.
   - **[later]**: wanted by Stage 2 proofs; proved here because it turned out cheap.
-- The Lean docstring of each lemma is its English column (shortened where a table cell groups
-  several lemmas).
+- The Lean docstring of a lemma is its English column, word for word, when the table cell holds
+  that lemma alone. A cell that groups several lemmas gives one sentence for the group, and each
+  lemma's docstring is the part of that sentence about it, reworded to stand alone (B1.1: "The
+  opponent of White is Black." and "The opponent of Black is White.").
 - Lemma tables are in **proof order**, which is also the order in the Lean file. IDs are stable from
   Round 1; lemmas added later carry a letter suffix (`B5.10a`), so IDs are not always consecutive.
 - **Binding rule.** Every name a docstring mentions is bound in the signature before the colon.
@@ -31,7 +33,7 @@ lemmas that R3, R5, R6 and M1 will need, stated here once so that `Rules`, `Move
 - Implicit variables are not automatic (`autoImplicit = false`). Each section of the Lean file opens
   with `variable` declarations from the list of letters below, as needed.
 - Letters:
-  - `s t u` squares; `x y` coordinates (`Fin 8`); `c c'` colours; `d d'` directions; `w w'` wings.
+  - `s t u v` squares; `x y` coordinates (`Fin 8`); `c c'` colours; `d d'` directions; `w w'` wings.
   - `k k'` kinds; `pk pk'` promotion choices; `o` an optional promotion choice; `pc` a piece (not
     `p` or `q`, which THEOREMS reserves for positions).
   - `i j n m` step counts (`Nat`); `df dr df' dr'` file and rank differences (`Int`); `δ` a single
@@ -93,10 +95,17 @@ Each is one line: `decidableForallOfMemAll Color.all mem_all P` (respectively
 Docstrings: "`∀` over colours is decided by checking both colours in `Color.all`." and "`∃` over
 colours is decided by searching both colours in `Color.all`."
 `Kind`, `PromoKind`, `Direction` and `Wing` get the same two instances by the same pattern, each
-placed right after that type's `all`, `mem_all` and `all_nodup`, with the docstrings instantiated:
-"`∀` over kinds is decided by checking the six kinds in `Kind.all`.", "… promotion choices … the
-four choices in `PromoKind.all`", "… directions … the eight directions in `Direction.all`", "…
-wings … both wings in `Wing.all`" (and "searching" for `∃`). `Piece` (D2.7) and `Square` (D3.5)
+placed right after that type's `all`, `mem_all` and `all_nodup`, with these docstrings:
+- "`∀` over kinds is decided by checking the six kinds in `Kind.all`." and "`∃` over kinds is
+  decided by searching the six kinds in `Kind.all`."
+- "`∀` over promotion choices is decided by checking the four choices in `PromoKind.all`." and
+  "`∃` over promotion choices is decided by searching the four choices in `PromoKind.all`."
+- "`∀` over directions is decided by checking the eight directions in `Direction.all`." and "`∃`
+  over directions is decided by searching the eight directions in `Direction.all`."
+- "`∀` over wings is decided by checking both wings in `Wing.all`." and "`∃` over wings is
+  decided by searching both wings in `Wing.all`."
+
+`Piece` (D2.7) and `Square` (D3.5)
 do not use this pattern.
 
 Derived `Inhabited` defaults are the first constructor (`white`, `pawn`, `knight`, `north`,
@@ -150,7 +159,8 @@ Docstring: "A piece: a colour and a kind, for example a white knight."
 Docstring: "All twelve pieces, the white ones first."
 Its `Decidable ∀`/`∃` instances go through the two component quantifiers instead of the list:
 `decidable_of_iff (∀ c k, P ⟨c, k⟩) …` (with `priority := low`, see D1.4), with docstrings "`∀` over pieces is decided through the
-colour and kind quantifiers, not a list." (and the same for `∃`). (`Chess.Position` uses this to
+colour and kind quantifiers, not a list." and "`∃` over pieces is decided through the colour and
+kind quantifiers, not a list." (`Chess.Position` uses this to
 prove the round trip of its piece code table by `decide`.)
 
 **D2.8 `Piece.promote (pc : Piece) (o : Option PromoKind) : Piece`.**
@@ -296,14 +306,15 @@ Lemmas:
 | ID | English | Lean | Tag |
 |---|---|---|---|
 | B4.1 | Adding `δ` to `x` gives `y` exactly when `y = x + δ` as integers; it leaves the board exactly when `x + δ` is not in 0..7. | `private theorem Square.addCoord?_eq_some_iff {x y : Fin 8} {δ : Int} : addCoord? x δ = some y ↔ (y : Int) = x + δ` and `private theorem Square.addCoord?_eq_none_iff {x : Fin 8} {δ : Int} : addCoord? x δ = none ↔ ¬ (0 ≤ (x : Int) + δ ∧ (x : Int) + δ < 8)` | core (private) |
-| B4.2 | **The offset of `s` by `(df, dr)` is `t` exactly when `t`'s file is `s`'s file plus `df` and `t`'s rank is `s`'s rank plus `dr`.** | `theorem Square.offset_eq_some_iff : s.offset df dr = some t ↔ (t.file : Int) = s.file + df ∧ (t.rank : Int) = s.rank + dr` | core |
+| B4.2 | **The offset of `s` by `(df, dr)` is `t` exactly when `t`'s file is `s`'s file plus `df` and `t`'s rank is `s`'s rank plus `dr`.** Other proofs use this lemma instead of unfolding `offset`. | `theorem Square.offset_eq_some_iff : s.offset df dr = some t ↔ (t.file : Int) = s.file + df ∧ (t.rank : Int) = s.rank + dr` | core |
 | B4.3 | The offset is on the board exactly when both new coordinates lie in 0..7. | `theorem Square.isSome_offset_iff : (s.offset df dr).isSome ↔ 0 ≤ (s.file : Int) + df ∧ (s.file : Int) + df < 8 ∧ 0 ≤ (s.rank : Int) + dr ∧ (s.rank : Int) + dr < 8` | core |
 | B4.4 | Offsetting by nothing stays put. | `@[simp] theorem Square.offset_zero (s : Square) : s.offset 0 0 = some s` | core |
 | B4.5 | Two offsets in a row are one offset by the sum, provided the first stays on the board. | `theorem Square.offset_offset (h : s.offset df dr = some t) : t.offset df' dr' = s.offset (df + df') (dr + dr')` | core |
 | B4.6 | Offsets can be undone: `t` is `(df, dr)` from `s` exactly when `s` is `(−df, −dr)` from `t`. | `theorem Square.offset_eq_some_iff_neg : s.offset df dr = some t ↔ t.offset (-df) (-dr) = some s` | core |
 | B4.7 | A nonzero offset never returns the same square. | `theorem Square.offset_ne_self (hd : df ≠ 0 ∨ dr ≠ 0) (h : s.offset df dr = some t) : t ≠ s` | core |
 | B4.8 | Two offsets from the same square that reach the same target have the same steps; two squares that reach the same target by the same offset are equal. | `theorem Square.steps_eq_of_offset_eq (h : s.offset df dr = some t) (h' : s.offset df' dr' = some t) : df = df' ∧ dr = dr'` and `theorem Square.eq_of_offset_eq (h : s.offset df dr = some t) (h' : u.offset df dr = some t) : s = u` | later |
-| B4.9 | An offset by `(df, dr)` keeps the square's colour exactly when `df + dr` is even. | `theorem Square.isLight_offset_iff (h : s.offset df dr = some t) : (t.IsLight ↔ s.IsLight) ↔ (df + dr) % 2 = 0` | core |
+| B4.8a | An offset with no file step stays on the file. | `theorem Square.file_eq_of_offset_zero (h : s.offset 0 dr = some t) : s.file = t.file` | core |
+| B4.9 | An offset by `(df, dr)` keeps the square's colour exactly when `df + dr` is even. (Here `%` is `Int.emod`, so `(-1) % 2 = 1`.) | `theorem Square.isLight_offset_iff (h : s.offset df dr = some t) : (t.IsLight ↔ s.IsLight) ↔ (df + dr) % 2 = 0` | core |
 
 Proof notes.
 - B4.1: `unfold addCoord?; split <;> simp [Fin.ext_iff] <;> omega` for `some`, and
@@ -423,10 +434,14 @@ Lemmas about directions:
 | B5.4 | Each step is −1, 0 or 1, and at least one is nonzero. | `theorem Direction.natAbs_df_le_one (d : Direction) : d.df.natAbs ≤ 1`, `theorem Direction.natAbs_dr_le_one (d : Direction) : d.dr.natAbs ≤ 1`, `theorem Direction.df_ne_zero_or_dr_ne_zero (d : Direction) : d.df ≠ 0 ∨ d.dr ≠ 0` | core |
 | B5.5 | Orthogonal directions are those with a zero step; diagonal ones are those with two nonzero steps. | `theorem Direction.mem_orthogonals_iff : d ∈ Direction.orthogonals ↔ d.df = 0 ∨ d.dr = 0` and `theorem Direction.mem_diagonals_iff : d ∈ Direction.diagonals ↔ d.df ≠ 0 ∧ d.dr ≠ 0` | core |
 | B5.6 | A direction's opposite is orthogonal (diagonal) exactly when the direction is. | `theorem Direction.opposite_mem_orthogonals : d.opposite ∈ Direction.orthogonals ↔ d ∈ Direction.orthogonals` and `theorem Direction.opposite_mem_diagonals : d.opposite ∈ Direction.diagonals ↔ d ∈ Direction.diagonals` | later |
+| B5.6a | Two directions along a rank (neither changes rank) are equal or opposite. | `theorem Direction.eq_or_eq_opposite_of_dr_eq_zero (hd : d.dr = 0) (hd' : d'.dr = 0) : d' = d ∨ d' = d.opposite` | core |
 | B5.7 | A queen slides in exactly the directions of a rook and of a bishop (FIDE 3.4). | `theorem Kind.mem_slideDirections_queen {d : Direction} : d ∈ Kind.queen.slideDirections ↔ d ∈ Kind.rook.slideDirections ∨ d ∈ Kind.bishop.slideDirections` | sanity |
 | B5.7a | A piece slides in a direction exactly when it slides in the opposite one. | `theorem Kind.opposite_mem_slideDirections {k : Kind} {d : Direction} : d.opposite ∈ k.slideDirections ↔ d ∈ k.slideDirections` | core |
 
-Proofs: `cases d <;> rfl` or `cases d <;> decide` (with `cases d'` for B5.3, `cases k` for B5.7a).
+Proofs: `cases d <;> rfl` or `cases d <;> decide` (with `cases d'` for B5.3, `cases k` for B5.7a;
+B5.6a by `revert hd hd'; cases d <;> cases d' <;> decide`). B5.6a was added in the L4.11 round
+(2026-11-02) for Rules' castling lemma: a line through a square of the home rank that runs along
+that rank runs along the wing's direction or against it.
 B5.7a is what R3's `reaches_symm` needs for the slider clause: without it that proof would split on
 the kind to reach B5.6.
 
@@ -440,13 +455,16 @@ order is proof order:
 | B5.9a | The shift is on the board exactly when both new coordinates lie in 0..7. | `theorem Square.isSome_shift_iff : (s.shift d i).isSome ↔ 0 ≤ (s.file : Int) + i * d.df ∧ (s.file : Int) + i * d.df < 8 ∧ 0 ≤ (s.rank : Int) + i * d.dr ∧ (s.rank : Int) + i * d.dr < 8` | core |
 | B5.10 | Eight or more steps in any direction leave the board. | `theorem Square.shift_eq_none_of_eight_le (h : 8 ≤ i) : s.shift d i = none` | core |
 | B5.10a | Shifts compose: if `t` is `i` steps from `s`, then `j` steps from `t` is `i + j` steps from `s`. | `theorem Square.shift_add (h : s.shift d i = some t) : t.shift d j = s.shift d (i + j)` | core |
-| B5.12 | If the square `i` steps away is on the board, so is every square `j ≤ i` steps away ("the squares in between are on the board", DESIGN §5.2). | `theorem Square.isSome_shift_of_le (hji : j ≤ i) (h : (s.shift d i).isSome) : (s.shift d j).isSome` | core |
+| B5.12 | If the square `i` steps away is on the board, so is every square `j ≤ i` steps away (DESIGN §5.2: a square between two on-board squares is on the board). | `theorem Square.isSome_shift_of_le (hji : j ≤ i) (h : (s.shift d i).isSome) : (s.shift d j).isSome` | core |
 | B5.12a | Once off the board, further steps stay off. | `theorem Square.shift_eq_none_of_le (hji : j ≤ i) (h : s.shift d j = none) : s.shift d i = none` | core |
 | B5.11 | One more step is the next step from where `i` steps led. | `theorem Square.shift_succ : s.shift d (i + 1) = (s.shift d i).bind (·.shift d 1)` | core |
 | B5.13 | **Symmetry:** `t` is `i` steps from `s` in direction `d` exactly when `s` is `i` steps from `t` in the opposite direction. | `theorem Square.shift_eq_some_iff_opposite : s.shift d i = some t ↔ t.shift d.opposite i = some s` | core |
 | B5.14 | **The in-between squares match up:** if `t` is `i` steps from `s`, then for `j ≤ i` the square `j` steps from `s` is the square `i − j` steps back from `t`. | `theorem Square.shift_eq_shift_opposite (h : s.shift d i = some t) (hji : j ≤ i) : s.shift d j = t.shift d.opposite (i - j)` | core |
 | B5.15 | A positive number of steps never returns to the start. | `theorem Square.shift_ne_self (hi : 0 < i) : s.shift d i ≠ some s` | core |
 | B5.16 | A square reached from `s` in some direction is reached by one number of steps only, and, for a positive step count, in one direction only. | `theorem Square.steps_eq_of_shift_eq (h : s.shift d i = some t) (h' : s.shift d j = some t) : i = j` and `theorem Square.dir_eq_of_shift_eq (hi : 0 < i) (h : s.shift d i = some t) (h' : s.shift d' j = some t) : d = d' ∧ i = j` | later |
+| B5.16a | If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, and `u` is on the first or the last rank, then `d` does not change rank. | `theorem Square.dr_eq_zero_of_between {u : Square} (hj0 : 0 < j) (hj : j < i) (hu : s.shift d j = some u) (ht : s.shift d i = some t) (hr : u.rank = 0 ∨ u.rank = 7) : d.dr = 0` | core |
+| B5.16b | If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, and `u` is on the a-file or the h-file, then `d` does not change file. | `theorem Square.df_eq_zero_of_between {u : Square} (hj0 : 0 < j) (hj : j < i) (hu : s.shift d j = some u) (ht : s.shift d i = some t) (hf : u.file = 0 ∨ u.file = 7) : d.df = 0` | core |
+| B5.16c | If `u` is `j` steps and `t` is `i` steps from `s` in direction `d`, with `0 < j < i`, then the square `v` one step from `u` in direction `d'`, which is `d` or its opposite, is `s`, `t`, or `j'` steps from `s` for some `j'` with `0 < j' < i`. | `theorem Square.shift_one_of_between {u v : Square} (hj0 : 0 < j) (hj : j < i) (hu : s.shift d j = some u) (ht : s.shift d i = some t) (hd' : d' = d ∨ d' = d.opposite) (hv : u.shift d' 1 = some v) : v = s ∨ v = t ∨ ∃ j', 0 < j' ∧ j' < i ∧ s.shift d j' = some v` | core |
 | B5.17 | A diagonal shift keeps the square's colour. | `theorem Square.isLight_shift_of_mem_diagonals (hd : d ∈ Direction.diagonals) (h : s.shift d i = some t) : t.IsLight ↔ s.IsLight` | core |
 
 Proof notes for shifts.
@@ -465,6 +483,18 @@ Proof notes for shifts.
   `Int.mul_neg`, then `omega` (the atom `i * d.df` appears on both sides).
 - B5.14: B5.12 gives a square `u` that is `j` steps from `s`; then B5.13 for `u` and `t`, and B5.10a
   with `j + (i − j) = i` (`Nat.add_sub_cancel'`).
+- B5.16a, B5.16b (added in the L4.11 round, 2026-11-02): turn `hr` (resp. `hf`) into a statement
+  about `u.rank.val` (`rcases hr with h | h <;> simp [h] <;> decide`), rewrite `hu` and `ht` with
+  B5.9, then `cases d <;> simp [Direction.df, Direction.dr] at hu ht ⊢ <;> omega`, with
+  `t.rank.isLt` (resp. `t.file.isLt`) in context: if `d` changed rank, `u` would lie strictly
+  between the ranks of `s` and `t`, so neither on rank 0 nor on rank 7. They say that a line
+  through an edge square, with that square strictly inside the segment, runs along the edge; a
+  corner (both) lies strictly inside no segment.
+- B5.16c (same round): for `d' = d`, B5.10a turns `hv` into `s.shift d (j + 1) = some v`, which is
+  `t` when `j + 1 = i`; for `d' = d.opposite`, B5.14 with `j - 1 ≤ j` turns it into
+  `s.shift d (j - 1) = some v`, which is `s` when `j = 1`. Together with B5.16a it is the geometry
+  of Rules' L4.11: the neighbours along a line of a square strictly inside a segment are inside the
+  segment or at its ends.
 - B5.17: B4.9, then the four diagonal directions one by one; `i * 1 + i * 1` is even.
 
 Lemmas about rays and knight jumps:
@@ -473,7 +503,7 @@ Lemmas about rays and knight jumps:
 |---|---|---|---|
 | B5.18a | Entry `i` of `s.walk d n` (counting from 0) is the square `i + 1` steps away, if `i < n`. | `theorem Square.getElem?_walk (s : Square) (d : Direction) (n i : Nat) : (s.walk d n)[i]? = if i < n then s.shift d (i + 1) else none` | later |
 | B5.18 | Entry `i` of the ray (counting from 0) is the square `i + 1` steps away. | `theorem Square.getElem?_ray (s : Square) (d : Direction) (i : Nat) : (s.ray d)[i]? = s.shift d (i + 1)` | later |
-| B5.19 | `t` is on the ray from `s` in direction `d` exactly when it is a positive number of steps from `s` in that direction (M1, `mem_ray_iff`). | `theorem Square.mem_ray_iff : t ∈ s.ray d ↔ ∃ i, 0 < i ∧ s.shift d i = some t` | later |
+| B5.19 | `t` is on the ray from `s` in direction `d` exactly when it is a positive number of steps from `s` in that direction (the geometric half of M1). | `theorem Square.mem_ray_iff : t ∈ s.ray d ↔ ∃ i, 0 < i ∧ s.shift d i = some t` | later |
 | B5.20 | A ray does not contain its start and has no repeats. | `theorem Square.not_mem_ray_self : s ∉ s.ray d` and `theorem Square.ray_nodup : (s.ray d).Nodup` | later |
 | B5.21 | The knight jumps are exactly the offsets whose absolute values are 1 and 2 in some order. | `theorem mem_knightJumps_iff {df dr : Int} : (df, dr) ∈ knightJumps ↔ (df.natAbs = 1 ∧ dr.natAbs = 2) ∨ (df.natAbs = 2 ∧ dr.natAbs = 1)` | sanity |
 | B5.22 | The jumps are closed under reversal: a knight can jump back. | `theorem neg_mem_knightJumps {df dr : Int} (h : (df, dr) ∈ knightJumps) : (-df, -dr) ∈ knightJumps` | core |
@@ -516,7 +546,7 @@ def Square.relRank (s : Square) (c : Color) : Fin 8 :=
 ```
 Docstring: "The rank of `s` counted from colour `c`'s side of the board, 0 being `c`'s home rank."
 `Fin.rev` is core's `x ↦ 7 − x` on `Fin 8` (`Fin.val_rev : (x.rev).val = 8 - (x.val + 1)`). A pawn
-of colour `c`:
+of colour `c` (relative ranks counted from 0, so relative rank 1 is `c`'s second rank):
 - starts on relative rank 1 and double-pushes from it;
 - after a double push leaves the en passant target on relative rank 2;
 - promotes on relative rank 7;
@@ -534,7 +564,9 @@ Lemmas. Every `_other` lemma (B1.1-style `forward_other`, `homeRank_other`, `rel
 |---|---|---|---|
 | B6.1 | White's pawns go up, Black's go down, and the two directions are opposite. | `@[simp] theorem Color.forward_white : Color.white.forward = 1`, `@[simp] theorem Color.forward_black : Color.black.forward = -1`, `@[simp] theorem Color.forward_other (c : Color) : c.other.forward = -c.forward` | core |
 | B6.2 | The pawn direction is a unit: it squares to 1. | `@[simp] theorem Color.forward_mul_forward (c : Color) : c.forward * c.forward = 1` | core |
+| B6.2a | A pawn's rank step is not zero; nor is its two-square rank step. | `theorem Color.forward_ne_zero (c : Color) : c.forward ≠ 0` and `theorem Color.two_mul_forward_ne_zero (c : Color) : 2 * c.forward ≠ 0` | core |
 | B6.3 | White's home rank is rank 1 and Black's is rank 8; they are mirror images. | `@[simp] theorem Color.homeRank_white : Color.white.homeRank = 0`, `@[simp] theorem Color.homeRank_black : Color.black.homeRank = 7`, `@[simp] theorem Color.homeRank_other (c : Color) : c.other.homeRank = c.homeRank.rev` | core |
+| B6.3a | A home rank is the first or the last rank. | `theorem Color.homeRank_eq_zero_or_seven (c : Color) : c.homeRank = 0 ∨ c.homeRank = 7` | core |
 | B6.4 | Relative rank is the rank for White and the mirrored rank for Black. | `@[simp] theorem Square.relRank_white (s : Square) : s.relRank .white = s.rank`, `@[simp] theorem Square.relRank_black (s : Square) : s.relRank .black = s.rank.rev` | core |
 | B6.5 | Counted from the other side, the relative rank is mirrored. | `@[simp] theorem Square.relRank_other (s : Square) (c : Color) : s.relRank c.other = (s.relRank c).rev` | core |
 | B6.6 | Relative rank 0 is the colour's home rank; relative rank 7 is the opponent's home rank (where pawns promote). | `theorem Square.relRank_eq_zero_iff : s.relRank c = 0 ↔ s.rank = c.homeRank` and `theorem Square.relRank_eq_seven_iff : s.relRank c = 7 ↔ s.rank = c.other.homeRank` | core |
@@ -543,8 +575,10 @@ Lemmas. Every `_other` lemma (B1.1-style `forward_other`, `homeRank_other`, `rel
 | B6.8 | Files do not depend on colour: an offset by `(df, dr)` lands on file `s.file + df` whoever moves. | (no separate lemma: B4.2 says it) | — |
 
 Proof notes: B6.1–B6.5 by `cases c <;> rfl` (B6.5 by `cases c <;> simp`, using core's simp lemma
-`Fin.rev_rev`). B6.6 by `revert s; cases c <;> decide`: each case is a statement over all 64 squares,
-which the D3.6 instance decides. Do **not** call `simp [Fin.ext_iff]` on a goal containing `Fin.rev`
+`Fin.rev_rev`). B6.3a by `cases c <;> simp`; it is not `@[simp]`. Rules' castling proofs pass it,
+for `c := p.turn`, as the edge-rank hypothesis of B5.16a: `(kingHome c).rank` and the other home
+squares' ranks reduce to `c.homeRank` by `rfl` (B7.2). B6.6 by `revert s; cases c <;> decide`:
+each case is a statement over all 64 squares, which the D3.6 instance decides. Do **not** call `simp [Fin.ext_iff]` on a goal containing `Fin.rev`
 and a `Fin 8` literal: it hits `maxRecDepth` in 4.28. B6.7 by B4.2,
 `cases c <;> simp [Fin.val_rev] <;> omega`. B6.7 is the single lemma through which `Rules` and
 `Invariants` learn that pawns move forward. B6.7a is B6.7 rewritten with `Int.mul_assoc`, B6.2 and
@@ -615,10 +649,11 @@ square is a structure literal):
 | B7.3 | The king starts on the e-file. | `@[simp] theorem file_kingHome (c : Color) : (kingHome c).file = 4` | sanity |
 | B7.4 | **FIDE 3.8.2, the king's move:** castling moves the king two squares from its home towards the rook. | `theorem shift_kingHome_two (c : Color) (w : Wing) : (kingHome c).shift w.direction 2 = some (kingCastleSquare c w)` | core |
 | B7.5 | **FIDE 3.8.2, the rook's move:** the rook lands on the square the king crosses, one square from the king's home towards the rook. | `theorem shift_kingHome_one (c : Color) (w : Wing) : (kingHome c).shift w.direction 1 = some (rookCastleSquare c w)` | core |
+| B7.5a | The king's castling square is not one king step from its home square. | `theorem shift_kingHome_one_ne (c : Color) (w : Wing) (d : Direction) : (kingHome c).shift d 1 ≠ some (kingCastleSquare c w)` | core |
 | B7.6 | The rook's home is the last square on the king's ray towards it, and the squares between are the rest of that ray. | `theorem getLast?_ray_kingHome (c : Color) (w : Wing) : ((kingHome c).ray w.direction).getLast? = some (rookHome c w)` and `theorem betweenKingAndRook_eq (c : Color) (w : Wing) : betweenKingAndRook c w = ((kingHome c).ray w.direction).dropLast` | sanity |
 | B7.7 | Both squares the king passes through or lands on are between the king and the rook. | `theorem rookCastleSquare_mem_between (c : Color) (w : Wing) : rookCastleSquare c w ∈ betweenKingAndRook c w` and `theorem kingCastleSquare_mem_between (c : Color) (w : Wing) : kingCastleSquare c w ∈ betweenKingAndRook c w` | core |
 | B7.8 | The four rook home squares are distinct. | `@[simp] theorem rookHome_inj {c c' : Color} {w w' : Wing} : rookHome c w = rookHome c' w' ↔ c = c' ∧ w = w'` | core |
-| B7.9 | No king square used by castling is a rook home square; the king's landing square is neither a king's home nor a rook's landing square; and no rook landing square is a rook home square. | `theorem kingHome_ne_rookHome (c c' : Color) (w : Wing) : kingHome c ≠ rookHome c' w`, `theorem kingCastleSquare_ne_rookHome (c c' : Color) (w w' : Wing) : kingCastleSquare c w ≠ rookHome c' w'`, `theorem kingCastleSquare_ne_kingHome (c c' : Color) (w : Wing) : kingCastleSquare c w ≠ kingHome c'`, `theorem rookCastleSquare_ne_kingCastleSquare (c c' : Color) (w w' : Wing) : rookCastleSquare c w ≠ kingCastleSquare c' w'`, `theorem rookCastleSquare_ne_rookHome (c c' : Color) (w w' : Wing) : rookCastleSquare c w ≠ rookHome c' w'` | core |
+| B7.9 | No king square used by castling is a rook home square; the king's landing square is neither a king's home nor a rook's landing square; and no rook landing square is a rook home square or a king's home square. | `theorem kingHome_ne_rookHome (c c' : Color) (w : Wing) : kingHome c ≠ rookHome c' w`, `theorem kingCastleSquare_ne_rookHome (c c' : Color) (w w' : Wing) : kingCastleSquare c w ≠ rookHome c' w'`, `theorem kingCastleSquare_ne_kingHome (c c' : Color) (w : Wing) : kingCastleSquare c w ≠ kingHome c'`, `theorem rookCastleSquare_ne_kingCastleSquare (c c' : Color) (w w' : Wing) : rookCastleSquare c w ≠ kingCastleSquare c' w'`, `theorem rookCastleSquare_ne_rookHome (c c' : Color) (w w' : Wing) : rookCastleSquare c w ≠ rookHome c' w'`, `theorem rookCastleSquare_ne_kingHome (c c' : Color) (w : Wing) : rookCastleSquare c w ≠ kingHome c'` | core |
 | B7.10 | The king's home square is on its own relative rank 0. | `@[simp] theorem relRank_kingHome (c : Color) : (kingHome c).relRank c = 0` | core |
 
 Why B7.9 is here: DESIGN §5.5 needs two facts about `play`, and each is a fact about these squares
@@ -630,6 +665,10 @@ alone, proved once by `decide` (at most 2 × 2 × 2 × 2 cases each).
   `kingCastleSquare_ne_rookHome` (the king's source and destination are never rook homes).
 - `kingCastleSquare_ne_kingHome` (castling moves the king) and `rookCastleSquare_ne_rookHome`
   (castling moves the rook; added in Round 2 for symmetry) complete the picture.
+- `rookCastleSquare_ne_kingHome` (the rook lands neither where the king stood) and B7.5a (the king
+  does not reach its castling square by a king step) were proved in `Chess.Rules`, the second
+  `private`, and moved here in the readability round of 2026-11-02 (Rules review C5), with B4.8a and B6.2a, so that later
+  modules can use them.
 
 ## 8. Section "Notation"
 
@@ -736,7 +775,8 @@ Docstring: "The algebraic name of `s`, such as `e4`."
 - Every proof uses only core tactics (no Mathlib, no `native_decide`). A plain `simp` is used only
   where the default simp set is not what the proof depends on; where a proof needs particular
   lemmas, it names them with `simp only`.
-- Tests, as `example`s and `#guard`s at the end of the file until the test library exists:
+- Tests, as `example`s and `#guard`s at the end of the file, kept in the module (cheap: 1.7 s;
+  decision of the test-library round, `docs/process/ChessTest.md` §1):
   `(Square.mk 4 3).index = 28`; `Square.ofIndex 63 = ⟨7, 7⟩`; `(Square.mk 4 0).ray .east =
   [⟨5, 0⟩, ⟨6, 0⟩, ⟨7, 0⟩]`; `(Square.mk 0 0).ray .southWest = []`; `(Square.mk 3 3).ray .northEast`
   has length 4; `(Square.mk 4 6).relRank .black = 1` (e7 is Black's pawn rank);

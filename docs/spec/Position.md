@@ -3,20 +3,25 @@
 Role: English specification writer (Round 1); revised by the translator (Rounds 2 and 3) and the
 refiner (Round 4).
 Date: 2026-11-01.
-Status: Round 4. Translated into `Chess/Position.lean`, which builds with every lemma proved; the
+Status: Round 5 (2026-11-02: `Piece.ofCode` as a table, P2.0; §8 item 4), and the readability
+round of 2026-11-02 (D1.6, D4.6a, D4.6b moved in from `Chess.ChessGame` and `Chess.Rules`; D4.1's
+convention restated). Translated into `Chess/Position.lean`, which builds with every lemma proved; the
 English below has been brought into line with the Lean (`docs/process/Position.md`, Rounds 2–4).
 
 File: `Chess/Position.lean`. Depends on: `Chess.Basic` only (core Lean 4.28, no `Std` package
 needed: `Std.Format`, used by the display instances, is core's `Init` formatter).
 Refines DESIGN §4.3–§4.6 and §8.2. Theorem targets: the foundations of **R4** (`Board.set` and its
-lemmas), **R8** (`revoke_le`, `revokeAll_le`, the order on castling rights), **C3** (packed board
+lemmas), **R8** (the order on castling rights and `CastlingRights.ofGet`, with which `Chess.Rules`
+proves R8 itself, `castling_play_le`), **C3** (packed board
 literals and `DecidableEq Position`), **R10** and **M7** (`Position.initial`), and the board half of
 **R6** (`Board.initial_flip`, a sanity check now).
 
-**R2 is met only in part here, on purpose.** `Move` and `CastlingRights` get the decidability half
-of R2 (whole-type `∀` and `∃` instances, D3.2 and D4.7) but no `all` list and no `mem_all` or
-`all_nodup`: a list of 20 480 candidate moves would only invite a generator to use it (§3), and a
-list of the 16 castling rights has no use (D4.6). R2's full trio belongs to `Color`, `Kind`,
+**R2 is met only in part here, on purpose.** `Move` gets the decidability half of R2 (whole-type
+`∀` and `∃` instances, D3.2) but no `all` list and no `mem_all` or `all_nodup`: a list of 20 480
+candidate moves would only invite a generator to use it (§3). `CastlingRights` gets the
+decidable quantifiers (D4.7) and, since the readability round, the list `CastlingRights.all`
+(D4.6a) with `mem_all` and `length_all` but no `all_nodup`: the FEN reader of `Chess.ChessGame`
+searches it, and it moved here from there (ChessGame review C5). R2's full trio belongs to `Color`, `Kind`,
 `PromoKind`, `Wing`, `Square` and `Piece`, all in `Basic` (§9 asks THEOREMS to say so).
 
 `Wing` is **not** defined here: it is `Basic` D7.1, together with `kingHome`, `rookHome` and the
@@ -124,6 +129,17 @@ what `b` has there."
 This is the only way the library writes to a board (DESIGN §4.3). Every change a move makes is a
 composition of `set`s, so every frame lemma of R4 is a `set_ne` rewrite.
 
+**D1.6 `Board.squaresOf (b : Board) (pc : Piece) : List Square`.** (Moved here from
+`Chess.ChessGame`, where it was D4.4, in the readability round of 2026-11-02.)
+```lean
+def Board.squaresOf (b : Board) (pc : Piece) : List Square :=
+  Square.all.filter fun t => b t = some pc
+```
+Docstring: "The squares of `b` that hold the piece `pc`, in index order (a1, b1, …, h8)."
+Trusted: `Position.Sane` (`Chess.ChessGame`) counts kings with it. `Chess.MoveGen`'s king-safety
+test lists the kings of the side to move with it (it had its own copy, `Board.kingSquares`, the
+same list by `rfl`, until the same round). Its lemma is P1.8.
+
 Lemmas (`variable {b : Board} {s s' t : Square} {x y : Option Piece}`):
 
 | ID | English | Lean | Tag |
@@ -135,11 +151,12 @@ Lemmas (`variable {b : Board} {s s' t : Square} {x y : Option Piece}`):
 | P1.5 | Setting two different squares can be done in either order. | `theorem Board.set_comm (h : s ≠ s') : (b.set s x).set s' y = (b.set s' y).set s x` | core |
 | P1.6 | Setting the same square twice keeps only the second value. | `@[simp] theorem Board.set_set : (b.set s x).set s y = b.set s y` | core |
 | P1.7 | Setting a square to what it already holds changes nothing. | `@[simp] theorem Board.set_eq_self : b.set s (b s) = b` | later |
+| P1.8 | A square is among the squares holding `pc` exactly when it holds `pc`. | `theorem Board.mem_squaresOf {pc : Piece} : t ∈ b.squaresOf pc ↔ b t = some pc` | core |
 
 Proofs: P1.1 and P1.2 are `rfl`. P1.3 is `if_pos rfl` (or `simp [Board.set]`). P1.4 is
 `if_neg h` (or `simp [Board.set, h]`). P1.5–P1.7: `refine Board.ext fun t => ?_`, then
 `simp only [Board.set]` and `split <;> split <;> simp_all` (P1.5) or `split <;> simp_all` (P1.6,
-P1.7). All checked.
+P1.7). P1.8 by `simp [Board.squaresOf, Square.mem_all]`. All checked.
 
 `set_ne`'s hypothesis reads "the square read is not the square written", `t ≠ s`, the orientation
 of Mathlib's `Function.update_of_ne`. **Orientation matters to `simp` (checked):** with
@@ -181,13 +198,19 @@ can rely on that.
 **D2.2 `Piece.ofCode (v : Fin 16) : Option Piece`.**
 ```lean
 def Piece.ofCode (v : Fin 16) : Option Piece :=
-  Piece.all.find? fun pc => pc.code = v
+  match v.val with
+  | 1 => some ⟨.white, .pawn⟩  | 2 => some ⟨.white, .knight⟩  | 3 => some ⟨.white, .bishop⟩
+  | 4 => some ⟨.white, .rook⟩  | 5 => some ⟨.white, .queen⟩   | 6 => some ⟨.white, .king⟩
+  | 7 => some ⟨.black, .pawn⟩  | 8 => some ⟨.black, .knight⟩  | 9 => some ⟨.black, .bishop⟩
+  | 10 => some ⟨.black, .rook⟩ | 11 => some ⟨.black, .queen⟩  | 12 => some ⟨.black, .king⟩
+  | _ => none
 ```
 Docstring: "The piece whose code is `v`, or `none` if no piece has code `v` (code 0, which marks an
 empty square, and the unused codes 13 to 15)."
-It is defined by searching `Piece.all` (Basic D2.7) for the code, so the table D2.1 is written once
-and its inverse cannot disagree with it. (The `Prop` `pc.code = v` is turned into a `Bool` by
-`decide`, which the elaborator inserts.) See §8 item 4 for the measured cost and the fallback.
+Round 5 (2026-11-02, ROADMAP step 6) took §8 item 4's fallback: the body is the inverse table,
+written out, and P2.0 proves it equal to the search of `Piece.all` (Basic D2.7) for the code, the
+Round 1–4 body, so the table D2.1 still decides what every code means and the inverse cannot
+disagree with it. See §8 item 4 for the measurements.
 
 **D2.3 `contentsCode (x : Option Piece) : Fin 16`.**
 ```lean
@@ -248,6 +271,7 @@ Lemmas (`variable {pc pc' : Piece} {v : Fin 16}`):
 
 | ID | English | Lean | Tag |
 |---|---|---|---|
+| P2.0 | The piece with code `v` is the first piece of `Piece.all` whose code is `v`. | `theorem Piece.ofCode_eq_find? (v : Fin 16) : Piece.ofCode v = Piece.all.find? fun pc => pc.code = v` | core (Round 5) *(checked)* |
 | P2.1 | Reading back the code of a piece gives the piece. | `@[simp] theorem Piece.ofCode_code (pc : Piece) : Piece.ofCode pc.code = some pc` | core |
 | P2.2 | Code 0 is no piece. | `@[simp] theorem Piece.ofCode_zero : Piece.ofCode 0 = none` | core |
 | P2.3 | Reading back the code of a square's contents gives the contents. | `@[simp] theorem Piece.ofCode_contentsCode (x : Option Piece) : Piece.ofCode (contentsCode x) = x` | core |
@@ -359,9 +383,13 @@ structure CastlingRights where
   deriving DecidableEq, Repr, Inhabited
 ```
 Docstring: "The castling rights: for each colour and wing, the FEN flag saying whether that colour
-still holds the right to castle on that wing. The four flags are in FEN order (K, Q, k, q). By
-convention they are read with `get` and changed only with `revoke` and `revokeAll`; the fields stay
-public for literals, so it is `Chess.Rules` (R8) that proves a move adds no right."
+still holds the right to castle on that wing. The four flags are in FEN order (K, Q, k, q). They are
+read with `get`. A move changes them only through `Move.castlingAfter` (`Chess.Rules`), which builds
+the new rights with `ofGet` and can only clear a flag; the fields stay public for literals, so it is
+`Chess.Rules` (R8, `castling_play_le`) that proves a move adds no right."
+(Until the readability round of 2026-11-02 the docstring said rights were "changed only with
+`revoke` and `revokeAll`". That stopped being true when `Chess.Rules` wrote step 4 with `ofGet`; Rules
+review C5 called it a false sentence in trusted text.)
 Field docstrings: "White's kingside castling flag (FEN `K`).", "White's queenside castling flag (FEN
 `Q`).", "Black's kingside castling flag (FEN `k`).", "Black's queenside castling flag (FEN `q`)."
 
@@ -370,14 +398,15 @@ whether castling is possible on this move is decided by `Chess.Rules`.
 
 **Interface rule (a convention, not enforced by Lean).** Outside this section, no definition or
 theorem mentions the four fields; they read rights with `get` (D4.2). The constructor appears only
-in literals `⟨K, Q, k, q⟩`, in FEN order: parsers, checkpoints and tests. No function in the
-library takes castling rights and returns rights containing one its input lacked: the only functions
-from `CastlingRights` to `CastlingRights` are `revoke` and `revokeAll`, and both are `≤` their
-input (P4.11). Lean does not enforce any of this: the fields and the constructor are public, so
+in literals `⟨K, Q, k, q⟩`, in FEN order (parsers, checkpoints and tests), and in `ofGet` (D4.6b).
+No function in the library takes castling rights and returns rights containing one its input
+lacked: the functions from `CastlingRights` to `CastlingRights` are `revoke` and `revokeAll`, both
+`≤` their input (P4.11), and step 4 of `play`, `Move.castlingAfter`, which keeps a right only if it
+was held (`&&`). Lean does not enforce any of this: the fields and the constructor are public, so
 `{ cr with whiteKingside := true }` typechecks in any module. Making the constructor private would
 enforce it, but literals and parsers need `⟨K, Q, k, q⟩`, so the rule stays a convention that
-reviews check. The guarantee is R8 itself, proved in `Chess.Rules` from P4.11 by inspecting `play`
-and showing that it builds its rights from `p.castling` with these two functions only.
+reviews check. The guarantee is R8 itself, `castling_play_le`, proved in `Chess.Rules` from the
+definition of step 4 and P4.3b; it does not use `revoke` or `revokeAll`, which no move uses.
 The derived `Inhabited` value is all four flags `false`, that is `CastlingRights.none` (§8 item 12
 on why this differs from the initial rights).
 
@@ -424,7 +453,30 @@ item 6 recommends renaming it `CastlingRights.empty`, an owner decision.
 **D4.6 `CastlingRights.full : CastlingRights`.** `⟨true, true, true, true⟩`.
 Docstring: "All four castling rights, as at the start of a game."
 Not `CastlingRights.all`: in this library `T.all` is the list of all values of a finite type (R2),
-and `CastlingRights` has no such list (header).
+and that name is D4.6a.
+
+**D4.6a `CastlingRights.all : List CastlingRights`.** (Moved here from `Chess.ChessGame`, where it
+was D3.8, in the readability round of 2026-11-02, as ChessGame review C5 asked.)
+```lean
+def CastlingRights.all : List CastlingRights :=
+  [false, true].flatMap fun wk => [false, true].flatMap fun wq =>
+    [false, true].flatMap fun bk => [false, true].map fun bq => ⟨wk, wq, bk, bq⟩
+```
+Docstring: "All sixteen castling rights, each once."
+The FEN reader `readCastling` (`Chess.ChessGame`, untrusted) searches it for the rights whose
+letters a field is. Its lemmas are P4.3a.
+
+**D4.6b `CastlingRights.ofGet (f : Color → Wing → Bool) : CastlingRights`.** (Moved here from
+`Chess.Rules`, where it was D5.7, in the readability round of 2026-11-02, as Rules spec §12 item 7
+asked.)
+```lean
+def CastlingRights.ofGet (f : Color → Wing → Bool) : CastlingRights :=
+  ⟨f .white .kingside, f .white .queenside, f .black .kingside, f .black .queenside⟩
+```
+Docstring: "The castling rights given by `f`: for every colour `c` and wing `w`, `c`'s right on `w`
+is held exactly when `f c w` is true."
+It is how `play`'s step 4 (`Move.castlingAfter`, Rules D5.8) builds the rights after a move. Its
+lemma is P4.3b.
 
 **D4.7 Decidable quantifiers over castling rights.** `CastlingRights.decidableForall` and
 `CastlingRights.decidableExists`, both `(priority := low)`, through the four flags:
@@ -474,6 +526,8 @@ says otherwise, each is proved by `revert`ing its variables and `decide` (throug
 | P4.1 | Two castling rights are equal when they agree for every colour and wing. | `@[ext] theorem CastlingRights.ext_get (h : ∀ c w, cr.get c w = cr'.get c w) : cr = cr'` | core |
 | P4.2 | `CastlingRights.none` holds no right. | `@[simp] theorem CastlingRights.get_none (c : Color) (w : Wing) : CastlingRights.none.get c w = false` | core |
 | P4.3 | `CastlingRights.full` holds every right. | `@[simp] theorem CastlingRights.get_full (c : Color) (w : Wing) : CastlingRights.full.get c w = true` | core |
+| P4.3a | The list of all castling rights contains every castling rights value. / The list of all castling rights has sixteen entries. | `theorem CastlingRights.mem_all (cr : CastlingRights) : cr ∈ CastlingRights.all` and `theorem CastlingRights.length_all : CastlingRights.all.length = 16` (`decide`) | sanity |
+| P4.3b | The rights built from `f` hold `c`'s right on `w` exactly when `f c w` is true. | `@[simp] theorem CastlingRights.get_ofGet (f : Color → Wing → Bool) (c : Color) (w : Wing) : (CastlingRights.ofGet f).get c w = f c w` (`cases c <;> cases w <;> rfl`) | core |
 | P4.4 | A revoked right is not held. | `@[simp] theorem CastlingRights.get_revoke_self (cr : CastlingRights) (c : Color) (w : Wing) : (cr.revoke c w).get c w = false` | core |
 | P4.5 | Revoking one right leaves every other right as it was. | `theorem CastlingRights.get_revoke_of_ne (h : c' ≠ c ∨ w' ≠ w) : (cr.revoke c w).get c' w' = cr.get c' w'` | core |
 | P4.6 | After `revokeAll c`, colour `c` holds no right. | `@[simp] theorem CastlingRights.get_revokeAll_self (cr : CastlingRights) (c : Color) (w : Wing) : (cr.revokeAll c).get c w = false` | core |
@@ -481,7 +535,7 @@ says otherwise, each is proved by `revert`ing its variables and `decide` (throug
 | P4.8 | After revoking colour `c`'s right on wing `w`, a right is held exactly when it was held before and is not that one. / After revoking all of colour `c`'s rights, a right is held exactly when it was held before and is not one of `c`'s. | `theorem CastlingRights.get_revoke (cr : CastlingRights) (c c' : Color) (w w' : Wing) : (cr.revoke c w).get c' w' = (cr.get c' w' && !(c' == c && w' == w))` and `theorem CastlingRights.get_revokeAll (cr : CastlingRights) (c c' : Color) (w : Wing) : (cr.revokeAll c).get c' w = (cr.get c' w && !(c' == c))` | core |
 | P4.9 | `cr ≤ cr'` means every right of `cr` is a right of `cr'`. | `theorem CastlingRights.le_def : cr ≤ cr' ↔ ∀ c w, cr.get c w = true → cr'.get c w = true` (`Iff.rfl`) | core |
 | P4.10 | The order is reflexive. / The order is transitive. / The order is antisymmetric. | `@[simp] theorem CastlingRights.le_refl (cr : CastlingRights) : cr ≤ cr` (`fun _ _ h => h`), `theorem CastlingRights.le_trans (h : cr ≤ cr') (h' : cr' ≤ cr'') : cr ≤ cr''` (`fun c w hc => h' c w (h c w hc)`), `theorem CastlingRights.le_antisymm (h : cr ≤ cr') (h' : cr' ≤ cr) : cr = cr'` | core |
-| P4.11 | **(R8) Revoking never adds a right.** / **(R8) Revoking all of a colour's rights never adds a right.** | `theorem CastlingRights.revoke_le (cr : CastlingRights) (c : Color) (w : Wing) : cr.revoke c w ≤ cr` and `theorem CastlingRights.revokeAll_le (cr : CastlingRights) (c : Color) : cr.revokeAll c ≤ cr` | core |
+| P4.11 | Revoking never adds a right. / Revoking all of a colour's rights never adds a right. | `theorem CastlingRights.revoke_le (cr : CastlingRights) (c : Color) (w : Wing) : cr.revoke c w ≤ cr` and `theorem CastlingRights.revokeAll_le (cr : CastlingRights) (c : Color) : cr.revokeAll c ≤ cr` | core |
 | P4.12 | No rights is below everything. / All rights are above everything. | `@[simp] theorem CastlingRights.none_le (cr : CastlingRights) : CastlingRights.none ≤ cr` and `@[simp] theorem CastlingRights.le_full (cr : CastlingRights) : cr ≤ CastlingRights.full` | sanity |
 | P4.13 | Revocations can be made in any order. / Revoking twice is revoking once. | `theorem CastlingRights.revoke_comm (cr : CastlingRights) (c c' : Color) (w w' : Wing) : (cr.revoke c w).revoke c' w' = (cr.revoke c' w').revoke c w` and `@[simp] theorem CastlingRights.revoke_revoke_self (cr : CastlingRights) (c : Color) (w : Wing) : (cr.revoke c w).revoke c w = cr.revoke c w` | later |
 
@@ -500,8 +554,10 @@ Notes:
 - `revokeAll_le` follows from `revoke_le` twice and `le_trans`; either proof is fine. The Lean uses
   `le_trans (revoke_le _ c .queenside) (revoke_le cr c .kingside)`: `revokeAll` revokes kingside
   first, so the queenside step is the outer one.
-- P4.13 is for `play`'s step 4 (DESIGN §5.5): it revokes once per rook-home square touched, and the
-  order of those revocations must not matter.
+- P4.13 was written for a `play` whose step 4 revoked once per rook-home square touched (DESIGN
+  §5.5). `Chess.Rules` builds step 4 with `ofGet` instead (D4.6b), so no move uses `revoke`,
+  `revokeAll` or P4.4–P4.13; R8 for moves is Rules' `castling_play_le`. Until the readability round
+  P4.11 carried the tag "(R8)". The revocations stay as a small algebra for literals and tests.
 
 ---
 
@@ -726,9 +782,10 @@ White to move, castling KQkq, en passant -
 
 ## 7. Section "Tests"
 
-As `example`s and `#guard`s at the end of the file until the test library exists (review C8). Squares
-are written `⟨file, rank⟩` with the algebraic name in a comment, until the owner decides on a square
-literal (Basic review C4).
+As `example`s and `#guard`s at the end of the file, kept in the module (cheap: 0.14 s; decision of
+the test-library round, `docs/process/ChessTest.md` §1; review C8). Squares are written
+`⟨file, rank⟩` with the algebraic name in a comment, until the owner decides on a square literal
+(Basic review C4).
 
 - `Board.set` on a literal: `(Board.empty.set ⟨4, 3⟩ (some ⟨.white, .queen⟩)) ⟨4, 3⟩ = some
   ⟨.white, .queen⟩` by `rfl`, and the same board on e5 (`⟨4, 4⟩`) is `none` by `rfl`.
@@ -785,14 +842,22 @@ literal (Basic review C4).
    takes it out, because a permutation lemma makes `simp`'s normal form depend on term order.
 3. **Equality is decided by comparing squares**, through Basic's `Square` quantifier: 64
    comparisons, no normal form needed. `Position` compares its three small fields before the board.
-4. **One code table.** `Piece.code` is the table; `Piece.ofCode` searches `Piece.all` for a code, so
-   the inverse is not a second copy that could disagree. Measured cost (scratch, `decide +kernel`,
+4. **One code table, and an inverse proved equal to its search.** Until Round 5, `Piece.code` was the
+   only table and `Piece.ofCode` searched `Piece.all` for a code, so the inverse was not a second
+   copy that could disagree. Since Round 5 (below) `Piece.ofCode` is a second table, and P2.0 and
+   P2.1 (both `decide`) are what keep the two from disagreeing. Measured cost (scratch, `decide +kernel`,
    five comparisons of a 64-square literal board after two `set`s): about 55 ms per comparison with
    the search, about 35 ms with a hand-written 13-arm `match` on `Fin 16`. The search is kept:
    speed is the last priority, and a board comparison is a small part of a certificate node, which
    also generates moves. **Fallback**, if the DESIGN §7.4 benchmarks show board reads dominate: add
    the `match` as `Piece.ofCode`'s new body and prove the old one equal to it by `decide`; no other
    definition or proof changes.
+   *Taken in Round 5 (ROADMAP step 6).* Measured on the Gotham certificate (`decide +kernel`,
+   sequential): 64 reads of a packed board 34 ms with the search, 13 ms with the `match`; a
+   checkpoint `p.play m = q` about 0.10 s → 0.04 s; a mate leaf about 15 % faster (all with the old king-safety filter). Once MoveGen's
+   king-safety change had removed the bigger cost, board reads were a large part of what remained
+   (checkpoints are a third of all the facts a certificate decides). P2.0 is the proof the
+   fallback asked for, and the proofs of P2.1–P2.5 (`decide`) did not change.
 5. **Codes 1–12 in `Kind.all` order** (DESIGN §4.3), so that 13–15 form one unused block and the
    white codes are python-chess's piece types. The prototype's colour-bit codes (white 1–6, black
    9–14) are not kept: nothing in this layer tests a colour bit, and the fast layer will use
@@ -813,9 +878,11 @@ literal (Basic review C4).
    instances exist for DESIGN §5.6 and have low priority (review C1).
 9. **Castling rights: four flags behind `get`.** Four `Bool`s keep equality structural and cheap;
    the `get` interface keeps statements indexed by colour and wing, so R6's swap is one lemma and
-   not four. By convention rights are changed only by `revoke` and `revokeAll`, both `≤` their
-   input, and there is no `grant`; this is what makes R8 provable for every move, once `play` is
-   shown to use only these two (D4.1's interface rule, which Lean does not enforce). Because the type has 16 values, a whole-type quantifier
+   not four. There is no `grant`: a move changes rights only through `Move.castlingAfter`
+   (`Chess.Rules`), which builds them with `ofGet` from `p.castling.get c w && …` and so can only
+   clear a flag; that is what makes R8 provable for every move (D4.1's interface rule, which Lean
+   does not enforce). (Rounds 1–4 said "changed only by `revoke` and `revokeAll`"; `Chess.Rules`
+   never used them.) Because the type has 16 values, a whole-type quantifier
    (D4.7) turns every lemma about rights into a `decide`.
 10. **`CastlingRights.full`, not `.all`**, because `T.all` is the list of a finite type's values
     (R2); **`CastlingRights.none`** as DESIGN names it.
@@ -841,8 +908,8 @@ literal (Basic review C4).
 
 Not here, on purpose:
 - **Parsers** (FEN, UCI): `Chess.ChessGame` (DESIGN §8.6). `Kind.letter` and `CastlingRights.letters`
-  are the tables a parser should invert, by searching `Kind.all` the way `ofCode` searches
-  `Piece.all`, so that letters too are written once.
+  are the tables a parser should invert, by searching `Kind.all` (as `Piece.ofCode` did until Round
+  5, and as P2.0 proves its table equal to), so that letters too are written once.
 - **Board predicates** such as "empty" or "holds a piece of colour `c`": `Chess.Rules` decides
   whether to name them. In this module `b s = none` is the idiom.
 - **Counting material** (`Position.men`, `pawns`, `budget`, R7): Stage 2, `Chess/Invariants.lean`.
@@ -894,10 +961,11 @@ Open items for the translator, the critic and the owner:
 ## 10. Checklist for the translator
 
 - Module docstring `/-! # Position … -/` with `## Main definitions` (`Board`, `Board.set`,
-  `Piece.code`/`Piece.ofCode`, `Board.pack`/`Board.unpack`, `Move`, `CastlingRights` with `get`,
-  `revoke`, `revokeAll`, `none`, `full` and `≤`, `Position`, `Position.initial`), `## Main
-  statements` (`set_same`, `set_ne`, `set_comm`; `unpack_pack`; `revoke_le`, `revokeAll_le` (R8);
-  `get_revoke`, `get_revokeAll`; the `Board.initial` sanity theorems), and `## Implementation
+  `Board.squaresOf`, `Piece.code`/`Piece.ofCode`, `Board.pack`/`Board.unpack`, `Move`,
+  `CastlingRights` with `get`, `ofGet`, `none`, `full`, `all`, `≤`, `revoke` and `revokeAll`,
+  `Position`, `Position.initial`), `## Main statements` (`set_same`, `set_ne`, `set_comm`;
+  `unpack_pack`; `get_ofGet`; `revoke_le`, `revokeAll_le`, with R8 pointed to Rules'
+  `castling_play_le`; `get_revoke`, `get_revokeAll`; the `Board.initial` sanity theorems), and `## Implementation
   notes` summarizing §8 items 1, 4, 6 and 9, the orientation of `set_ne` (§1) and the `ext s : 1`
   advice (D1.2).
 - Section order: Boards; Piece codes and packed boards; Moves; Castling rights; Positions; Notation; Display;

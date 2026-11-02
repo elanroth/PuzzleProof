@@ -356,3 +356,248 @@ five new lemmas). Tests T1–T14 unchanged and passing.
 of 15 lines. Lemma IDs follow the §0 rule: new numbers, placed where they read best (L2.21 first in
 §2.1, L2.22 after `Forces.trans`, L2.23–L2.24 after the stalemate lemma, L2.25 after
 `OnlyWinningMove.unique`).
+
+---
+
+## Round 5: split, only-move certificate, frozen interface, diagnostics (ROADMAP step 5)
+
+Date: 2026-11-02. Author role: overnight implementer. Inputs: `docs/ROADMAP.md` §5 step 5,
+`docs/reviews/Game.md` (C2, C3, C9), `docs/DESIGN.md` §7.2, §7.4, §11, the spec and this log, and
+the prototype (`chess-lean/ChessProof/Cert.lean`, `GothamKernel.lean`, `Flatten.lean`,
+`scripts/gen_cert.py`) for what generated files look like. Starting state: `lake build` green
+(11 jobs).
+
+**Split (review C2), as the review proposed.** `Chess/Game.lean` became six files: `Defs` (the
+section "Games", 130 lines with the module docstring), `Laws` (281), `Search` (127), `Cert` (421,
+of which 170 are the new diagnostics), `Examples` (159) and the umbrella `Chess/Game.lean` (40,
+imports and module docstring). Every declaration moved verbatim, with its docstring; the slices
+were cut by line number from a copy of the old file, so nothing was retyped. `Search` and `Cert`
+both import `Laws` and not each other (the checkers need `OnlyWinningMove.of_refuted`, not the
+search). The toy games and tests stayed in the library, in `Examples`, as before; moving them to
+`ChessTest` would have saved under a second and lost the documentation. The heavier alternative of
+one spec per file was not taken: one spec covers the six files (spec choice 22). **English
+changed:** header, §0 namespaces, "Files and their contents" (replacing "Contents of the file"),
+six module docstrings, a file line under each section heading, §8.
+
+**Module docstrings.** Five are new (`Defs`, `Laws`, `Search`, `Cert`, `Examples`), and the
+umbrella's was rewritten to point to them. Review C9's first point is done in the new `Laws`
+docstring, whose "Main statements" now name `Forces.trans`, `OnlyWinningMove.of_refuted` and
+`OnlyWinningMove.winsIn_play`. These were written in the Lean first and copied into the spec by
+script, the one place this round went Lean → English; every other docstring of the round was
+written in the spec first.
+
+**`OnlyMoveCert` (review C3.3): adopted.** `checkOnlyMove n k x best next refs` became
+`checkOnlyMove n x best oc` with `oc : OnlyMoveCert G.Move` holding `next`, `refBudget` and
+`refs`. The rule that decides what goes where: the arguments are the claim (they occur in the
+conclusion of `checkOnlyMove_sound`), the structure is the evidence. So `best` stays an argument
+(it is in `OnlyWinningMove x best`), and the refutation budget, which the review listed among the
+structure's fields, goes into the structure (it is not in the conclusion). The review's field name
+`win` became `next`, matching `Cert.move`'s field and the old argument. **English changed:** D4.4
+(signature, body, docstring, a paragraph on the claim/evidence rule), D4.5 (new), the §4 variable
+line (`k`, `next`, `refs` out, `oc` in), L4.7, choices 12, 14, 15, new choices 23 and 24, open
+item 1 (a third way: a new field with a default), T9–T11. Lean: the proof of
+`checkOnlyMove_sound` changed only in names (`oc.next`, `oc.refBudget`).
+
+**Owner decision taken: one refutation budget** (ROADMAP §5's open decision "one refutation budget
+`k` or one per alternative"). Kept one, now the field `refBudget` (choice 24): monotonicity makes
+the largest budget serve every alternative, and the structure can grow a per-alternative field
+later without breaking old files. The owner can reverse this.
+
+**Frozen interface (review C3.1, C3.2).** Spec §4.3 lists what a generated file may use and says
+it never applies a constructor of `Forces`. To make that possible for mate leaves, **L4.12**
+`WinsIn.of_mated (ht : G.turn x = a.other) (h : G.Mated x) : G.WinsIn a n x` was added to
+`section PerNode` (spec first; the prototype's `WinsIn.mate`; L4.11 is not reused, since it was
+Round 1's label of L2.19). The interface is recorded by `ChessTest/Interface.lean` (22
+`#guard_msgs` entries of `#check`/`#print` output; `docs/spec/ChessTest.Interface.md`). The name
+`Cert` is kept, explicitly (C3.2). Not done: review C3.1's "one sentence in the `scripts/` README";
+there is no such README yet (the perft scripts are documented in `docs/process/ChessTest.md`), so
+the rule is in spec §4.3, in `Cert`'s module docstring and in ROADMAP step 7, where the generator
+is written.
+
+**Diagnostics (review C3.4).** Spec first: D4.6 `Cert.Rejection` (one constructor per checker
+condition), D4.7 `firstFailure`/`firstFailureReplies` (mutual structural recursion mirroring
+`checkForces`/`checkReplies`), D4.8 `firstFailureWin`, D4.9 `firstFailureOnlyMove`, and the
+agreement lemmas L4.13, L4.14, L4.16, with the helper L4.15 `checkReplies_eq_true_iff`. The review
+asked for no proof; the agreement was cheap enough to prove (choice 25), and it guarantees that a
+diagnostic reports a failure exactly when the checker rejects (amended in Round 6).
+`firstFailureWin` was not in the review; it is to `firstFailure` what `checkWin` is to
+`checkForces`, and every test and the generator use it. `firstFailureOnlyMove` walks the refutations
+with `firstFailureReplies` rather than a third recursion, since checking the refutations is
+`checkReplies` for the opponent (L4.15).
+
+**Lean → English (proofs).**
+- The `replies` case of L4.13 first failed: after `simp only [decide_not, …]` the `find?` predicate
+  in the goal had become `!decide (…)`, so `cases hf : (G.moves x).find? (fun m => m ∉ …)` no
+  longer matched it. Fix: rewrite with the equation lemmas `firstFailure.eq_4` and
+  `checkForces.eq_4` and split on the `find?` before any `simp`. The spec's proof note says this.
+- `Iff.not` does not exist in core; the `some` case of L4.14 proves `checkForces … ≠ true` from
+  L4.13 directly.
+- The coverage conjunct after `simp` is `∀ m ∈ G.moves x, m ∈ rs.map Prod.fst` only under
+  `simp only [Bool.and_eq_true, decide_eq_true_eq]`; full `simp` rewrites it to
+  `∃ c, (m, c) ∈ rs`. The proofs use `simp only` there.
+- `#print axioms`: L4.12 none; L4.13 and L4.16 `propext`, `Classical.choice`, `Quot.sound`. All
+  three are in the axioms ledger (now 131 entries).
+
+**Tests.** T9–T11 use structure-instance notation for the certificate. New T15–T19 run the
+diagnostics on the toy games, and together produce every constructor of `Cert.Rejection` (including
+a path inside a refutation, `[2]`). T11's docstring is now given in the spec (review C9's second
+point). Three `#guard`s in `ChessTest/ChessGame.lean` run `firstFailureWin` on chess (an accepted
+mate in one, a legal non-mating move, an illegal move).
+
+**Not changed.** Spec open item 2 (the `replies` case reads `G.moves x` twice; review C6 measured
+that the kernel shares it) is left for the owner to close. No declaration was renamed.
+
+**Checked.** All 106 docstrings of the six files (declarations, fields, constructors and the six
+module docstrings) occur word for word in the spec (script, whitespace-normalised, trailing
+"THEOREMS …" tags stripped; before this round one docstring, T11's, did not). No line over 100
+characters. `lake build` green (17 jobs); `lake build ChessTest` green (28 jobs), see
+`docs/process/ChessTest.md` Round 3. Elaboration time per file (`lake env lean`, this machine):
+`Defs`, `Laws`, `Search` 0.18 s each, `Cert` 0.59 s, `Examples` 0.23 s, the umbrella 0.14 s
+(an empty file importing `Chess.Basic` takes 0.14 s); the old single `Game.lean` took 0.40 s. The
+new cost is mostly the diagnostics and their proofs.
+
+---
+
+## Round 6 (2026-11-02, review fixes of Round 5)
+
+Author role: overnight implementer, fixing the review of Round 5 (ROADMAP step 5, "Freeze the
+certificate interface"). Spec first for every changed declaration.
+
+**The interface was not self-sufficient at defender nodes (medium).** Round 5 said the only gap
+in the frozen interface was mate leaves. It was not: `Forces.replies_of_moves_eq` takes
+`h : ∀ m' ∈ m :: ms, G.Forces a T n (G.play x m')`, and a per-node file discharges it one move at a
+time, which Round 5 left to core's `List.forall_mem_cons` and `List.forall_mem_nil`. Neither was in
+§4.3 or in the interface ledger. Of the review's two fixes (own glue lemmas, or allow core lemmas
+and record their names), I took the first: the interface is then closed under this library's own
+names, and a toolchain change to a core lemma is absorbed by two proofs here instead of by every
+generated file. This reverses Round 5's sentence "this module needs no `all_cons`/`all_nil` of its
+own"; the prototype had them for the same reason. **English first:** L4.17
+`Forces.forall_mem_nil` and L4.18 `Forces.forall_mem_cons` in §4.1 with their docstrings, the
+paragraph on walking the move list and the generated shape rewritten to use them, §4.3, choice 26,
+the `Cert` module docstring (Main statements), the file contents list and the checklist. **Lean:**
+both lemmas in `section PerNode` after `WinsIn.of_mated`, word for word; proofs
+`fun _ h => nomatch h` and `List.forall_mem_cons.2 ⟨h, t⟩`; no axioms. **Test T20** (new, in the
+spec first): T1's claim proved node by node with the glue alone (one `have` per node, every
+checkpoint by `decide` or `rfl`), so the claim "no generated proof needs a constructor of `Forces`
+or a lemma of core" is now checked on every build, not only argued. The interface ledger gained
+both lemmas, and the axioms ledger both (no axioms).
+
+**Choice 25 overclaimed (medium).** It said the agreement theorems guarantee that "a reported
+failure is always the reason for a rejection". L4.13, L4.14 and L4.16 prove only that a diagnostic
+returns `none` exactly when its checker accepts; nothing proves that the path of a `some` leads to
+a failing node or that the reason is the one that fails there. That is tested (T16–T19 and the
+three chess `#guard`s). Choice 25 now says exactly this, and Round 5's "it is what makes a
+diagnostic's answer reliable" above is amended to "it guarantees that a diagnostic reports a
+failure exactly when the checker rejects". Spec §4.1's "L4.12 closes the last gap in the glue"
+became "the gap at mate leaves", with a pointer to L4.17–L4.18.
+
+**`Game.chess` in the interface ledger (low).** Generated files call `Game.chess.checkOnlyMove`
+and `Game.chess.firstFailureWin`, so the name is part of the interface. Recorded in
+`ChessTest/Interface.lean` (25 entries in all); `docs/spec/ChessTest.Interface.md` now says why.
+`Game.chess_mated` was not added: a mate leaf proves `Game.chess.Mated p` by `decide`, which
+needs no lemma name.
+
+**Cosmetic (low).** The `move` case of `firstFailure` now prefixes the path with
+`match … | some (ms, r) => some (m :: ms, r) | none => none`, as `firstFailureReplies` does, where
+it used `Option.map`. D4.7's Lean body changed in the spec first. **Lean → English:** the `move`
+case of L4.13 no longer closes by one `simp` with the recursive call reversed (`simp` leaves the
+`match` and reports the reversed lemma unused); the proof now runs `simp` with the definitions,
+rewrites with `← firstFailure_eq_none_iff next`, and splits on the child's diagnostic. The spec's
+proof note says this.
+
+**Long lines (low).** Choices 22 and 25, the file contents list and the L4.13 proof note are
+reflowed to 100 columns. (The spec has other long lines from earlier rounds, mostly table rows and
+section headings; they were not touched.)
+
+**Checked.** All 108 docstrings of the six files (106 in Round 5, plus the two new lemmas) occur
+word for word in the spec (script, whitespace-normalised, trailing "THEOREMS …" tags stripped). No
+new line over 100 characters in the Lean or in the edited prose. `lake build` green (17 jobs; a
+clean build of a fresh copy takes 7.7 s); every `ChessTest` target rebuilt one at a time and green
+(`docs/process/ChessTest.md` Round 4). `Cert` now elaborates in 0.70 s and `Examples` in 0.26 s
+(`lake env lean`), against 0.59 s and 0.23 s in Round 5.
+
+**Not changed.** Open item 2 (the `replies` case names the move list twice) is still for the
+owner. No `scripts/README.md` exists yet; ROADMAP step 7 says it should repeat §4.3.
+
+---
+
+## Round 7 (2026-11-02, ROADMAP step 7): the only-move root of a per-node proof
+
+Inputs: ROADMAP §5 step 7, the first generated file (`ChessDemo/GothamCert.lean`). Spec first
+(§4.1, L4.19–L4.22 and the paragraph after them; §4.3), then the Lean, in `section PerNode` of
+`Chess/Game/Cert.lean`.
+
+**The gap.** Round 6 made the interface self-sufficient for win certificates. An only-move claim
+proved node by node also needs, at the root, L2.19's hypothesis "after every other available move
+the opponent wins", gathered over the explicit list of root moves from one theorem per alternative.
+That needed core's list lemmas again. New: `OnlyWinningMove.of_moves_eq` (L4.19: the root, from
+`G.moves x = ms`), `refuted_nil`, `refuted_cons_self`, `refuted_cons` (L4.20–L4.22: the walk over
+the list, with the best move skipped by `refuted_cons_self`). L4.19 takes `ht : G.turn x = a` and
+states everything with `a`, so a generated file's types say `.black`/`.white` and the elaborator
+never has to evaluate the turn of a position written `fen "…"`.
+
+**Two elaboration facts found while generating**, now in §4.1 and in `scripts/README.md`:
+- The shape `(by decide +kernel : legalMoves p = […])` from the Round 6 example, and
+  `mem_legalMoves.2 …` at attacker nodes, made the elaborator unfold `legalMoves p` during
+  unification and start evaluating it; on positions with many moves it ran out of heartbeats
+  (`whnf`). Written `Game.chess.moves p = […]` and `mem_chess_moves.2 …` (`Chess.ChessGame.Fide`),
+  the types match L4.9 and L4.10 syntactically and elaboration is immediate. The interface now
+  lists `mem_chess_moves` for chess (§4.3).
+- One theorem holding all 34 root checkpoints of Gotham ran out of heartbeats; the generator now
+  writes one `refutes_<uci>` theorem per alternative.
+
+Interface ledger (`ChessTest/Interface.lean`): the four new lemmas and `mem_chess_moves` added.
+Axioms ledger: the four lemmas added.
+
+---
+
+## Round 7, review fixes (2026-11-02, spec only; no Lean change)
+
+From the review of ROADMAP step 7 (`docs/process/ChessDemo.md`, Round 2).
+- §4.3, first bullet: a generated file may name its moves by literal `Move` definitions named by
+  their UCI writing, as `ChessDemo.GothamCert` does, with `uci "…" = lit` proved by
+  `decide +kernel` in the file that restates the claim (`ChessDemo.uci_b7b2`). Third bullet: the
+  literal `Game.chess.moves` equations may be used by `rw` and `▸`, as at the only-move root.
+- §4.1: the example of the only-move root is now the generated shape: `moves_root`, the theorem
+  `refutations` (stated over `Game.chess.moves`, since it says more than `OnlyWinningMove`: a
+  forced mate after each alternative), and `onlyWinningMove` from the two. Its numbers were wrong
+  (`WinsIn .white 2`, `w318`); they are now the file's (`WinsIn .white 1`, `w60`).
+- §4.1 table: L4.8–L4.10, L4.12, L4.17, L4.18 had no THEOREMS tag and L4.19–L4.22 had it trailing;
+  all ten now carry the leading "(C3)" that §0 turns into the docstring's trailing "THEOREMS C3.".
+  The docstrings did not change; with §0's rule every docstring of the `Game` files now matches
+  its row (26 through the tag rule, the rest verbatim).
+- The interface's names did not change, so `ChessTest/Interface.lean` did not either.
+
+---
+
+## Round 7, docstring fixes (2026-11-02, documentation only; no change to any Lean statement or proof)
+
+Two low-severity findings of the overnight review, each reproduced by two independent skeptics.
+- game-1. The `Forces` docstring (Defs.lean, spec §1) said "A defender to move with no available
+  move outside `T` escapes". Its natural parse, "no move that leads outside `T`", is the opposite of
+  the rule: a defender whose every move leads into `T` is forced by `replies`. Reworded, matching
+  `SpecForces` in `Chess.Spec.Winning`: "A defender to move with no available move escapes unless
+  the state is in `T`". The same ambiguity in DESIGN §6.6 ("A defender with no moves outside `T` is
+  safe") was reworded the same way. The rules did not change; this file's Round 1 entry keeps the
+  old wording as history.
+- game-3. The interface paragraph of the `Cert` module docstring (and its copy in this spec) said
+  a generated file proves its claims "only through" the checkers' soundness theorems, the glue
+  lemmas and `OnlyWinningMove.of_refuted`. §4.3, `ChessTest/Interface.lean` and
+  `ChessDemo/GothamCert.lean` also use literal `Position.play`/`Game.chess.moves` checkpoint
+  equations proved by `decide +kernel` and, for chess, `mem_chess_moves`. Round 7 updated §4.3
+  but not this paragraph. The paragraph now lists both and points to §4.3, in Cert.lean and in the
+  spec copy together.
+
+Checks: `scripts/check_docstrings.py` on `Chess/Game/*.lean` reports 0 definitions missing (the
+theorem rows it reports are the existing tag-rule paraphrases); the module docstring of Cert.lean
+appears in this spec after whitespace normalisation; `lake build` green (see below).
+
+---
+
+## Note, 2026-11-02 (finding trust-3, documentation only)
+
+A whole-library docstring check found 26 `Game` lemma docstrings not in the spec word for word.
+24 match once §0's tag rule is applied ("(G3) …" becomes "… THEOREMS G3."). The other two, L4.1
+`checkForces_sound` and L4.4 `checkForces_complete`, are tagged "(C1, general)" and "(C2,
+general)" in the spec and end "THEOREMS C1." and "THEOREMS C2." in the Lean; §0 now says that a
+qualifier inside the tag is dropped. No Lean change.
