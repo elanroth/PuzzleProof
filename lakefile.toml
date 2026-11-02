@@ -1,0 +1,8 @@
+name = "Chess"
+defaultTargets = ["Chess"]
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "Chess"
