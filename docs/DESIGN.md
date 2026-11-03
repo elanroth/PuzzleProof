@@ -630,7 +630,10 @@ and with it every negative fact "there is no forced win within `k`" **for small 
 attacker plies: about 35^k leaves. This is feasible for `k ≤ 2` or `3`, and nowhere near feasible for
 `k = 10` (about 10^15 leaves, beyond both the kernel and `native_decide`). Exact `MateIn` is therefore
 provable by search only for short mates. An exact `MateIn` for a long mate needs a mathematical
-lower-bound argument and is out of scope for Stage 1.
+lower-bound argument and is out of scope for Stage 1. *(2026-11-03: the 35^k estimate counts the
+tree a search walks; a certificate need not. With positions shared and the defender allowed to
+close a branch by its own forced mate, "Black does not mate the Gotham puzzle within 10" is a DAG
+of 16,388 nodes, and `MateIn .black 11` is proved: `docs/research/minimality.md`.)*
 
 **Only winning move (O2).** `G.OnlyWinningMove x m`: `m` is in `moves x`, the mover wins after `m`,
 and after every other move in `moves x` the mover does not win. `OnlyWinningMove.wins_iff` is the
@@ -1026,7 +1029,8 @@ writes a position back. *Targets: G1 (chess instance); M11 later.*
   and `Chess.OnlyWinningMove gotham (uci "b7b2")`, each **[kernel]**. Exact `MateIn` is demonstrated
   only for short mates (budget at most 3), where `searchForces` is feasible; its label, [kernel] or
   [native], is whatever the measurement allows. An exact `MateIn 11` for Gotham would need a
-  mathematical lower-bound argument and is out of scope for Stage 1 (Section 6.3).
+  mathematical lower-bound argument and is out of scope for Stage 1 (Section 6.3). *(Done after
+  Stage 1, on 2026-11-03, by a generated certificate: `ChessDemo.gotham_mateIn`.)*
 
   *Outcome (2026-11-02, ROADMAP steps 6–7).* The demonstration is the library `ChessDemo`
   (`ChessDemo/`, built by `lake build ChessDemo`, not a default target), in four modules:
@@ -1086,7 +1090,8 @@ explicit colour; `Game.chess.Mated` is executable (`InCheck p ∧ legalMoves p =
 `chess_mated_iff_checkmate`); there is no `inCheck : Position → Bool` in Stage 1; promotion choices
 have their own type; castling rights are four `Bool`s behind a `get` interface; `Board` is a `def`;
 en passant and castling are each one shared shape predicate; the only-move budget is counted before
-the best move; exact `MateIn` is claimed only for short mates.
+the best move; exact `MateIn` is claimed only for short mates (in Stage 1; for Gotham since
+2026-11-03).
 
 Open, for the owner or for the spec phase:
 

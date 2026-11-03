@@ -166,8 +166,8 @@ Notes.
 | L1.1 | `t` is listed by `b.upToBlocker l` exactly when, for some `i`, `t` is entry `i` of `l` and every entry before `i` is empty on `b`. | `theorem Board.mem_upToBlocker : t ∈ b.upToBlocker l ↔ ∃ i : Nat, l[i]? = some t ∧ ∀ j < i, l[j]?.bind b = none` | [core] *(checked)* |
 | L1.2 | **The squares listed by `slideTargets d b s` are exactly those a piece sliding from `s` in direction `d` reaches on `b`.** | `theorem mem_slideTargets : t ∈ slideTargets d b s ↔ Slides d b s t` | [core, M1] *(checked)* |
 | L1.3 | **The squares listed by `reachTargets k c b s` are exactly those a piece of kind `k` and colour `c` reaches from `s` on `b`.** | `theorem mem_reachTargets : t ∈ reachTargets k c b s ↔ Reaches k c b s t` | [core, M1] *(checked)* |
-| L1.4 | The squares up to the first blocker are a sublist of the list. | `theorem Board.upToBlocker_sublist (b : Board) (l : List Square) : (b.upToBlocker l).Sublist l` | core (M5, done 2026-11-03) |
-| L1.5 | A target list names each square once. | `theorem reachTargets_nodup (k : Kind) (c : Color) (b : Board) (s : Square) : (reachTargets k c b s).Nodup` | core (M5, done 2026-11-03) |
+| L1.4 | `upToBlocker` keeps a sublist of the squares it is given. | `theorem Board.upToBlocker_sublist (b : Board) (l : List Square) : (b.upToBlocker l).Sublist l` | core (M5, done 2026-11-03) |
+| L1.5 | The squares a slider reaches from `s`, over all its directions, are distinct; so are a pawn's diagonal targets, a knight's jumps and a king's steps. | `theorem reachTargets_nodup (k : Kind) (c : Color) (b : Board) (s : Square) : (reachTargets k c b s).Nodup` | core (M5, done 2026-11-03) |
 
 Proof notes *(checked)*.
 - L1.1: induction on `l`; in the `cons` case `unfold Board.upToBlocker; split`. The `none` branch is
@@ -342,8 +342,8 @@ pseudo-legal moves *(checked)*.
 |---|---|---|---|
 | L2.1 | **A pawn move list holds exactly the moves from `s` to `t` that obey the promotion rule for colour `c`.** | `theorem mem_pawnMovesTo : m ∈ pawnMovesTo c s t ↔ m.src = s ∧ m.dst = t ∧ m.PromotionRule c` | [core] *(checked)* |
 | L2.2 | A castling to wing `w` is the castling move of the side to move to `w`. | `theorem CastleMove.eq_castle (h : CastleMove p w m) : m = Move.castle p.turn w` | [core] *(checked)* |
-| L2.3 | A candidate from `s` moves from `s`. | `theorem src_of_mem_candidatesFrom (h : m ∈ candidatesFrom p s) : m.src = s` | core (M5, done 2026-11-03) |
-| L2.4 | The candidates name each move once. | `theorem candidates_nodup (p : Position) : (candidates p).Nodup` | core (M5, done 2026-11-03; also `pseudoMoves_nodup`, `legalMoves_nodup`, `castleCandidates_nodup`, `pawnMovesTo_nodup`, `candidatesFrom_nodup`) |
+| L2.3 | Every candidate from `s` starts on `s`. | `theorem src_of_mem_candidatesFrom (h : m ∈ candidatesFrom p s) : m.src = s` | core (M5, done 2026-11-03) |
+| L2.4 | The candidates of a position are distinct. | `theorem candidates_nodup (p : Position) : (candidates p).Nodup` | core (M5, done 2026-11-03; also `pseudoMoves_nodup`, `legalMoves_nodup`, `castleCandidates_nodup`, `pawnMovesTo_nodup`, `candidatesFrom_nodup`) |
 | L2.5 | The candidates do not read the en passant target: changing it leaves them unchanged. | `theorem candidates_ignores_epTarget (e : Option Square) : candidates { p with epTarget := e } = candidates p` | [core] *(checked, `rfl`)* |
 
 Proof notes *(checked)*. L2.1: `rcases m with ⟨s', t', o⟩; unfold pawnMovesTo Move.PromotionRule;
@@ -584,8 +584,9 @@ hold at every position, so the test now only cross-checks the generator against 
 by computation.)"
 
 Notes. Since M4 (L7.4, `mem_legalMoves`) the first conjunct is true at every position (by `simp
-[List.all_eq_true, mem_legalMovesBySpec, mem_legalMoves]`), so the test checks M5 at `p` and
-nothing else; L5.2 is kept for the tests that predate M4. A `true` here gives M4 and M5 at `p` as
+[List.all_eq_true, mem_legalMovesBySpec, mem_legalMoves]`), so the test checked M5 at `p` and
+nothing else; since M5 (L7.5, 2026-11-03) the second conjunct is a theorem too, and the test is a
+computed cross-check only. L5.2 is kept for the tests that predate M4. A `true` here gives M4 and M5 at `p` as
 theorems: L5.2 and L5.3 below, through L3.5 and L5.1. So a test position can carry a kernel-checked "the generator lists exactly the legal moves
 here" by `decide +kernel` on `agreesWithLegal p = true` (about 5 s for a small position), not only
 a `#guard`, which trusts the interpreter. Soundness is not tested, because it is proved; a test of
@@ -721,11 +722,12 @@ need `fen`, which lives in `Chess.ChessGame`. Both are in `ChessTest/Perft.lean`
 
 ---
 
-## 7. Section "Completeness" (pulled into Stage 1; M5 still planned in `Chess/MoveGen/Correct.lean`)
+## 7. Section "Completeness" (pulled into Stage 1) and section "NoDuplicates" (M5, 2026-11-03)
 
 With the definitions above, M2, M4 and M6 follow from one lemma, the cover. L7.1–L7.4, L7.6 and
 L7.7 are in the section `Completeness` of `Chess/MoveGen.lean`, right after "The generator"
-(MoveGen review C1). L7.5 (M5, `Nodup`) is longer and stays planned in `Chess/MoveGen/Correct.lean`.
+(MoveGen review C1). L7.5 (M5, `Nodup`) and its helpers L1.4, L1.5, L2.3, L2.4 and L7.5a–L7.5f are in
+the section `NoDuplicates` that follows it (2026-11-03), not in a separate `Correct.lean`.
 
 Helpers of the cover, each with its docstring:
 
@@ -754,7 +756,13 @@ move. This replaces the instance of `Chess.Rules`, which tests every move." Both
 | L7.2 | The pseudo-legal moves are listed exactly. | `theorem mem_pseudoMoves : m ∈ pseudoMoves p ↔ PseudoLegal p m` | M2 |
 | L7.3 | Every legal move is listed. | `theorem legalMoves_complete (h : Legal p m) : m ∈ legalMoves p` | M4 |
 | L7.4 | **The legal moves are listed exactly.** | `theorem mem_legalMoves : m ∈ legalMoves p ↔ Legal p m` | M4 |
-| L7.5 | No move is listed twice. | `theorem legalMoves_nodup (p : Position) : (legalMoves p).Nodup` (and `pseudoMoves_nodup`) | M5 |
+| L7.5 | **The legal moves of `p` are listed without duplicates (M5).** | `theorem legalMoves_nodup (p : Position) : (legalMoves p).Nodup` | M5, done 2026-11-03 |
+| L7.5a | **The pseudo-legal moves of `p` are listed without duplicates.** | `theorem pseudoMoves_nodup (p : Position) : (pseudoMoves p).Nodup` | core (2026-11-03) |
+| L7.5b | Rays from one square in different directions share no square. | `theorem Square.not_mem_ray_of_mem_ray {s t : Square} {d d' : Direction} (h : d ≠ d') (ht : t ∈ s.ray d) : t ∉ s.ray d'` | core (2026-11-03; decided over the 64 squares) |
+| L7.5c | A pawn move list has no duplicates. | `theorem pawnMovesTo_nodup (c : Color) (s t : Square) : (pawnMovesTo c s t).Nodup` | core (2026-11-03) |
+| L7.5d | The candidates from one square are distinct. | `theorem candidatesFrom_nodup (p : Position) (s : Square) : (candidatesFrom p s).Nodup` | core (2026-11-03) |
+| L7.5e | The castling candidates are distinct, and none of them is the move of a king from its home square to an adjacent square, so none is also a candidate from a square. | `theorem castleCandidates_nodup (p : Position) : (castleCandidates p).Nodup` | core (2026-11-03) |
+| L7.5f | A castling candidate is not a candidate from any square. | `theorem not_mem_candidatesFrom_of_mem_castleCandidates {s : Square} (h : m ∈ castleCandidates p) : m ∉ candidatesFrom p s` | core (2026-11-03) |
 | L7.6 | Checkmate is check with no listed move. | `theorem checkmate_iff : Checkmate p ↔ InCheck p ∧ legalMoves p = []` | M6 |
 | L7.7 | Stalemate is no check and no listed move. | `theorem stalemate_iff : Stalemate p ↔ ¬ InCheck p ∧ legalMoves p = []` | M6 |
 
@@ -769,7 +777,8 @@ How each goes:
   scratch; the remaining three are rank arithmetic, so this is D1, about 60–80 lines. No reasoning
   about attacks, pins, victims or blockers is needed: L1.3 has already done the blockers.
 - **L7.2–L7.4** are L3.1, L3.4 and L7.1, a few lines each.
-- **L7.5** is L2.4 with `List.Nodup.filter` twice.
+- **L7.5** is L2.4 with filtering twice (a private `nodup_filter`; core 4.28 has no
+  `List.Nodup.filter`).
 - **L7.6, L7.7**: `∀ m, ¬ Legal p m ↔ legalMoves p = []` by L7.4 and `List.eq_nil_iff_forall_not_mem`.
   The faster instance `instance : Decidable (Checkmate p) := decidable_of_iff _ checkmate_iff.symm`
   is declared after them; being declared later than Rules' instance, it is the one later modules
@@ -924,8 +933,9 @@ Open items:
 9. **Test-only code ships in the library module.** `legalMovesBySpec`, `agreesWithLegal`, L5.1–L5.3,
    `epCheckPos` and `promoKnightPos` are imported by every downstream module. The test library now
    exists; they stay here by the decision of the test-library round (`docs/process/MoveGen.md`, note
-   of 2026-11-02: they cost nothing to build). Since M4 only the M5 half of `agreesWithLegal` tests
-   anything; when M5 is proved, `agreesWithLegal` and L5.1–L5.3 can go.
+   of 2026-11-02: they cost nothing to build). Since M4 and M5 (2026-11-03) both halves of
+   `agreesWithLegal` are theorems at every position; it and L5.1–L5.3 remain as a computed
+   cross-check, and whether to remove them is open.
 10. **One expression for the pawn diagonals.** `[s.offset (-1) c.forward, s.offset 1 c.forward]`
     appears in Rules' `Reaches .pawn`, in D1.3 and in D2.1, on purpose (the cover is then `simp
     [pawnTargets, h]`). A shared `pawnCaptureSquares c s` used by all three would remove the
@@ -950,7 +960,7 @@ Not here, on purpose:
   `perft_one`, `sum_perftDivide`; `mem_legalMoves_of_agreesWithLegal`,
   `nodup_legalMoves_of_agreesWithLegal`), and
   `## Implementation notes` summarizing design choices 1, 5, 6, 10 and 13, and saying that completeness
-  (M4) goes through the cover `PseudoLegal.mem_candidates` and that only M5 is still tested, not proved.
+  (M4) goes through the cover `PseudoLegal.mem_candidates` and that M5 is proved too (since 2026-11-03).
 - Section order as in "Contents"; each a `/-! ## … -/` heading. Lemmas in `section Targets`,
   `section Candidates`, `section Generator`, `section Testing`, each opening with its `variable`
   line (§1–§3, §5); the perft lemmas need none (§4).
