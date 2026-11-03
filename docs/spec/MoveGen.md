@@ -571,6 +571,7 @@ Docstring: "The legal lines of `n` moves from `p`, in the generator's order: for
 |---|---|---|---|
 | L4a.1 | **`lines n p` lists exactly the legal lines of `n` moves from `p`.** | `theorem mem_lines {n : Nat} {p : Position} {ms : List Move} : ms ∈ lines n p ↔ LegalLine p ms ∧ ms.length = n` | core (M8) |
 | L4a.2 | **`lines n p` lists no line twice.** | `theorem lines_nodup (n : Nat) (p : Position) : (lines n p).Nodup` | core (M8; by M5) |
+| L4a.4 | **Perft is the number of legal lines, whichever list counts them.** Any list of move sequences that holds exactly the legal lines of `n` moves from `p`, each once, has `perft n p` entries. | `theorem perft_eq_length_of_mem_iff {n : Nat} {p : Position} {L : List (List Move)} (hL : L.Nodup) (h : ∀ ms, ms ∈ L ↔ LegalLine p ms ∧ ms.length = n) : L.length = perft n p` | core (M8) |
 | L4a.3 | **Perft counts legal lines (M8).** `perft n p` is the number of sequences of `n` moves from `p`, each legal in the position reached so far. | `theorem perft_eq_length_lines (n : Nat) (p : Position) : perft n p = (lines n p).length` | core (M8) |
 
 Notes. With L4a.1 and L4a.2, L4a.3 says what perft is meant to count: the legal lines of `n` moves,
@@ -820,8 +821,8 @@ How each goes:
   is declared after them; being declared later than Rules' instance, it is the one later modules
   find. (Rules' instance tests 20 480 moves; Rules review C3 measured it not finishing in 500 s in
   the kernel. Through the generator: 3.9 s.)
-- M8 (perft counts legal lines) and M9 (perft colour symmetry) need the above and `Chess/Invariants`;
-  they are Stage 2–3 and not shaped further here.
+- M8 (perft counts legal lines) is proved (§4a, 2026-11-03); it needed only M4 and M5, not
+  `Chess/Invariants`. M9 (perft colour symmetry) needs `Chess/Invariants` and is Stage 2–3.
 
 THEOREMS writes M4 as D2 ("hundreds to low thousands of lines"). With this design it is D1: the
 soundness half is L3.5 (Stage 1, one line) and the completeness half is L7.1 (a geometric case
@@ -981,7 +982,7 @@ Not here, on purpose:
 - Check masks, pin rays, bitboards: later optimizations, each proved equal to `legalMoves` up to
   permutation (DESIGN §3.3, THEOREMS M10).
 - FEN and UCI parsing: `Chess.ChessGame`.
-- M8 (`LegalLine`, perft counts lines), M9 (perft colour symmetry): Stage 2–3.
+- M9 (perft colour symmetry): Stage 2–3. (M8 is here since 2026-11-03, §4a.)
 
 ---
 

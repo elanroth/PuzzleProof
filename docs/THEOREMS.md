@@ -1514,7 +1514,7 @@ R1, R2 ─► R3 (geometry, symmetry) ─► M1 (targets) ─► M2 (pseudo-lega
              │                                                              │
              ├─► R7 material, R8 castling ─► R9 WellFormed.play ─► R10 Reachable invariants
              │                                                              │
-             └─► R6 flip ─► M9 perft_flip        M7 perft facts ─► M8 perft_spec
+             └─► R6 flip ─► M9 perft_flip        M7 perft facts ─► M8 perft_eq_length_lines
                                                                             │
 G1 Game ─► G2 WinsIn ─► G3 mono, G4 not_both, G5 searchWin_iff, G6 MateIn   │
               │                     │                                       ▼

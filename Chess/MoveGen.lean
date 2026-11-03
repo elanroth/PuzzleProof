@@ -40,7 +40,8 @@ every definition below carries the docstring given there.
 * `perft_one`, `sum_perftDivide`: perft of depth 1 counts `legalMoves`, and the divide adds up to
   perft of one more ply.
 * (M8) `mem_lines`, `lines_nodup`, `perft_eq_length_lines`: `lines n p` lists exactly the legal
-  lines of `n` moves from `p` (`LegalLine`), none twice, and `perft n p` is their number.
+  lines of `n` moves from `p` (`LegalLine`), none twice, and `perft n p` is their number;
+  `perft_eq_length_of_mem_iff`: so is the length of any list of them without repeats.
 * (M5) `legalMoves_nodup`: `legalMoves` lists no move twice, from `candidates_nodup` (moves from
   different squares differ; from one square the targets are distinct, by facts about the 64
   squares decided once by the kernel, such as `Square.not_mem_ray_of_mem_ray`).
@@ -691,6 +692,18 @@ theorem perft_eq_length_lines (n : Nat) (p : Position) : perft n p = (lines n p)
   | zero => rfl
   | succ n ih =>
     simp only [perft, lines, List.length_flatMap, List.length_map, ih]
+
+/-- **Perft is the number of legal lines, whichever list counts them.** Any list of move sequences
+that holds exactly the legal lines of `n` moves from `p`, each once, has `perft n p` entries. -/
+theorem perft_eq_length_of_mem_iff {n : Nat} {p : Position} {L : List (List Move)} (hL : L.Nodup)
+    (h : ∀ ms, ms ∈ L ↔ LegalLine p ms ∧ ms.length = n) : L.length = perft n p := by
+  have count_one : ∀ {l : List (List Move)} {a : List Move}, l.Nodup → a ∈ l → l.count a = 1 :=
+    fun hl ha => Nat.le_antisymm (List.nodup_iff_count.1 hl _) (List.count_pos_iff.2 ha)
+  rw [perft_eq_length_lines]
+  refine (List.perm_iff_count.mpr fun a => ?_).length_eq
+  by_cases ha : a ∈ L
+  · rw [count_one hL ha, count_one (lines_nodup n p) (mem_lines.2 ((h a).1 ha))]
+  · rw [List.count_eq_zero.2 ha, List.count_eq_zero.2 fun h' => ha ((h a).2 (mem_lines.1 h'))]
 
 end Lines
 
