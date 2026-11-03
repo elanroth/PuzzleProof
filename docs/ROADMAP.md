@@ -547,7 +547,8 @@ Stages 3–5.
    certificates. Open: checkmate checks are about 40% of the 4.5 CPU-hours of the build (a faster
    pseudo-legality filter, minimality.md "Next steps").
 8. **Stage 2 remainder.** ~~M5 (`legalMoves` `Nodup`)~~ done 2026-11-03 (`legalMoves_nodup`,
-   MoveGen section `NoDuplicates`); M8, perft as a counting theorem, can now use it. R3 attack
+   MoveGen section `NoDuplicates`); ~~M8, perft as a counting theorem~~ done the same day
+   (`perft_eq_length_lines`). R3 attack
    symmetry (done in step 6). R6 colour flip and M9. `Chess/Invariants.lean` with `WellFormed`, `Reachable`, R7
    (material) and R9/R10 (invariants of legal play).
    - **Do not change `parseFEN`'s filter** while doing this, until the owner decides between

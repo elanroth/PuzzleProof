@@ -253,8 +253,10 @@ is the generated certificate `ChessDemoBound/Gotham10/` (159 files, 24,994 node 
 `NoDuplicates`), standard axioms. The geometric facts it needs (rays in different directions are
 disjoint, knight jumps, king steps and pawn targets from one square are distinct, a castling
 destination is not adjacent to the king's home) are decided by the kernel once over all 64 squares
-(about 6 s of the library's build); the rest is about lists. This removes the obstacle to M8
-(`perft` counts sequences of legal moves), which is still to be proved.
+(about 6 s of the library's build); the rest is about lists. With it, M8 is proved too:
+`perft_eq_length_lines : perft n p = (lines n p).length`, where `lines n p` lists exactly the legal
+lines of `n` moves (`mem_lines`), none twice (`lines_nodup`). So every kernel-checked perft count in
+`ChessTest.Perft` is a theorem about the number of legal move sequences.
 
 **Not covered.** Two generator paths are not exercised by the Gotham certificate: a defender
 stalemated inside the certificate, and an attacker with no legal move. They are tested on two small

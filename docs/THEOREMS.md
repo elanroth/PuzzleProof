@@ -599,6 +599,8 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
   ```
 - **Forces.** Stated through an explicit list of lines, so no counting library is needed.
 - **Meta.** D1 given M4, M5. Stage 2.
+- **Status (2026-11-03).** Done as sketched: `LegalLine`, `lines`, `mem_lines`, `lines_nodup`,
+  `perft_eq_length_lines` in `Chess/MoveGen.lean`, section "Legal lines (M8)".
 
 ### M9 Perft is colour-symmetric
 

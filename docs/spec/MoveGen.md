@@ -509,8 +509,9 @@ history are read, so the counts can be compared with the published ones (chesspr
 
 Notes. Structural recursion on the depth, `List.sum` from core (`Init.Data.List.Basic`). It counts
 leaves without building the lines. That it is the number of *sequences of legal moves* (M8) needs M4
-(the entries are exactly the legal moves) and M5 (no entry is repeated), and is Stage 2; until
-then the docstring speaks only of entries of `legalMoves`.
+(the entries are exactly the legal moves) and M5 (no entry is repeated); it is proved since
+2026-11-03 (§4a, `perft_eq_length_lines`), and the docstring still speaks only of entries of
+`legalMoves`.
 
 ### D4.2 `perftDivide (n : Nat) (p : Position) : List (Move × Nat)`
 
@@ -540,6 +541,41 @@ fires). L4.4: `simp [perftDivide, perft_succ, Function.comp_def]`. `perft_succ` 
 unfolding a perft by `simp` is never wanted.
 
 ---
+
+## 4a. Section "Legal lines (M8)" (2026-11-03)
+
+### D4a.1 `LegalLine : Position → List Move → Prop` (an inductive)
+
+```lean
+inductive LegalLine : Position → List Move → Prop
+  | nil {p : Position} : LegalLine p []
+  | cons {p : Position} {m : Move} {ms : List Move} :
+      Legal p m → LegalLine (p.play m) ms → LegalLine p (m :: ms)
+```
+
+Docstring: "`LegalLine p ms`: `ms` is a sequence of moves, each legal in the position reached so far
+from `p`."
+
+### D4a.2 `lines : Nat → Position → List (List Move)`
+
+```lean
+def lines : Nat → Position → List (List Move)
+  | 0, _ => [[]]
+  | n + 1, p => (legalMoves p).flatMap fun m => (lines n (p.play m)).map (m :: ·)
+```
+
+Docstring: "The legal lines of `n` moves from `p`, in the generator's order: for each entry `m` of
+`legalMoves p`, the lines of `n - 1` moves after it, each preceded by `m`."
+
+| ID | English (= Lean docstring) | Lean | Tag |
+|---|---|---|---|
+| L4a.1 | **`lines n p` lists exactly the legal lines of `n` moves from `p`.** | `theorem mem_lines {n : Nat} {p : Position} {ms : List Move} : ms ∈ lines n p ↔ LegalLine p ms ∧ ms.length = n` | core (M8) |
+| L4a.2 | **`lines n p` lists no line twice.** | `theorem lines_nodup (n : Nat) (p : Position) : (lines n p).Nodup` | core (M8; by M5) |
+| L4a.3 | **Perft counts legal lines (M8).** `perft n p` is the number of sequences of `n` moves from `p`, each legal in the position reached so far. | `theorem perft_eq_length_lines (n : Nat) (p : Position) : perft n p = (lines n p).length` | core (M8) |
+
+Notes. With L4a.1 and L4a.2, L4a.3 says what perft is meant to count: the legal lines of `n` moves,
+each counted once. So a kernel-checked perft number (`ChessTest.Perft`) is a theorem about chess
+lines, not only about the generator's list.
 
 ## 5. Section "Testing against the specification"
 

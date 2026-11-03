@@ -19,6 +19,7 @@ every definition below carries the docstring given there.
   tested by `kingSafeAfter` (with Position's `Board.squaresOf` and the super-piece test
   `Board.superpieceAttackedBy`).
 * `perft`, `perftDivide`: the standard move-path counts, for comparison with other programs.
+* `LegalLine`, `lines`: sequences of moves each legal where it is played, and the list of them.
 * `legalMovesBySpec`, `agreesWithLegal`: the legal moves found from the specification alone, and a
   test that the generator agrees with them; since M4 and M5 a computed cross-check only.
 
@@ -38,6 +39,8 @@ every definition below carries the docstring given there.
 * `candidates_ignores_epTarget`: the candidates do not read the en passant target.
 * `perft_one`, `sum_perftDivide`: perft of depth 1 counts `legalMoves`, and the divide adds up to
   perft of one more ply.
+* (M8) `mem_lines`, `lines_nodup`, `perft_eq_length_lines`: `lines n p` lists exactly the legal
+  lines of `n` moves from `p` (`LegalLine`), none twice, and `perft n p` is their number.
 * (M5) `legalMoves_nodup`: `legalMoves` lists no move twice, from `candidates_nodup` (moves from
   different squares differ; from one square the targets are distinct, by facts about the 64
   squares decided once by the kernel, such as `Square.not_mem_ray_of_mem_ray`).
@@ -627,6 +630,69 @@ theorem perft_one (p : Position) : perft 1 p = (legalMoves p).length := by
 theorem sum_perftDivide (n : Nat) (p : Position) :
     ((perftDivide n p).map (·.2)).sum = perft (n + 1) p := by
   simp [perftDivide, perft_succ, Function.comp_def]
+
+/-! ## Legal lines (M8) -/
+
+/-- `LegalLine p ms`: `ms` is a sequence of moves, each legal in the position reached so far from
+`p`. -/
+inductive LegalLine : Position → List Move → Prop
+  /-- The empty sequence is a legal line from any position. -/
+  | nil {p : Position} : LegalLine p []
+  /-- A legal move followed by a legal line from the position after it is a legal line. -/
+  | cons {p : Position} {m : Move} {ms : List Move} :
+      Legal p m → LegalLine (p.play m) ms → LegalLine p (m :: ms)
+
+/-- The legal lines of `n` moves from `p`, in the generator's order: for each entry `m` of
+`legalMoves p`, the lines of `n - 1` moves after it, each preceded by `m`. -/
+def lines : Nat → Position → List (List Move)
+  | 0, _ => [[]]
+  | n + 1, p => (legalMoves p).flatMap fun m => (lines n (p.play m)).map (m :: ·)
+
+section Lines
+
+
+/-- **`lines n p` lists exactly the legal lines of `n` moves from `p`.** -/
+theorem mem_lines {n : Nat} {p : Position} {ms : List Move} :
+    ms ∈ lines n p ↔ LegalLine p ms ∧ ms.length = n := by
+  induction n generalizing p ms with
+  | zero =>
+    simp only [lines, List.mem_singleton, List.length_eq_zero_iff]
+    constructor
+    · rintro rfl; exact ⟨.nil, rfl⟩
+    · exact fun h => h.2
+  | succ n ih =>
+    simp only [lines, List.mem_flatMap, List.mem_map, mem_legalMoves]
+    constructor
+    · rintro ⟨m, hm, ms', hms', rfl⟩
+      obtain ⟨hl, hlen⟩ := ih.1 hms'
+      exact ⟨.cons hm hl, by simp [hlen]⟩
+    · rintro ⟨hl, hlen⟩
+      cases hl with
+      | nil => simp at hlen
+      | cons hm hl' =>
+        exact ⟨_, hm, _, ih.2 ⟨hl', by simpa using hlen⟩, rfl⟩
+
+/-- **`lines n p` lists no line twice.** -/
+theorem lines_nodup (n : Nat) (p : Position) : (lines n p).Nodup := by
+  induction n generalizing p with
+  | zero => simp [lines]
+  | succ n ih =>
+    simp only [lines]
+    refine nodup_flatMap (fun m _ => nodup_map (fun _ _ h => (List.cons.inj h).2) (ih _)) ?_
+    refine (legalMoves_nodup p).imp fun hne x hx hx' => hne ?_
+    obtain ⟨a, -, rfl⟩ := List.mem_map.1 hx
+    obtain ⟨b, -, hb⟩ := List.mem_map.1 hx'
+    exact (List.cons.inj hb).1.symm
+
+/-- **Perft counts legal lines (M8).** `perft n p` is the number of sequences of `n` moves from `p`,
+each legal in the position reached so far. -/
+theorem perft_eq_length_lines (n : Nat) (p : Position) : perft n p = (lines n p).length := by
+  induction n generalizing p with
+  | zero => rfl
+  | succ n ih =>
+    simp only [perft, lines, List.length_flatMap, List.length_map, ih]
+
+end Lines
 
 /-! ## Testing against the specification -/
 

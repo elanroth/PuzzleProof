@@ -27,7 +27,8 @@ target: 216 jobs, 38 min on 10 cores): `lake build`, `lake build ChessTest`, `la
 `sorry`, no `axiom` and no `native_decide` in the Lake libraries (the archived `prototype/`, a
 separate Lake project, uses `native_decide`), and every headline theorem uses only `propext`,
 `Classical.choice` and `Quot.sound` (checked by `#guard_msgs` in `ChessDemo.Axioms`,
-`ChessDemoBound.GothamMateIn` and `ChessTest.Axioms`). The generator is proved to list exactly the legal moves (M4) and none twice (M5). See
+`ChessDemoBound.GothamMateIn` and `ChessTest.Axioms`). The generator is proved to list exactly the legal moves (M4) and none twice (M5), and `perft`
+to count exactly the legal move sequences (M8). See
 [`docs/VERIFICATION.md`](docs/VERIFICATION.md) for what was proved, tested and audited, and
 [`docs/ROADMAP.md`](docs/ROADMAP.md) for where things stand and what comes next.
 
