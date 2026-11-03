@@ -10,6 +10,7 @@ file that does not compile, or a test that fails, never a false theorem.
 | `check_docstrings.py` | Checks that the docstring of every definition and instance under `Chess/` appears word for word in its `docs/spec/` file; reports theorem docstrings that do not (Rules review C8). |
 | `build_viewer.py` | Builds `viewer/gotham.html`, a page that steps through the Gotham proof, from `ChessDemo/GothamCert.lean`. |
 | `measure_minimality.py` | Measures the proof tree for "the side to move cannot mate within n" (the lower half of `MateIn`); results in `docs/research/minimality.md`. |
+| `gen_bound.py` | Writes a certificate for "the side to move cannot mate within n" as Lean files (`ChessDemoBound/Gotham10/`), from the search of `measure_minimality.py`. |
 
 Python: any Python 3 with python-chess 1.11 (`pip install chess`); run scripts with `python -I`.
 `gen_cert.py` also needs Stockfish and the compiled program `chess-perft`
@@ -121,3 +122,19 @@ searched. Stockfish is optional and only orders the other side's replies and say
 quick forced mate; a suggestion is kept only if the search then succeeds. See
 `docs/research/minimality.md` for the method and the Gotham numbers (about 21k positions at
 n = 10, 22 s).
+
+## gen_bound.py
+
+```
+python -I scripts/gen_bound.py --fen "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP4P/1K4R1 b - - 0 1" \
+  --budget 10 --root Puzzles.gotham --module ChessDemoBound.Gotham10 --out ChessDemoBound/Gotham10 \
+  --stockfish /opt/homebrew/bin/stockfish
+```
+
+Run it from the library's root, after `lake build chess-perft`. It runs the search of
+`measure_minimality.py` (every move of the side to move searched; Stockfish optional, only ordering
+the other side's candidates) and writes one theorem per (position, budget) node, each checking one
+position by `decide +kernel` and chained by the glue of `Chess.Game.Cert` (sections `PerNode` and
+`Bounds`). Files are grouped by height in the DAG, so that `lake` builds files of one height in
+parallel. Move lists come from `chess-perft --moves` (the library's generator, compiled, in the order
+of `legalMoves`) and are checked against python-chess as sets.

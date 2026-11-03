@@ -13,6 +13,11 @@ The program prints `fen ` followed by the position written back by `Position.toF
 depth of at least 1, the divide: one line `<uci> <count>` per entry of `legalMoves`, in the
 generator's order (`perftDivide`); and last the line `perft <depth> <count>`.
 
+With the single argument `--moves` it reads one FEN per line from standard input and prints, for
+each, one line: the position written back, a tab, and its `legalMoves` in the generator's order as
+UCI separated by spaces (`error` for a line that is not a canonical FEN of a sane position). The
+certificate generators use this to list many positions with one process.
+
 ## Implementation notes
 
 * Nothing here is trusted or proved: the program runs `parseFEN` and `perftDivide` of the
@@ -43,10 +48,27 @@ def perftReport (p : Position) (n : Nat) : List String :=
   let total := if n = 0 then 1 else (d.map (·.2)).sum
   [s!"fen {p.toFEN}"] ++ d.map (fun (m, c) => s!"{m.toUCI} {c}") ++ [s!"perft {n} {total}"]
 
+/-- The `--moves` mode: for each FEN read from standard input, the position written back and its
+legal moves in the generator's order. -/
+def movesMode : IO UInt32 := do
+  let stdin ← IO.getStdin
+  let stdout ← IO.getStdout
+  repeat
+    let line ← stdin.getLine
+    if line.isEmpty then break
+    match parseFEN line.trimAsciiEnd.toString with
+    | some p =>
+      let q := p.tabulate
+      stdout.putStrLn s!"{q.toFEN}\t{" ".intercalate ((legalMoves q).map Move.toUCI)}"
+    | none => stdout.putStrLn "error"
+    stdout.flush
+  return 0
+
 /-- Reads the FEN (all arguments but the last, joined by spaces) and the depth (the last
 argument), and prints `perftReport` of the tabulated position; exits with code 1 on a bad command
 line. -/
 def main (args : List String) : IO UInt32 := do
+  if args == ["--moves"] then return ← movesMode
   match args.reverse with
   | depth :: fenRev@(_ :: _) =>
     let s := " ".intercalate fenRev.reverse

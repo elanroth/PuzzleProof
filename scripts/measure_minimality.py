@@ -44,15 +44,20 @@ class OutOfTime(Exception):
 
 
 class Prover:
+    """The search. Every proof is a node `(tag, position, budget)` whose proof is stored once and
+    never changed: "a" the attacker to move, "d" the defender to move (both: the attacker does not
+    win within the budget), "m" the defender, to move, mates within the budget. A node refers only
+    to nodes completed before it, so the certificate is a DAG."""
+
     def __init__(self, deadline, engine, mate_depth):
         self.deadline, self.engine, self.mate_depth = deadline, engine, mate_depth
         self.calls = 0
-        # Refutations: key -> budget refuted (INF when it holds for every budget), and the proof:
-        # ("att", [child keys]) or ("dfd", kind, [child keys]).
-        self.att_ok, self.dfd_ok, self.att_bad, self.dfd_bad = {}, {}, {}, {}
+        # Per position: the largest budget refuted so far (INF: every budget), the smallest found
+        # not refutable, and the smallest forced-mate distance found.
+        self.att_ok, self.dfd_ok, self.att_bad, self.dfd_bad, self.mate_best = {}, {}, {}, {}, {}
+        # Per node: ("att", [(move, child)]), ("dfd", kind, [child], reply or None), or for "m"
+        # nodes (move, [(reply, child)]).
         self.proof = {}
-        # The defender's own forced mates: key -> (j, [child keys]) or None.
-        self.mates = {}
         self.hints = {}
 
     def tick(self):
@@ -71,92 +76,103 @@ class Prover:
             self.hints[key] = (pv[0] if pv else None, score.mate() if score.is_mate() else None)
         return self.hints[key]
 
-    # The side to move forces mate within j of its own moves (every reply searched).
+    def finish(self, node, proof, table):
+        self.proof[node] = proof
+        table[node[1]] = max(table.get(node[1], -1), node[2])
+        return node
+
+    # The side to move forces mate within j of its own moves, every reply searched.
     def mate_within(self, b, j):
         self.tick()
-        key = ("m", b.epd())
-        if key in self.mates and self.mates[key] is not None and self.mates[key][0] <= j:
-            return True
+        key = b.epd()
+        if self.mate_best.get(key, INF) <= j:
+            return ("m", key, self.mate_best[key])
         if j == 0:
-            return False
+            return None
         best, _ = self.hint(b) if j >= 2 else (None, None)
-        moves = sorted(b.legal_moves, key=lambda m: (m != best, not b.gives_check(m)))
-        for m in moves:
+        for m in sorted(b.legal_moves, key=lambda m: (m != best, not b.gives_check(m))):
             b.push(m)
             if b.is_checkmate():
                 b.pop()
-                self.mates[key] = (1, [])
-                return True
+                return self.record_mate(("m", key, 1), (m.uci(), []))
             ok, kids = j > 1 and any(True for _ in b.legal_moves), []
             if ok:
                 for r in list(b.legal_moves):
                     b.push(r)
-                    ok = self.mate_within(b, j - 1)
-                    if ok:
-                        kids.append(("m", b.epd()))
+                    c = self.mate_within(b, j - 1)
                     b.pop()
-                    if not ok:
+                    if c is None:
+                        ok = False
                         break
+                    kids.append((r.uci(), c))
             b.pop()
             if ok:
-                self.mates[key] = (j, kids)
-                return True
-        return False
+                return self.record_mate(("m", key, j), (m.uci(), kids))
+        return None
+
+    def record_mate(self, node, proof):
+        self.proof[node] = proof
+        self.mate_best[node[1]] = min(self.mate_best.get(node[1], INF), node[2])
+        return node
 
     def attacker(self, b, n):
         self.tick()
-        key = ("a", b.epd())
+        key = b.epd()
         if self.att_ok.get(key, -1) >= n:
-            return True
+            return ("a", key, self.att_ok[key])
         if self.att_bad.get(key, INF) <= n:
-            return False
+            return None
         if n == 0:
-            self.att_ok[key], self.proof[key] = 0, ("att", [])
-            return True
+            return self.finish(("a", key, 0), ("att", []), self.att_ok)
         kids = []
         for m in list(b.legal_moves):
             b.push(m)
-            ok = self.defender(b, n - 1)
-            kids.append(("d", b.epd()))
+            c = self.defender(b, n - 1)
             b.pop()
-            if not ok:
+            if c is None:
                 self.att_bad[key] = min(self.att_bad.get(key, INF), n)
-                return False
-        self.att_ok[key], self.proof[key] = n, ("att", kids)
-        return True
+                return None
+            kids.append((m.uci(), c))
+        return self.finish(("a", key, n), ("att", kids), self.att_ok)
 
     def defender(self, b, k):
         self.tick()
-        key = ("d", b.epd())
+        key = b.epd()
         if self.dfd_ok.get(key, -1) >= k:
-            return True
+            return ("d", key, self.dfd_ok[key])
         if self.dfd_bad.get(key, INF) <= k:
-            return False
+            return None
         if b.is_checkmate():
             self.dfd_bad[key] = 0
-            return False
-        def done(kind, kids, budget=INF):
-            self.dfd_ok[key], self.proof[key] = budget, ("dfd", kind, kids)
-            return True
+            return None
+        def done(kind, kids, budget=INF, move=None):
+            return self.finish(("d", key, budget), ("dfd", kind, kids, move), self.dfd_ok)
         if not any(True for _ in b.legal_moves):
             return done("defender stalemated", [])
         if k == 0:
             return done("budget 0", [], 0)
-        if self.mate_within(b, 1):
-            return done("defender mates in 1", [("m", b.epd())])
+        c = self.mate_within(b, 1)
+        if c:
+            return done("defender mates in 1", [c])
         best, mate = self.hint(b)
-        if mate is not None and 0 < mate <= self.mate_depth and self.mate_within(b, mate):
-            return done(f"defender mates in {mate}", [("m", b.epd())])
-        moves = sorted(b.legal_moves, key=lambda m: (m != best, not b.gives_check(m)))
-        for m in moves:
+        if mate is not None and 0 < mate <= self.mate_depth:
+            c = self.mate_within(b, mate)
+            if c:
+                return done(f"defender mates in {c[2]}", [c])
+        for m in sorted(b.legal_moves, key=lambda m: (m != best, not b.gives_check(m))):
             b.push(m)
-            ok = self.attacker(b, k)
-            child = ("a", b.epd())
+            c = self.attacker(b, k)
             b.pop()
-            if ok:
-                return done("one reply", [child], k)
+            if c:
+                return done("one reply", [c], k, m.uci())
         self.dfd_bad[key] = min(self.dfd_bad.get(key, INF), k)
-        return False
+        return None
+
+    def kids(self, node):
+        pr = self.proof[node]
+        if node[0] == "m":
+            return [c for _, c in pr[1]]
+        return [c for _, c in pr[1]] if pr[0] == "att" else pr[2]
 
     def certificate(self, root):
         """The DAG reachable from the root: its nodes, tree size, leaves, listed moves, in-degrees."""
@@ -168,40 +184,38 @@ class Prover:
                 continue
             seen.add(node)
             order.append(node)
-            if node[0] == "m":
-                kids = self.mates[node][1]
-                listed += len(kids)
+            pr = self.proof[node]
+            if node[0] == "m" or pr[0] == "att":
+                listed += len(pr[1])
             else:
-                pr = self.proof[node]
-                kids = pr[1] if pr[0] == "att" else pr[2]
-                if pr[0] == "att":
-                    listed += len(kids)
-                else:
-                    leaves[pr[1]] += 1
-            for c in kids:
+                leaves[pr[1]] += 1
+            for c in self.kids(node):
                 indeg[c] += 1
                 stack.append(c)
         size = {}
-        for node in reversed(order):
-            kids = self.mates[node][1] if node[0] == "m" else (
-                self.proof[node][1] if self.proof[node][0] == "att" else self.proof[node][2])
-            size[node] = 1 + sum(size.get(c, 1) for c in kids)
+        def tree(node):
+            if node not in size:
+                size[node] = 1 + sum(tree(c) for c in self.kids(node))
+            return size[node]
+        tree(root)
         return {"dag_nodes": len(seen), "dag_mate_nodes": sum(1 for s in seen if s[0] == "m"),
+                "dag_positions": len({s[1] for s in seen}),
                 "tree_nodes": size[root], "moves_listed": listed, "leaves": dict(leaves),
-                "most_parents": [(c, k[0], k[1]) for k, c in indeg.most_common(8)]}
+                "most_parents": [(c, k[0], k[1], k[2]) for k, c in indeg.most_common(8)]}
 
 
 def measure(fen, n, limit, engine, mate_depth):
     p = Prover(time.monotonic() + limit, engine, mate_depth)
     t = time.monotonic()
     try:
-        ok = p.attacker(chess.Board(fen), n)
+        root = p.attacker(chess.Board(fen), n)
+        ok = root is not None
     except OutOfTime:
-        ok = None
+        root, ok = None, None
     row = {"budget": n, "refuted": ok, "seconds": round(time.monotonic() - t, 1),
            "search_calls": p.calls}
     if ok:
-        row.update(p.certificate(("a", chess.Board(fen).epd())))
+        row.update(p.certificate(root))
     return row
 
 

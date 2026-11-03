@@ -24,3 +24,10 @@ root = "ChessPerft"
 [[lean_lib]]
 name = "ChessDemo"
 leanOptions = { Elab.async = false }
+
+# Lower bounds proved by generated certificates (`scripts/gen_bound.py`): every module under
+# `ChessDemoBound/`, `lake build ChessDemoBound`. Not a default target: the Gotham bound takes long.
+[[lean_lib]]
+name = "ChessDemoBound"
+globs = ["ChessDemoBound.+"]
+leanOptions = { Elab.async = false }

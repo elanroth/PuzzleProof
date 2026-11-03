@@ -1187,6 +1187,21 @@ searcher never enters the trusted base (*game-theory* §5, the certifying-algori
 - **Meta.** D1/D2. Stage 5. The Hurd/Marzion route to verified 3–4 piece tables: checked with forward
   move generation only, so no un-move generator enters the trusted base.
 
+### C8 Per-node lower bounds
+
+- **English.** "The attacker does not win within `n`", checked one node at a time: with the attacker
+  to move and budget 0 it holds; with budget `n + 1`, every available move (an explicit move list)
+  leads to a state where it holds with budget `n`; with the defender to move, it holds when the
+  defender is not mated and one move escapes to a state where it holds, when the defender is
+  stalemated, when the budget is 0, or when the defender itself wins within some budget. With
+  `Forces.mono`, winning within `n + 1` and not within `n` is `MateIn (n + 1)`.
+- **Lean.** `Game.not_winsIn_zero_of_turn`, `not_winsIn_succ_of_moves_eq`, `not_winsIn_of_escape`,
+  `not_winsIn_zero_of_defender`, `not_winsIn_of_stalemate`, `not_winsIn_of_winsIn_other`,
+  `not_winsIn_forall_mem_nil`, `not_winsIn_forall_mem_cons`, `not_winsIn_mono`,
+  `MateIn.of_winsIn_of_not`, in `Chess/Game/Cert.lean`, section `Bounds`.
+- **Evidence.** `ChessDemoBound.GothamMateIn.gotham_mateIn`: the Gotham puzzle is mate in exactly 11,
+  the lower half by a generated certificate (`scripts/gen_bound.py`, `docs/research/minimality.md`).
+
 ### C7 ★ The only-move checker
 
 - **English.** Given a state, a proposed best move with a win certificate, and, for every other legal
@@ -1453,6 +1468,7 @@ definitions, and both ends (the semantics at the top, the rules at the bottom) e
 | C2 | `checkWin_complete` | checker completeness | D1 |
 | C3 | per-node glue lemmas | proof engineering | D0/D1 |
 | C7 | `checkOnlyMove_sound` (opponent-win refutations) | checker soundness | D1 |
+| C8 | per-node glue for lower bounds (`not_winsIn_*`, `MateIn.of_winsIn_of_not`) | proof engineering | D0/D1 |
 | O2 | `OnlyWinningMove.wins_iff` | optimality (first rung) | D1 |
 
 **Demonstration that closes Stage 1.** Re-prove the prototype's GothamChess results on the new

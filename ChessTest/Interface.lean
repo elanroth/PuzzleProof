@@ -217,3 +217,64 @@ info: Chess.uci (s : String) (h : (Chess.parseUCI s).isSome = true := by decide 
 /-- info: Chess.Puzzles.gotham : Chess.Position -/
 #guard_msgs in #check Chess.Puzzles.gotham
 
+/-! ### Lower bounds (THEOREMS C8) -/
+
+/--
+info: Chess.Game.not_winsIn_zero_of_turn {G : Chess.Game} {a : Chess.Color} {x : G.State} (ht : G.turn x = a) :
+  ¬G.WinsIn a 0 x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_zero_of_turn
+/--
+info: Chess.Game.not_winsIn_succ_of_moves_eq {G : Chess.Game} {a : Chess.Color} {n : Nat} {x : G.State} {ms : List G.Move}
+  (ht : G.turn x = a) (hl : G.moves x = ms) (h : ∀ (m : G.Move), m ∈ ms → ¬G.WinsIn a n (G.play x m)) :
+  ¬G.WinsIn a (n + 1) x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_succ_of_moves_eq
+/--
+info: Chess.Game.not_winsIn_of_escape {G : Chess.Game} {a : Chess.Color} {n : Nat} {x y : G.State} {m : G.Move}
+  (ht : G.turn x = a.other) (hnm : ¬G.Mated x) (hm : m ∈ G.moves x) (h : G.play x m = y) (w : ¬G.WinsIn a n y) :
+  ¬G.WinsIn a n x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_of_escape
+/--
+info: Chess.Game.not_winsIn_zero_of_defender {G : Chess.Game} {a : Chess.Color} {x : G.State} (ht : G.turn x = a.other)
+  (hnm : ¬G.Mated x) : ¬G.WinsIn a 0 x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_zero_of_defender
+/--
+info: Chess.Game.not_winsIn_of_stalemate {G : Chess.Game} {a : Chess.Color} {n : Nat} {x : G.State} (hnm : ¬G.Mated x)
+  (hl : G.moves x = []) : ¬G.WinsIn a n x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_of_stalemate
+/--
+info: Chess.Game.not_winsIn_of_winsIn_other {G : Chess.Game} {a : Chess.Color} {n k : Nat} {x : G.State}
+  (w : G.WinsIn a.other k x) : ¬G.WinsIn a n x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_of_winsIn_other
+/--
+info: Chess.Game.not_winsIn_forall_mem_nil {G : Chess.Game} {a : Chess.Color} {n : Nat} {x : G.State} (m' : G.Move) :
+  m' ∈ [] → ¬G.WinsIn a n (G.play x m')
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_forall_mem_nil
+/--
+info: Chess.Game.not_winsIn_forall_mem_cons {G : Chess.Game} {a : Chess.Color} {n : Nat} {x y : G.State} {m : G.Move}
+  {ms : List G.Move} (h : G.play x m = y) (w : ¬G.WinsIn a n y)
+  (t : ∀ (m' : G.Move), m' ∈ ms → ¬G.WinsIn a n (G.play x m')) (m' : G.Move) :
+  m' ∈ m :: ms → ¬G.WinsIn a n (G.play x m')
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_forall_mem_cons
+/--
+info: Chess.Game.not_winsIn_mono {G : Chess.Game} {a : Chess.Color} {n k : Nat} {x : G.State} (h : ¬G.WinsIn a n x)
+  (hk : k ≤ n) : ¬G.WinsIn a k x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.not_winsIn_mono
+/--
+info: Chess.Game.MateIn.of_winsIn_of_not {G : Chess.Game} {a : Chess.Color} {n : Nat} {x : G.State} (w : G.WinsIn a (n + 1) x)
+  (h : ¬G.WinsIn a n x) : G.MateIn a (n + 1) x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.MateIn.of_winsIn_of_not
+/--
+info: Chess.Game.Forces.mono {G : Chess.Game} {a : Chess.Color} {T : G.State → Prop} {n n' : Nat} {x : G.State}
+  (w : G.Forces a T n x) (hn : n ≤ n') : G.Forces a T n' x
+-/
+#guard_msgs (whitespace := lax) in #check Chess.Game.Forces.mono
