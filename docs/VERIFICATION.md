@@ -264,6 +264,24 @@ generated certificates, `ChessDemoBound/Tests/NoMoves` and `ChessDemoBound/Tests
 (`ChessDemoBound/Tests.lean`), which build with the standard axioms. The build-time figures are
 from one machine.
 
+**Final state of the night (commit `271d414` and its successor that records this paragraph).**
+
+* *Full rebuild.* `lake build Chess ChessTest ChessDemo ChessDemoBound chess-perft`, from a state
+  in which `Chess.MoveGen` had changed (so every target rebuilt): 226 jobs, 39 min wall on 10 cores,
+  3.5 CPU-hours, peak 2.5 GB, no errors, no warnings.
+* *Independent kernel replay.* `leanchecker` (Lean 4.28.0's replay of the compiled declarations
+  through a fresh kernel) on every module of `Chess`, `ChessDemo` and `ChessDemoBound`, 192 modules:
+  192 OK, 0 failures (28 min with 8 in parallel). This includes all 159 files of the Gotham lower
+  bound, the headline `ChessDemoBound.GothamMateIn` and `Chess.MoveGen` with M5 and M8.
+* *Reviews.* Four rounds of independent review on the night's diffs (bug checks 1–4: Lean
+  soundness, Python tooling, docs against code, the fix commits, a repo-wide claims audit, the M5
+  and M8 proofs). None found a soundness defect; every documentation, measurement and tooling
+  finding is fixed in the commits after `4a7880f`.
+* *Proved during the night, beyond mate in exactly 11.* M5, `legalMoves_nodup` (the generator lists
+  no move twice), and M8, `perft_eq_length_lines` with `mem_lines`, `lines_nodup` and
+  `perft_eq_length_of_mem_iff` (perft is the number of legal move sequences), all with their axioms
+  in `ChessTest.Axioms`.
+
 **Full rebuild after the fixes.** `lake build Chess ChessTest ChessDemo ChessDemoBound chess-perft`
 after `Chess.ChessGame` stopped importing `Chess.Game.Examples` (which rebuilt everything): 216
 jobs, 38 min wall, 3.5 CPU-hours, peak 3.4 GB (the test library), no errors, no warnings.
