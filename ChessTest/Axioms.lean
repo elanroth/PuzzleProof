@@ -231,11 +231,8 @@ info: 'Chess.PseudoLegal.mem_candidates' depends on axioms:
 #guard_msgs in #print axioms Chess.legalMoves_complete
 /-- info: 'Chess.mem_legalMoves' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Chess.mem_legalMoves
-/--
-info: 'Chess.perft_eq_length_lines' depends on axioms:
-  [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs (whitespace := lax) in #print axioms Chess.perft_eq_length_lines
+/-- info: 'Chess.perft_eq_length_lines' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Chess.perft_eq_length_lines
 /-- info: 'Chess.legalMoves_nodup' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Chess.legalMoves_nodup
 /-- info: 'Chess.checkmate_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
