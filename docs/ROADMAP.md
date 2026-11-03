@@ -533,6 +533,18 @@ Stages 3–5.
      `docs/TRUSTED.md` listing, per trusted module, the definitions an auditor reads. Optional.
    - `docs/reviews/Spec.Winning.md` cites "FIDE 1.4.2 / 5.1.1" for checkmate; it is a dated review
      and was left as written (the definition is 1.4 and 1.4.1).
+7b. ✅ **(Done, 2026-11-03.) The exact distance of the Gotham puzzle.** `MateIn .black 11
+   Puzzles.gotham` and `SpecMateIn` (`ChessDemoBound/GothamMateIn.lean`), kernel only. The lower
+   half, `¬ WinsIn .black 10 Puzzles.gotham`, is a generated certificate (`scripts/gen_bound.py`,
+   `ChessDemoBound/Gotham10/`, 24,994 node theorems) that refutes every Black move at every Black
+   turn, with new per-node glue in `Chess.Game.Cert` section `Bounds` (THEOREMS C8, toy tests
+   T21–T25, signatures in `ChessTest.Interface`). Method and measurements:
+   `docs/research/minimality.md`. Reviewed by three independent reviewers (Lean soundness, the
+   Python tooling, the docs against the code): no soundness defect; the documentation and
+   measurement errors they found are fixed (`docs/VERIFICATION.md` §9). `Chess.ChessGame` now imports
+   the parts of `Chess.Game` it uses, not its examples, so editing a test no longer rebuilds the
+   certificates. Open: checkmate checks are about 40% of the 4.5 CPU-hours of the build (a faster
+   pseudo-legality filter, minimality.md "Next steps").
 8. **Stage 2 remainder.** M5 (`legalMoves` `Nodup`; needed only for M8, perft as a counting
    theorem, if G7 morphisms are stated by membership, as Game review C4 recommends). R3 attack
    symmetry (done in step 6). R6 colour flip and M9. `Chess/Invariants.lean` with `WellFormed`, `Reachable`, R7

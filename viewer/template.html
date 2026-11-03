@@ -144,7 +144,7 @@ pre .ln.mark { background: var(--hl); }
 <div class="app">
   <header>
     <h1>Gotham Mate in 11</h1>
-    <p class="sub">Black to move and win. Every move below is checked by the Lean kernel.</p>
+    <p class="sub">Black to move mates in exactly 11, proved in Lean: within 11, and not within 10. Every move below is checked by the Lean kernel.</p>
     <label class="pick">Black's first move
       <select id="line"></select>
     </label>
@@ -377,7 +377,7 @@ function renderProof() {
 function renderControls() {
   $("first").disabled = $("prev").disabled = state.ply === 0;
   $("last").disabled = $("next").disabled = state.ply === line.length - 1;
-  $("count").textContent = `Move ${state.ply} of ${line.length - 1}`;
+  $("count").textContent = `Half-move ${state.ply} of ${line.length - 1}`;
   const playing = timer !== null;
   $("play").setAttribute("aria-label", playing ? "Pause" : "Play");
   $("play").title = playing ? "Pause (space)" : "Play (space)";

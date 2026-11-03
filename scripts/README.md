@@ -118,10 +118,11 @@ python -I scripts/measure_minimality.py --max-budget 11 --stockfish /opt/homebre
 
 Run it from the library's root, with python-chess. It only counts: for each budget n it builds a
 certificate for "the side to move cannot force mate within n", with every move of that side
-searched. Stockfish is optional and only orders the other side's replies and says where to try a
-quick forced mate; a suggestion is kept only if the search then succeeds. See
-`docs/research/minimality.md` for the method and the Gotham numbers (about 21k positions at
-n = 10, 22 s).
+searched. Stockfish orders the other side's replies and says where, and how deep, to try a quick
+forced mate of the other side; a suggestion is kept only if the search then succeeds. Without it
+only mates in 1 are tried as shortcuts, and the Gotham search does not finish n = 9 in practice. See
+`docs/research/minimality.md` for the method and the Gotham numbers (16,388 nodes over 12,836
+positions at n = 10, 8 s).
 
 ## gen_bound.py
 
@@ -132,8 +133,8 @@ python -I scripts/gen_bound.py --fen "2b2bk1/1r3rp1/p2p3R/q2Np2Q/4Pp1B/2p2P2/PPP
 ```
 
 Run it from the library's root, after `lake build chess-perft`. It runs the search of
-`measure_minimality.py` (every move of the side to move searched; Stockfish optional, only ordering
-the other side's candidates) and writes one theorem per (position, budget) node, each checking one
+`measure_minimality.py` (every move of the side to move searched; Stockfish guiding only the other
+side's candidates, and in practice needed) and writes one theorem per (position, budget) node, each checking one
 position by `decide +kernel` and chained by the glue of `Chess.Game.Cert` (sections `PerNode` and
 `Bounds`). Files are grouped by height in the DAG, so that `lake` builds files of one height in
 parallel. Move lists come from `chess-perft --moves` (the library's generator, compiled, in the order

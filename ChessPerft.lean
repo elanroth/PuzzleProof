@@ -16,7 +16,7 @@ generator's order (`perftDivide`); and last the line `perft <depth> <count>`.
 With the single argument `--moves` it reads one FEN per line from standard input and prints, for
 each, one line: the position written back, a tab, and its `legalMoves` in the generator's order as
 UCI separated by spaces (`error` for a line that is not a canonical FEN of a sane position). The
-certificate generators use this to list many positions with one process.
+lower-bound generator `scripts/gen_bound.py` uses this to list many positions with one process.
 
 ## Implementation notes
 
@@ -36,6 +36,7 @@ open Chess
 /-- The text printed for a bad command line. -/
 def usage : String :=
   "usage: chess-perft <FEN> <depth>\n" ++
+  "       chess-perft --moves   (one FEN per line on standard input)\n" ++
   "  prints the FEN as read, the divide (one line '<uci> <count>' per legal move) and\n" ++
   "  the line 'perft <depth> <count>'"
 

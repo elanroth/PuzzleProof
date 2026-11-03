@@ -205,3 +205,55 @@ None of these was acted on.
 
 Scratch logs of this final pass were kept outside the repository (build logs and timings, `Scan.lean`, `count.py`, `Replay.lean`, the perft job files and results,
 and the regenerated certificate).
+
+## 9. Addendum (2026-11-03): mate in exactly 11
+
+**What is proved.** `ChessDemo.gotham_not_winsIn_ten : ¬ WinsIn .black 10 Puzzles.gotham`,
+`ChessDemo.gotham_mateIn : MateIn .black 11 Puzzles.gotham` and `ChessDemo.gotham_specMateIn :
+SpecMateIn .black 11 Puzzles.gotham`, in `ChessDemoBound/GothamMateIn.lean`, each with
+`#print axioms` = `[propext, Classical.choice, Quot.sound]` checked by `#guard_msgs`. The lower half
+is the generated certificate `ChessDemoBound/Gotham10/` (159 files, 24,994 node theorems over
+21,417 checkpoints), chained by the glue of `Chess.Game.Cert` section `Bounds` (THEOREMS C8).
+
+**How it was checked.**
+
+* *Build.* `lake build ChessDemoBound`: 178 jobs, 46 min wall on 10 cores, 4.5 CPU-hours, peak
+  0.9 GB per process.
+* *Bug check 1, three independent reviewers on the diff.*
+  * **Lean soundness:** no defect. The definitions mean mate in 11 as a chess player means it. The
+    ten C8 lemmas are proved from existing laws and add no hypothesis. A search for trust leaks
+    (`sorry`, `native_decide`, `axiom`, `implemented_by`, `extern`, `unsafe`, `set_option`,
+    `opaque`, `macro`/`elab`/`#eval`, …) over the library and all generated files found none.
+    `root_eq` ties the certificate to `Puzzles.gotham`. Spot checks of every node kind passed. A
+    `leanchecker` kernel replay passed on `GothamMateIn`, `Claim`, `Moves` and 11 node modules (not
+    all 159).
+  * **Python tooling:** no soundness issue, since Lean checks everything. The search's semantics
+    match `Forces`, its memos are sound, and the certificate is acyclic. Regenerating `--budget 10`
+    reproduces `ChessDemoBound/Gotham10` byte for byte, and `chess-perft --moves` handles its edge
+    cases. Two defects, both fixed:
+    * the measurement reused one Stockfish hash table across budgets, so the documented n = 10
+      statistics described a different certificate from the proved one; each budget now starts
+      fresh, and the numbers match the proof;
+    * `gen_bound.py` left stale files of an earlier run in its output directory; they are now
+      removed.
+  * **Docs against code:** 11 inaccuracies, all fixed. The most serious were:
+    * Stockfish was called optional, but without it the search does not finish;
+    * the file and equation counts were wrong;
+    * a White node's closings were described incompletely;
+    * the checkmate cost contradicted the total;
+    * a stale "no lower bound" line and a wrong theorem name remained in THEOREMS;
+    * the viewer's counter read "Move 21 of 21" under "mate in 11" (it now counts half-moves).
+* *Outside cross-check (not part of the proof).* Stockfish 19, searching the root alone at depths
+  20, 26 and 32, and with a `mate 10` search to depth 40, reports mate in 11 with 1…Rxb2+ and no
+  shorter mate.
+
+**Not covered.** Two generator paths are not exercised by the Gotham certificate: a defender
+stalemated inside the certificate, and an attacker with no legal move. They are tested on two small
+generated certificates, `ChessDemoBound/Tests/NoMoves` and `ChessDemoBound/Tests/Stalemate`
+(`ChessDemoBound/Tests.lean`), which build with the standard axioms. The build-time figures are
+from one machine.
+
+**Full rebuild after the fixes.** `lake build Chess ChessTest ChessDemo ChessDemoBound chess-perft`
+after `Chess.ChessGame` stopped importing `Chess.Game.Examples` (which rebuilt everything): 216
+jobs, 38 min wall, 3.5 CPU-hours, peak 3.4 GB (the test library), no errors, no warnings.
+

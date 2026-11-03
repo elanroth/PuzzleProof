@@ -1193,13 +1193,13 @@ searcher never enters the trusted base (*game-theory* §5, the certifying-algori
   to move and budget 0 it holds; with budget `n + 1`, every available move (an explicit move list)
   leads to a state where it holds with budget `n`; with the defender to move, it holds when the
   defender is not mated and one move escapes to a state where it holds, when the defender is
-  stalemated, when the budget is 0, or when the defender itself wins within some budget. With
-  `Forces.mono`, winning within `n + 1` and not within `n` is `MateIn (n + 1)`.
+  stalemated, when the budget is 0, or when the defender itself wins within some budget. Winning
+  within `n + 1` and not within `n` is `MateIn (n + 1)` (`mateIn_succ_iff`).
 - **Lean.** `Game.not_winsIn_zero_of_turn`, `not_winsIn_succ_of_moves_eq`, `not_winsIn_of_escape`,
   `not_winsIn_zero_of_defender`, `not_winsIn_of_stalemate`, `not_winsIn_of_winsIn_other`,
   `not_winsIn_forall_mem_nil`, `not_winsIn_forall_mem_cons`, `not_winsIn_mono`,
   `MateIn.of_winsIn_of_not`, in `Chess/Game/Cert.lean`, section `Bounds`.
-- **Evidence.** `ChessDemoBound.GothamMateIn.gotham_mateIn`: the Gotham puzzle is mate in exactly 11,
+- **Evidence.** `ChessDemo.gotham_mateIn` (in `ChessDemoBound/GothamMateIn.lean`): the Gotham puzzle is mate in exactly 11,
   the lower half by a generated certificate (`scripts/gen_bound.py`, `docs/research/minimality.md`).
 
 ### C7 ★ The only-move checker
@@ -1477,7 +1477,8 @@ prototype could not state), and `OnlyWinningMove gotham best`, each in a **[kern
 `#print axioms` recorded.
 
 *Done (2026-11-02, ROADMAP step 7)*, with one change of claim: `WinsIn .black 11 Puzzles.gotham`
-(Black is to move; within 11, not exactly 11: no lower bound is proved) and
+(Black is to move; within 11, and since 2026-11-03 exactly 11: `ChessDemo.gotham_mateIn` in
+`ChessDemoBound/GothamMateIn.lean`, its lower half by C8) and
 `OnlyWinningMove Puzzles.gotham (uci "b7b2")`, both [kernel], in `ChessDemo/Gotham.lean`, also
 read through G8, with the refutations behind the only move stated too (`gotham_refuted`: after
 each other move of Black, White forces mate); exact `MateIn` is proved for three small mates (`ChessDemo/Mates.lean`): the mates in 1 and 2 by search, the mate in 3 by a certificate for the win and a search for minimality.

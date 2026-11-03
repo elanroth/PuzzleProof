@@ -70,7 +70,7 @@
   {
    "budget": 2,
    "refuted": true,
-   "seconds": 0.1,
+   "seconds": 0.0,
    "search_calls": 135,
    "dag_nodes": 131,
    "dag_mate_nodes": 34,
@@ -137,7 +137,7 @@
   {
    "budget": 3,
    "refuted": true,
-   "seconds": 0.3,
+   "seconds": 0.1,
    "search_calls": 325,
    "dag_nodes": 314,
    "dag_mate_nodes": 163,
@@ -205,20 +205,19 @@
   {
    "budget": 4,
    "refuted": true,
-   "seconds": 0.3,
-   "search_calls": 577,
-   "dag_nodes": 538,
-   "dag_mate_nodes": 256,
-   "dag_positions": 400,
-   "tree_nodes": 557,
-   "moves_listed": 408,
+   "seconds": 0.2,
+   "search_calls": 603,
+   "dag_nodes": 560,
+   "dag_mate_nodes": 233,
+   "dag_positions": 398,
+   "tree_nodes": 579,
+   "moves_listed": 404,
    "leaves": {
-    "defender mates in 2": 10,
-    "defender mates in 1": 124,
-    "one reply": 8,
-    "defender mates in 4": 1,
-    "defender mates in 3": 3,
-    "budget 0": 127
+    "defender mates in 2": 12,
+    "defender mates in 1": 146,
+    "one reply": 10,
+    "budget 0": 144,
+    "defender mates in 3": 4
    },
    "most_parents": [
     [
@@ -274,20 +273,20 @@
   {
    "budget": 5,
    "refuted": true,
-   "seconds": 0.5,
-   "search_calls": 1110,
-   "dag_nodes": 1041,
-   "dag_mate_nodes": 450,
-   "dag_positions": 785,
-   "tree_nodes": 1066,
-   "moves_listed": 790,
+   "seconds": 0.3,
+   "search_calls": 1123,
+   "dag_nodes": 1054,
+   "dag_mate_nodes": 491,
+   "dag_positions": 797,
+   "tree_nodes": 1079,
+   "moves_listed": 803,
    "leaves": {
     "defender mates in 2": 18,
     "defender mates in 1": 227,
-    "one reply": 21,
-    "defender mates in 4": 2,
+    "one reply": 20,
+    "defender mates in 4": 3,
     "defender mates in 3": 5,
-    "budget 0": 296
+    "budget 0": 269
    },
    "most_parents": [
     [
@@ -343,20 +342,89 @@
   {
    "budget": 6,
    "refuted": true,
-   "seconds": 1.2,
-   "search_calls": 2361,
-   "dag_nodes": 2143,
-   "dag_mate_nodes": 1104,
-   "dag_positions": 1617,
-   "tree_nodes": 2446,
-   "moves_listed": 1681,
+   "seconds": 0.8,
+   "search_calls": 2362,
+   "dag_nodes": 2170,
+   "dag_mate_nodes": 1178,
+   "dag_positions": 1654,
+   "tree_nodes": 2329,
+   "moves_listed": 1704,
    "leaves": {
-    "defender mates in 2": 43,
-    "defender mates in 1": 453,
-    "one reply": 44,
-    "defender mates in 4": 11,
+    "defender mates in 2": 41,
+    "defender mates in 1": 439,
+    "one reply": 41,
+    "defender mates in 4": 12,
     "defender mates in 3": 15,
-    "budget 0": 432
+    "budget 0": 405
+   },
+   "most_parents": [
+    [
+     3,
+     "m",
+     "2b2bk1/4r1p1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     3,
+     "m",
+     "2b2bk1/3r2p1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     3,
+     "m",
+     "2b2bk1/2r3p1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     3,
+     "m",
+     "2b2bk1/r5p1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     2,
+     "m",
+     "2b3k1/4brp1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     2,
+     "m",
+     "5bk1/3b1rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     2,
+     "m",
+     "5bk1/1b3rp1/p2p3R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ],
+    [
+     2,
+     "m",
+     "5bk1/5rp1/p2pb2R/3Np2Q/4Pp1B/2p2P2/K1P4P/6R1 w - -",
+     1
+    ]
+   ]
+  },
+  {
+   "budget": 7,
+   "refuted": true,
+   "seconds": 1.3,
+   "search_calls": 4004,
+   "dag_nodes": 3462,
+   "dag_mate_nodes": 1994,
+   "dag_positions": 2584,
+   "tree_nodes": 5226,
+   "moves_listed": 2900,
+   "leaves": {
+    "defender mates in 2": 69,
+    "defender mates in 1": 711,
+    "one reply": 65,
+    "defender mates in 4": 26,
+    "defender mates in 3": 36,
+    "budget 0": 499
    },
    "most_parents": [
     [
@@ -385,95 +453,26 @@
     ],
     [
      3,
-     "d",
-     "2b2bk1/5rp1/p2p3R/q2Np2Q/4Pp1B/3K1P2/7P/6R1 w - -",
-     0
-    ],
-    [
-     3,
-     "d",
-     "2b2bk1/5rp1/p2p3R/3Np2Q/2q1Pp1B/3K1P2/7P/6R1 w - -",
-     0
-    ],
-    [
-     3,
-     "d",
-     "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/q2K1P2/7P/6R1 w - -",
-     0
-    ],
-    [
-     3,
-     "d",
-     "2b2bk1/5rp1/p2p3R/3Np2Q/4Pp1B/3K1P2/2q4P/6R1 w - -",
-     0
-    ]
-   ]
-  },
-  {
-   "budget": 7,
-   "refuted": true,
-   "seconds": 2.4,
-   "search_calls": 4064,
-   "dag_nodes": 3474,
-   "dag_mate_nodes": 1853,
-   "dag_positions": 2577,
-   "tree_nodes": 5199,
-   "moves_listed": 2957,
-   "leaves": {
-    "defender mates in 2": 70,
-    "defender mates in 1": 706,
-    "one reply": 71,
-    "defender mates in 4": 24,
-    "defender mates in 3": 35,
-    "budget 0": 646
-   },
-   "most_parents": [
-    [
-     4,
      "m",
      "2b3k1/4brp1/p2p3R/3Np2Q/4Pp1B/5P2/2K4P/6R1 w - -",
      1
     ],
     [
-     4,
+     3,
      "m",
      "5bk1/3b1rp1/p2p3R/3Np2Q/4Pp1B/5P2/2K4P/6R1 w - -",
      1
     ],
     [
-     4,
+     3,
      "m",
      "5bk1/1b3rp1/p2p3R/3Np2Q/4Pp1B/5P2/2K4P/6R1 w - -",
      1
     ],
     [
-     4,
+     3,
      "m",
      "5bk1/5rp1/p2pb2R/3Np2Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     4,
-     "m",
-     "5bk1/5rp1/p2p3R/3Npb1Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     4,
-     "m",
-     "5bk1/5rp1/p2p3R/3Np2Q/4PpbB/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     4,
-     "m",
-     "5bk1/5rp1/p2p3R/3Np2Q/4Pp1B/5P1b/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     4,
-     "m",
-     "2b2bk1/4r1p1/p2p3R/3Np2Q/4Pp1B/5P2/2K4P/6R1 w - -",
      1
     ]
    ]
@@ -481,215 +480,215 @@
   {
    "budget": 8,
    "refuted": true,
-   "seconds": 7.3,
-   "search_calls": 10287,
-   "dag_nodes": 8422,
-   "dag_mate_nodes": 4186,
-   "dag_positions": 6687,
-   "tree_nodes": 164963,
-   "moves_listed": 7821,
+   "seconds": 2.5,
+   "search_calls": 7105,
+   "dag_nodes": 5985,
+   "dag_mate_nodes": 3394,
+   "dag_positions": 4478,
+   "tree_nodes": 16563,
+   "moves_listed": 5265,
    "leaves": {
-    "defender mates in 2": 137,
-    "defender mates in 1": 1205,
-    "one reply": 326,
-    "defender mates in 4": 72,
-    "defender mates in 3": 95,
-    "budget 0": 2096
+    "defender mates in 2": 123,
+    "defender mates in 1": 1097,
+    "one reply": 134,
+    "defender mates in 4": 46,
+    "defender mates in 3": 68,
+    "budget 0": 996
    },
    "most_parents": [
     [
-     7,
-     "d",
-     "2b3k1/5rb1/p2p2Qp/4p3/1N2Pp1B/2p2P2/P1P4P/K5R1 w - -",
-     0
-    ],
-    [
-     7,
+     6,
      "m",
      "5bk1/2Nb2p1/p2p3R/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     7,
+     6,
      "m",
      "5bk1/2N3p1/p2p3R/4pb1Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     7,
+     6,
      "m",
      "5bk1/2N3p1/p2p3R/4p2Q/4PpbB/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     7,
+     6,
      "m",
      "5bk1/2N3p1/p2p3R/4p2Q/4Pp1B/2K2P1b/7P/6R1 w - -",
      1
     ],
     [
-     6,
-     "d",
-     "2b2bk1/5r2/p2p3p/3Np2Q/4Pp1B/2p2P2/P1P4P/K4R2 w - -",
-     1
-    ],
-    [
-     6,
+     5,
      "m",
      "2b3k1/2N1b1p1/p2p3R/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     6,
+     5,
      "m",
      "5bk1/1bN3p1/p2p3R/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
+    ],
+    [
+     5,
+     "m",
+     "5bk1/2N3p1/p2pb2R/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
+     1
+    ],
+    [
+     5,
+     "m",
+     "2b2bk1/2N5/p2p2pR/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
+     2
     ]
    ]
   },
   {
    "budget": 9,
    "refuted": true,
-   "seconds": 9.7,
-   "search_calls": 12614,
-   "dag_nodes": 10128,
-   "dag_mate_nodes": 5073,
-   "dag_positions": 7703,
-   "tree_nodes": 139691,
-   "moves_listed": 9528,
+   "seconds": 3.7,
+   "search_calls": 10083,
+   "dag_nodes": 8297,
+   "dag_mate_nodes": 4124,
+   "dag_positions": 6391,
+   "tree_nodes": 142210,
+   "moves_listed": 7502,
    "leaves": {
-    "defender mates in 2": 194,
-    "defender mates in 1": 1657,
-    "one reply": 328,
-    "defender mates in 4": 63,
-    "defender mates in 3": 129,
-    "budget 0": 2378
+    "defender mates in 2": 166,
+    "defender mates in 1": 1342,
+    "one reply": 295,
+    "defender mates in 4": 53,
+    "defender mates in 3": 105,
+    "budget 0": 1935
    },
    "most_parents": [
     [
-     6,
+     5,
      "m",
-     "2b3k1/2N1b1p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
+     "5bk1/2Nb2p1/p2p3R/4p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     6,
+     5,
      "m",
-     "5bk1/2Nb2p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
+     "5bk1/2N3p1/p2p3R/4pb1Q/4Pp1B/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     6,
+     5,
      "m",
-     "5bk1/1bN3p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
+     "5bk1/2N3p1/p2p3R/4p2Q/4PpbB/2K2P2/7P/6R1 w - -",
      1
     ],
     [
-     6,
+     5,
      "m",
-     "5bk1/2N3p1/p2pb2R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
+     "5bk1/2N3p1/p2p3R/4p2Q/4Pp1B/2K2P1b/7P/6R1 w - -",
      1
     ],
     [
-     6,
-     "m",
-     "5bk1/2N3p1/p2p3R/4pb1Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
+     5,
+     "d",
+     "2b2bk1/2N3p1/p2p3R/4p2Q/1q2Pp1B/5P2/2K4P/6R1 w - -",
+     1000000
     ],
     [
-     6,
-     "m",
-     "5bk1/2N3p1/p2p3R/4p2Q/4PpbB/5P2/2K4P/6R1 w - -",
-     1
+     5,
+     "d",
+     "2b2bk1/2N3p1/p2p3R/4p2Q/4Pp1B/2q2P2/2K4P/6R1 w - -",
+     1000000
     ],
     [
-     6,
-     "m",
-     "5bk1/2N3p1/p2p3R/4p2Q/4Pp1B/5P1b/2K4P/6R1 w - -",
-     1
+     5,
+     "d",
+     "2b2bk1/2N3p1/p2p3R/4p2Q/4Pp1B/5P2/1qK4P/6R1 w - -",
+     1000000
     ],
     [
-     6,
-     "m",
-     "2b2bk1/2N5/p2p2pR/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     2
+     5,
+     "d",
+     "2b2bk1/2N3p1/p2p3R/q3p2Q/4Pp1B/2K2P2/7P/6R1 w - -",
+     4
     ]
    ]
   },
   {
    "budget": 10,
    "refuted": true,
-   "seconds": 20.3,
-   "search_calls": 27676,
-   "dag_nodes": 21756,
-   "dag_mate_nodes": 12221,
-   "dag_positions": 16912,
-   "tree_nodes": 1645064,
-   "moves_listed": 21019,
+   "seconds": 8.2,
+   "search_calls": 21190,
+   "dag_nodes": 16388,
+   "dag_mate_nodes": 8851,
+   "dag_positions": 12836,
+   "tree_nodes": 4474564,
+   "moves_listed": 16200,
    "leaves": {
-    "defender mates in 2": 546,
-    "defender mates in 1": 2796,
-    "one reply": 751,
-    "defender mates in 4": 213,
-    "defender mates in 3": 409,
-    "budget 0": 4126
+    "defender mates in 2": 354,
+    "defender mates in 1": 2149,
+    "one reply": 614,
+    "defender mates in 4": 202,
+    "defender mates in 3": 250,
+    "budget 0": 3397
    },
    "most_parents": [
     [
+     14,
+     "m",
+     "5b1k/1r6/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
+     1
+    ],
+    [
+     12,
+     "m",
+     "1r3b1k/8/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
+     1
+    ],
+    [
+     11,
+     "m",
+     "5b1k/8/p2p1NQp/4pP2/5p2/1rp2P2/P1P4P/K3R3 w - -",
+     1
+    ],
+    [
+     11,
+     "m",
+     "5b1k/7r/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
+     1
+    ],
+    [
+     11,
+     "m",
+     "5b1k/3r4/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
+     1
+    ],
+    [
      10,
-     "d",
-     "2b2bk1/2N3p1/p2p3R/4p2Q/4Pp1B/2q2P2/2K4P/6R1 w - -",
-     1000000
-    ],
-    [
-     9,
      "m",
-     "2b3k1/2N1b1p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
+     "5b1k/8/p2p1NQp/1r2pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
      1
     ],
     [
-     9,
+     10,
      "m",
-     "5bk1/2Nb2p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
+     "5b1k/8/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/Kr2R3 w - -",
+     2
     ],
     [
-     9,
+     10,
      "m",
-     "5bk1/1bN3p1/p2p3R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     9,
-     "m",
-     "5bk1/2N3p1/p2pb2R/4p2Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     9,
-     "m",
-     "5bk1/2N3p1/p2p3R/4pb1Q/4Pp1B/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     9,
-     "m",
-     "5bk1/2N3p1/p2p3R/4p2Q/4PpbB/5P2/2K4P/6R1 w - -",
-     1
-    ],
-    [
-     9,
-     "m",
-     "5bk1/2N3p1/p2p3R/4p2Q/4Pp1B/5P1b/2K4P/6R1 w - -",
-     1
+     "5b1k/6r1/p2p1NQp/4pP2/5p2/2p2P2/P1P4P/K3R3 w - -",
+     2
     ]
    ]
   },
   {
    "budget": 11,
    "refuted": false,
-   "seconds": 17.9,
-   "search_calls": 28537
+   "seconds": 7.1,
+   "search_calls": 21225
   }
  ]
 }

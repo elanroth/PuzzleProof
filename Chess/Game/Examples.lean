@@ -170,6 +170,37 @@ example : takeAway.WinsIn .white 2 (.white, 4) :=
   Forces.move_of_play_eq rfl (by decide)
     (by decide : takeAway.play (.white, 4) 1 = (.black, 3)) w3
 
+/-- From a pile of 4 with White to move, White does not win within 1, proved node by node with the
+lower-bound glue alone (T21): White's two moves are listed, and after each one Black, to move and
+not mated, has the budget 0 against it. -/
+theorem takeAway_not_winsIn_one : ¬ takeAway.WinsIn .white 1 (.white, 4) :=
+  not_winsIn_succ_of_moves_eq rfl (by decide : takeAway.moves (.white, 4) = [1, 2]) <|
+    not_winsIn_forall_mem_cons (by decide : takeAway.play (.white, 4) 1 = (.black, 3))
+      (not_winsIn_zero_of_defender rfl (by decide)) <|
+    not_winsIn_forall_mem_cons (by decide : takeAway.play (.white, 4) 2 = (.black, 2))
+      (not_winsIn_zero_of_defender rfl (by decide)) not_winsIn_forall_mem_nil
+
+-- T22. With T1, the two halves give the exact distance T2.
+example : takeAway.MateIn .white 2 (.white, 4) :=
+  MateIn.of_winsIn_of_not (by decide) takeAway_not_winsIn_one
+
+-- T23. One escape: from 4 with Black to move, Black takes 1, and from 3 White does not win within
+-- 1 (by search); so White does not win within 1.
+example : ¬ takeAway.WinsIn .white 1 (.black, 4) :=
+  not_winsIn_of_escape rfl (by decide) (by decide : 1 ∈ takeAway.moves (.black, 4))
+    (by decide : takeAway.play (.black, 4) 1 = (.white, 3)) (by decide)
+
+-- T24. The defender's own win: White wins from 4 (T1), so Black does not win within any budget.
+example : ¬ takeAway.WinsIn .black 3 (.white, 4) :=
+  not_winsIn_of_winsIn_other (a := .black) (by decide : takeAway.WinsIn .white 2 (.white, 4))
+
+-- T25. Stalemate: Black to move facing an empty pile is not mated in `takeAwayStalemate`, so
+-- nobody wins, at any budget; and the budget can be lowered (`not_winsIn_mono`).
+example (n : Nat) : ¬ takeAwayStalemate.WinsIn .white n (.black, 0) :=
+  not_winsIn_of_stalemate (by decide) (by decide)
+example : ¬ takeAway.WinsIn .white 0 (.white, 4) :=
+  not_winsIn_mono takeAway_not_winsIn_one (by decide)
+
 end Toy
 
 end Game

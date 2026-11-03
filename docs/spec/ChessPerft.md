@@ -36,11 +36,22 @@ At depth 0 there is no divide. A bad command line (not a FEN of a sane position,
 not a natural number, or fewer than two arguments) prints a message and the usage to standard error
 and exits with code 1.
 
+With the single argument `--moves` (added 2026-11-03 for `scripts/gen_bound.py`), the program reads
+one FEN per line from standard input and prints one line per FEN: the position written back by
+`Position.toFEN`, a tab, and its `legalMoves` in the generator's order as UCI separated by spaces
+(nothing after the tab when there is no legal move). A line that is not a canonical FEN of a sane
+position prints `error`. It stops at the end of the input.
+
 ## 1. Definitions
 
 ### D1.1 `usage : String`
 
 Docstring: "The text printed for a bad command line."
+
+### D1.1a `movesMode : IO UInt32`
+
+Docstring: "The `--moves` mode: for each FEN read from standard input, the position written back and
+its legal moves in the generator's order."
 
 ### D1.2 `perftReport (p : Position) (n : Nat) : List String`
 

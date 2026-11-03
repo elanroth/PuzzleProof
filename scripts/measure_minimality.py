@@ -24,12 +24,18 @@ Stockfish (if given) only orders the defender's candidate moves and says which p
 the forced mate on. It cannot make anything pass: a reply it suggests is kept only if the search
 above refutes every attacker move after it.
 
-Positions are shared: a position refuted with budget n is refuted for every smaller budget, so a
-certificate is a DAG. For each n the script prints the DAG's size (the positions a Lean file would
-need, one theorem each), the size of the same certificate written out as a tree, how the leaves
-close, how many legal moves the attacker nodes list in all (each is a `decide +kernel` fact in
-Lean), and the time taken. The JSON written with --out has the same numbers and the positions with
-the most parents in the DAG.
+A certificate node is a (position, budget) pair with its own proof, stored once and never changed;
+a node refers only to nodes finished before it, so the certificate is a DAG. For each n the script
+prints the number of nodes (one Lean theorem each, apart from the extra nodes `gen_bound.py` adds
+for the position after each of the defender's mating moves), the number of distinct positions as
+python-chess writes them (`epd`, en passant only when a capture is legal; Lean's checkpoints also
+distinguish en passant targets, so they can be more), the size of the same certificate written
+out as a tree, how the defender nodes close ("one reply" is not a leaf: the search continues after
+it), how many legal moves the attacker nodes list in all (each is a `decide +kernel` fact in Lean),
+and the time taken. The JSON written with --out has the same numbers and the nodes with the most
+parents, written (count, kind, position, budget) with the budget 1000000 standing for "every
+budget". Stockfish starts each budget's search with an empty hash table, so each row is the
+certificate `gen_bound.py` writes for that budget.
 """
 import argparse, collections, json, time
 import chess
@@ -59,6 +65,9 @@ class Prover:
         # nodes (move, [(reply, child)]).
         self.proof = {}
         self.hints = {}
+        # A new game for the engine, so that Stockfish starts with an empty hash table: its hints
+        # (and so the certificate) then depend only on this search, not on earlier ones.
+        self.game = object()
 
     def tick(self):
         self.calls += 1
@@ -71,7 +80,7 @@ class Prover:
             return None, None
         key = b.epd()
         if key not in self.hints:
-            info = self.engine.analyse(b, chess.engine.Limit(depth=12))
+            info = self.engine.analyse(b, chess.engine.Limit(depth=12), game=self.game)
             pv, score = info.get("pv"), info["score"].relative
             self.hints[key] = (pv[0] if pv else None, score.mate() if score.is_mate() else None)
         return self.hints[key]

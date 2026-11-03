@@ -13,9 +13,11 @@ reading with the rules alone (`SpecMateIn`, G8).
 * The lower bound is the generated certificate `ChessDemoBound.Gotham10`, written by
   `scripts/gen_bound.py`: 24,994 node theorems over 21,417 positions. At every Black turn it lists
   every legal Black move (`Game.chess.moves p = [...]`, by `decide +kernel`) and refutes each one;
-  at every White turn it gives one escape, or a forced mate of White's own, checked with every
-  Black reply. Stockfish only suggested which White moves to try; every Black move is covered
-  whatever it suggested. The method and its measurements are in `docs/research/minimality.md`.
+  at every White turn it closes the branch by one escape, by a forced mate of White's own (checked
+  with every Black reply), by stalemate, or because Black has no moves left in the budget.
+  Stockfish guided only White's side (which escape to try, where to look for White's mates);
+  every Black move is covered whatever it suggested. The method and its measurements are in
+  `docs/research/minimality.md`.
 * Kernel only, like the rest of the demo: the axioms are `propext`, `Classical.choice` and
   `Quot.sound`, checked below.
 -/

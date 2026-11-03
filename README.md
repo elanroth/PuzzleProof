@@ -13,7 +13,7 @@ with the Lean kernel as the checker. Both are now proved, kernel only, in `Chess
 (mate in 11 and not in 10), in `ChessDemoBound/GothamMateIn.lean`: its lower half is a generated
 certificate that refutes every Black move at every Black turn
 ([`docs/research/minimality.md`](docs/research/minimality.md)). All of these come with their reading through the rules alone
-(`SpecWinsIn`, `SpecOnlyWinningMove`). The trusted file under that reading,
+(`SpecWinsIn`, `SpecOnlyWinningMove`, `SpecMateIn`). The trusted file under that reading,
 `Chess/Spec/Winning.lean`, and the bridge `Chess/ChessGame/Fide.lean` have had an independent review
 (`docs/reviews/G8_REVIEW.md`: no soundness defect). Stockfish is only an untrusted source of
 certificates.
@@ -21,11 +21,12 @@ The rules of chess are written as a readable specification. Every definition has
 docstring, and that docstring also appears in `docs/spec/`. Executable code (the move generator,
 the search, the certificate checkers) is linked to the specification by proved theorems.
 
-Lean 4.28.0, core and Std only (no Mathlib). Status (2026-11-02, after a clean rebuild):
-`lake build` (7.4 s), `lake build ChessTest` (161 s), `lake build ChessDemo` (165 s) and
-`lake build chess-perft` are green. There is no `sorry`, no `axiom` and no `native_decide`
-anywhere, and every declaration of the three libraries uses only `propext`, `Classical.choice` and
-`Quot.sound`. The duplicate-free listing of `legalMoves` (M5) is tested, not proved. See
+Lean 4.28.0, core and Std only (no Mathlib). Status (2026-11-03, after a full rebuild of every
+target: 216 jobs, 38 min on 10 cores): `lake build`, `lake build ChessTest`, `lake build ChessDemo`,
+`lake build ChessDemoBound` and `lake build chess-perft` are green, with no warnings. There is no
+`sorry`, no `axiom` and no `native_decide` anywhere, and every headline theorem uses only `propext`,
+`Classical.choice` and `Quot.sound` (checked by `#guard_msgs` in `ChessDemo.Axioms`,
+`ChessDemoBound.GothamMateIn` and `ChessTest.Axioms`). The duplicate-free listing of `legalMoves` (M5) is tested, not proved. See
 [`docs/VERIFICATION.md`](docs/VERIFICATION.md) for what was proved, tested and audited, and
 [`docs/ROADMAP.md`](docs/ROADMAP.md) for where things stand and what comes next.
 

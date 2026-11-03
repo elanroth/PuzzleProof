@@ -1,5 +1,6 @@
 import Chess.MoveGen
-import Chess.Game
+import Chess.Game.Search
+import Chess.Game.Cert
 
 /-!
 # ChessGame

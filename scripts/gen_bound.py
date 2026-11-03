@@ -220,6 +220,11 @@ def header(module, imports, doc):
 def write(out_dir, module, em, root_name, root_have, root_budget, root_expr, root_imports, chunk,
           att):
     os.makedirs(out_dir, exist_ok=True)
+    # Remove the files of an earlier run, which would otherwise be built with the new ones.
+    for f in os.listdir(out_dir):
+        if f.endswith(".lean") and (f in ("Moves.lean", "Claim.lean") or f[:3] == "Pos"
+                                    or (f[0] == "N" and f[1].isdigit())):
+            os.remove(os.path.join(out_dir, f))
     base = os.path.basename(os.path.normpath(out_dir))
     mod = lambda f: f"{module}.{f}"
     files = {}

@@ -136,7 +136,7 @@ module docstrings are new.
    L4.17–L4.22); `/-! ## Diagnostics -/`: D4.6 (outside `namespace Game`), D4.7–D4.9, then
    `section Diagnostics` (L4.13–L4.14, L4.16).
 6. `Chess/Game/Examples.lean` (imports `Search` and `Cert`): its module docstring;
-   `/-! ## Examples -/`, `namespace Toy`: D5.1–D5.2 and the tests T1–T20.
+   `/-! ## Examples -/`, `namespace Toy`: D5.1–D5.2 and the tests T1–T25 (T21–T25, 2026-11-03: the lower-bound glue L4.23–L4.32 on the toy games).
 
 `Search` and `Cert` do not import each other: a certificate is checked without the search, and the
 search is not needed to state or check any certificate. `Examples` is imported by `Chess/Game.lean`,
