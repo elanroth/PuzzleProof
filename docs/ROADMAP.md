@@ -545,8 +545,8 @@ Stages 3–5.
    the parts of `Chess.Game` it uses, not its examples, so editing a test no longer rebuilds the
    certificates. Open: checkmate checks are about 40% of the 4.5 CPU-hours of the build (a faster
    pseudo-legality filter, minimality.md "Next steps").
-8. **Stage 2 remainder.** M5 (`legalMoves` `Nodup`; needed only for M8, perft as a counting
-   theorem, if G7 morphisms are stated by membership, as Game review C4 recommends). R3 attack
+8. **Stage 2 remainder.** ~~M5 (`legalMoves` `Nodup`)~~ done 2026-11-03 (`legalMoves_nodup`,
+   MoveGen section `NoDuplicates`); M8, perft as a counting theorem, can now use it. R3 attack
    symmetry (done in step 6). R6 colour flip and M9. `Chess/Invariants.lean` with `WellFormed`, `Reachable`, R7
    (material) and R9/R10 (invariants of legal play).
    - **Do not change `parseFEN`'s filter** while doing this, until the owner decides between

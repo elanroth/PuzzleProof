@@ -26,7 +26,7 @@ target: 216 jobs, 38 min on 10 cores): `lake build`, `lake build ChessTest`, `la
 `lake build ChessDemoBound` and `lake build chess-perft` are green, with no warnings. There is no
 `sorry`, no `axiom` and no `native_decide` anywhere, and every headline theorem uses only `propext`,
 `Classical.choice` and `Quot.sound` (checked by `#guard_msgs` in `ChessDemo.Axioms`,
-`ChessDemoBound.GothamMateIn` and `ChessTest.Axioms`). The duplicate-free listing of `legalMoves` (M5) is tested, not proved. See
+`ChessDemoBound.GothamMateIn` and `ChessTest.Axioms`). The generator is proved to list exactly the legal moves (M4) and none twice (M5). See
 [`docs/VERIFICATION.md`](docs/VERIFICATION.md) for what was proved, tested and audited, and
 [`docs/ROADMAP.md`](docs/ROADMAP.md) for where things stand and what comes next.
 

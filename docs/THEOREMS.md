@@ -529,6 +529,7 @@ to prove they agree, so that the readable `Legal` is the only definition a reade
   never a separate constructor that could duplicate it. Each source square is enumerated once.
 - **Why it matters.** Perft *counts*. A duplicated move inflates perft while soundness and completeness
   still hold.
+- **Status (2026-11-03).** Done: `legalMoves_nodup` in `Chess/MoveGen.lean`, section `NoDuplicates`.
 - **Meta.** D1/D2. Stage 2.
 
 ### M6 Checkmate and stalemate are decided by the generator

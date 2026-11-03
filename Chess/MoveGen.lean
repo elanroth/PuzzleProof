@@ -20,7 +20,7 @@ every definition below carries the docstring given there.
   `Board.superpieceAttackedBy`).
 * `perft`, `perftDivide`: the standard move-path counts, for comparison with other programs.
 * `legalMovesBySpec`, `agreesWithLegal`: the legal moves found from the specification alone, and a
-  test that the generator agrees with them; since M4 only its no-repeat half (M5) is informative.
+  test that the generator agrees with them; since M4 and M5 a computed cross-check only.
 
 ## Main statements
 
@@ -38,8 +38,11 @@ every definition below carries the docstring given there.
 * `candidates_ignores_epTarget`: the candidates do not read the en passant target.
 * `perft_one`, `sum_perftDivide`: perft of depth 1 counts `legalMoves`, and the divide adds up to
   perft of one more ply.
-* (M5 at one position) `nodup_legalMoves_of_agreesWithLegal`: where the test `agreesWithLegal`
-  passes, `legalMoves` lists no move twice.
+* (M5) `legalMoves_nodup`: `legalMoves` lists no move twice, from `candidates_nodup` (moves from
+  different squares differ; from one square the targets are distinct, by facts about the 64
+  squares decided once by the kernel, such as `Square.not_mem_ray_of_mem_ray`).
+* `nodup_legalMoves_of_agreesWithLegal`: M5 at one position from the test; superseded by
+  `legalMoves_nodup`.
 
 ## Implementation notes
 
@@ -65,7 +68,7 @@ every definition below carries the docstring given there.
 * Completeness (M4: every legal move is listed) goes through one geometric cover lemma,
   `PseudoLegal.mem_candidates`: a case split over the six rules with no reasoning about checks,
   pins or blockers. Nothing in this module is trusted: `legalMoves` lists exactly the legal moves.
-  That it lists none twice (M5) is still only tested (`agreesWithLegal`).
+  That it lists none twice is proved too (M5, `legalMoves_nodup`, 2026-11-03).
 -/
 
 namespace Chess
@@ -430,6 +433,167 @@ instance (priority := high) Stalemate.decidableByGen (p : Position) : Decidable 
 
 end Completeness
 
+/-! ## No duplicates -/
+
+section NoDuplicates
+
+/-! The generator lists no move twice (M5). Moves from different source squares differ, and from
+one square the targets are distinct: knight jumps, king steps and a pawn's targets land on distinct
+squares, and the rays of different directions share no square. These facts about the 64 squares
+are decided once, by the kernel; the rest is about lists. -/
+
+/-- Filtering keeps a list free of duplicates. -/
+private theorem nodup_filter {α : Type} {l : List α} (f : α → Bool) (h : l.Nodup) :
+    (l.filter f).Nodup :=
+  h.sublist List.filter_sublist
+
+/-- An injective map keeps a list free of duplicates. -/
+private theorem nodup_map {α β : Type} {l : List α} {f : α → β}
+    (hf : ∀ a b, f a = f b → a = b) (h : l.Nodup) : (l.map f).Nodup := by
+  unfold List.Nodup at *
+  rw [List.pairwise_map]
+  exact h.imp fun hab e => hab (hf _ _ e)
+
+/-- A `flatMap` has no duplicates when each part has none and parts of different entries share no
+element. -/
+private theorem nodup_flatMap {α β : Type} {l : List α} {f : α → List β}
+    (h1 : ∀ a ∈ l, (f a).Nodup) (h2 : l.Pairwise fun a b => ∀ x ∈ f a, x ∉ f b) :
+    (l.flatMap f).Nodup := by
+  induction l with
+  | nil => exact List.nodup_nil
+  | cons a l ih =>
+    rw [List.flatMap_cons, List.nodup_append]
+    obtain ⟨ha, hl⟩ := List.pairwise_cons.1 h2
+    refine ⟨h1 a (List.mem_cons_self ..), ih (fun b hb => h1 b (List.mem_cons_of_mem a hb)) hl, ?_⟩
+    rintro x hx y hy rfl
+    obtain ⟨b, hb, hyb⟩ := List.mem_flatMap.1 hy
+    exact ha b hb x hx hyb
+
+/-- `upToBlocker` keeps a sublist of the squares it is given. -/
+theorem Board.upToBlocker_sublist (b : Board) : ∀ l : List Square, (b.upToBlocker l).Sublist l
+  | [] => List.Sublist.slnil
+  | t :: ts => by
+    unfold Board.upToBlocker
+    split
+    · exact (Board.upToBlocker_sublist b ts).cons₂ t
+    · exact (List.nil_sublist ts).cons₂ t
+
+/-- Rays from one square in different directions share no square. -/
+theorem Square.not_mem_ray_of_mem_ray {s t : Square} {d d' : Direction} (h : d ≠ d')
+    (ht : t ∈ s.ray d) : t ∉ s.ray d' :=
+  (by decide +kernel : ∀ s ∈ Square.all, ∀ d ∈ Direction.all, ∀ d' ∈ Direction.all, d ≠ d' →
+      ∀ t ∈ s.ray d, t ∉ s.ray d')
+    s (Square.mem_all s) d (Direction.mem_all d) d' (Direction.mem_all d') h t ht
+
+/-- The squares a slider reaches from `s`, over all its directions, are distinct; so are a pawn's
+diagonal targets, a knight's jumps and a king's steps. -/
+theorem reachTargets_nodup (k : Kind) (c : Color) (b : Board) (s : Square) :
+    (reachTargets k c b s).Nodup := by
+  cases k
+  case pawn =>
+    exact (by decide +kernel : ∀ c ∈ Color.all, ∀ s ∈ Square.all,
+      ([s.offset (-1) c.forward, s.offset 1 c.forward].filterMap id).Nodup)
+      c (Color.mem_all c) s (Square.mem_all s)
+  case knight =>
+    exact (by decide +kernel : ∀ s ∈ Square.all,
+      (knightJumps.filterMap fun j => s.offset j.1 j.2).Nodup) s (Square.mem_all s)
+  case king =>
+    exact (by decide +kernel : ∀ s ∈ Square.all,
+      (Direction.all.filterMap fun d => s.shift d 1).Nodup) s (Square.mem_all s)
+  all_goals
+    refine nodup_flatMap (fun d _ => (b.upToBlocker_sublist _).nodup Square.ray_nodup) ?_
+    refine List.Pairwise.imp (fun hne x hx hx' => Square.not_mem_ray_of_mem_ray hne
+      ((b.upToBlocker_sublist _).subset hx) ((b.upToBlocker_sublist _).subset hx')) ?_
+    decide
+
+variable {p : Position} {m : Move}
+
+/-- A pawn move list has no duplicates. -/
+theorem pawnMovesTo_nodup (c : Color) (s t : Square) : (pawnMovesTo c s t).Nodup := by
+  unfold pawnMovesTo
+  split
+  · exact nodup_map (fun _ _ h => by cases h; rfl) PromoKind.all_nodup
+  · exact List.pairwise_singleton _ _
+
+/-- Every candidate from `s` starts on `s`. -/
+theorem src_of_mem_candidatesFrom {s : Square} (h : m ∈ candidatesFrom p s) : m.src = s := by
+  unfold candidatesFrom at h
+  split at h
+  · split at h
+    · split at h
+      · obtain ⟨t, -, ht⟩ := List.mem_flatMap.1 h
+        exact (mem_pawnMovesTo.1 ht).1
+      · obtain ⟨t, -, rfl⟩ := List.mem_map.1 h
+        rfl
+    · simp at h
+  · simp at h
+
+/-- The candidates from one square are distinct. -/
+theorem candidatesFrom_nodup (p : Position) (s : Square) : (candidatesFrom p s).Nodup := by
+  unfold candidatesFrom
+  split
+  · split
+    · split
+      · refine nodup_flatMap (fun t _ => pawnMovesTo_nodup _ _ t) ?_
+        refine List.Pairwise.imp (fun hne m hm hm' => hne ?_) ((by decide +kernel :
+          ∀ c ∈ Color.all, ∀ s ∈ Square.all, (pawnTargets c s).Nodup)
+          p.turn (Color.mem_all _) s (Square.mem_all s))
+        exact (mem_pawnMovesTo.1 hm).2.1.symm.trans (mem_pawnMovesTo.1 hm').2.1
+      · exact nodup_map (fun _ _ h => by cases h; rfl) (reachTargets_nodup ..)
+    · exact List.nodup_nil
+  · exact List.nodup_nil
+
+/-- The castling candidates are distinct, and none of them is the move of a king from its home
+square to an adjacent square, so none is also a candidate from a square. -/
+theorem castleCandidates_nodup (p : Position) : (castleCandidates p).Nodup := by
+  unfold castleCandidates
+  split
+  · exact nodup_map (fun w w' h => (by decide : ∀ c ∈ Color.all, ∀ w ∈ Wing.all, ∀ w' ∈ Wing.all,
+      Move.castle c w = Move.castle c w' → w = w') p.turn (Color.mem_all _) w (Wing.mem_all w) w'
+      (Wing.mem_all w') h) (nodup_filter _ Wing.all_nodup)
+  · exact List.nodup_nil
+
+/-- A castling candidate is not a candidate from any square. -/
+theorem not_mem_candidatesFrom_of_mem_castleCandidates {s : Square}
+    (h : m ∈ castleCandidates p) : m ∉ candidatesFrom p s := by
+  intro h'
+  unfold castleCandidates at h
+  split at h
+  · next hk =>
+    obtain ⟨w, -, rfl⟩ := List.mem_map.1 h
+    have hs := src_of_mem_candidatesFrom h'
+    simp only [Move.castle] at hs
+    subst hs
+    simp only [candidatesFrom, hk, ↓reduceIte, List.mem_map, reduceCtorEq] at h'
+    obtain ⟨t, ht, he⟩ := h'
+    simp only [Move.castle, Move.mk.injEq] at he
+    rw [he.2.1] at ht
+    exact (by decide +kernel : ∀ c ∈ Color.all, ∀ w ∈ Wing.all, kingCastleSquare c w ∉
+      (Direction.all.filterMap fun d => (kingHome c).shift d 1)) p.turn (Color.mem_all _) w
+      (Wing.mem_all w) ht
+  · simp at h
+
+/-- The candidates of a position are distinct. -/
+theorem candidates_nodup (p : Position) : (candidates p).Nodup := by
+  unfold candidates
+  rw [List.nodup_append]
+  refine ⟨nodup_flatMap (fun s _ => candidatesFrom_nodup p s) ?_, castleCandidates_nodup p, ?_⟩
+  · exact Square.all_nodup.imp fun hne m hm hm' =>
+      hne ((src_of_mem_candidatesFrom hm).symm.trans (src_of_mem_candidatesFrom hm'))
+  · rintro m hm m' hm' rfl
+    obtain ⟨s, -, hs⟩ := List.mem_flatMap.1 hm
+    exact not_mem_candidatesFrom_of_mem_castleCandidates hm' hs
+
+/-- **The pseudo-legal moves of `p` are listed without duplicates.** -/
+theorem pseudoMoves_nodup (p : Position) : (pseudoMoves p).Nodup :=
+  nodup_filter _ (candidates_nodup p)
+
+/-- **The legal moves of `p` are listed without duplicates (M5).** -/
+theorem legalMoves_nodup (p : Position) : (legalMoves p).Nodup :=
+  nodup_filter _ (pseudoMoves_nodup p)
+
+end NoDuplicates
+
 /-! ## Perft -/
 
 /-- The number of ways to choose `n` moves one after another from `p`, each an entry of
@@ -477,8 +641,9 @@ def legalMovesBySpec (p : Position) : List Move :=
 
 /-- The generator agrees with the specification on `p`: every move `legalMovesBySpec` finds is
 listed by `legalMoves`, and `legalMoves` lists no move twice. (That every listed move is legal is a
-theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, the first half holds at every position, so
-only the second, M5 at `p`, still tests anything.) -/
+theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, and M5, `legalMoves_nodup`, both halves
+hold at every position, so the test now only cross-checks the generator against the specification
+by computation.) -/
 def agreesWithLegal (p : Position) : Bool :=
   (legalMovesBySpec p).all (· ∈ legalMoves p) && decide (legalMoves p).Nodup
 

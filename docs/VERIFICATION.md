@@ -189,7 +189,7 @@ None of these was acted on.
   F1 (the definitions are meant for positions where the side not to move is not in check) and the
   F4 nits are now documented. Still open from it: F2, a parser-free statement of the Gotham board,
   and F3, the kernel stalling on `∀ r, Legal p r → …`. `Chess.Puzzles` has no file-level review.
-- **M5 (`legalMoves` has no duplicates) is tested only.** M4 and M6 are proved.
+- ~~M5 (`legalMoves` has no duplicates) is tested only.~~ Proved 2026-11-03: `legalMoves_nodup` (§9). M4 and M6 are proved.
 - **Owner decisions:**
   - the `WinsIn`/`SpecWinsIn` naming;
   - whether `fen`'s filter stays `Sane` or gains `WellFormed` (notation-4);
@@ -246,6 +246,13 @@ is the generated certificate `ChessDemoBound/Gotham10/` (159 files, 24,994 node 
 * *Outside cross-check (not part of the proof).* Stockfish 19, searching the root alone at depths
   20, 26 and 32, and with a `mate 10` search to depth 40, reports mate in 11 with 1…Rxb2+ and no
   shorter mate.
+
+**M5 proved.** `Chess.legalMoves_nodup : ∀ p, (legalMoves p).Nodup` (`Chess/MoveGen.lean`, section
+`NoDuplicates`), standard axioms. The geometric facts it needs (rays in different directions are
+disjoint, knight jumps, king steps and pawn targets from one square are distinct, a castling
+destination is not adjacent to the king's home) are decided by the kernel once over all 64 squares
+(about 6 s of the library's build); the rest is about lists. So `perft` counts sequences of legal
+moves without duplicates, as the perft tests assumed.
 
 **Not covered.** Two generator paths are not exercised by the Gotham certificate: a defender
 stalemated inside the certificate, and an attacker with no legal move. They are tested on two small

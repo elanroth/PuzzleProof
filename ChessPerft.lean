@@ -37,7 +37,7 @@ open Chess
 def usage : String :=
   "usage: chess-perft <FEN> <depth>\n" ++
   "       chess-perft --moves   (one FEN per line on standard input)\n" ++
-  "  prints the FEN as read, the divide (one line '<uci> <count>' per legal move) and\n" ++
+  "  the first form prints the FEN as read, the divide (one line '<uci> <count>' per legal move) and\n" ++
   "  the line 'perft <depth> <count>'"
 
 /-- The lines printed for position `p` at depth `n`: the FEN as read, the divide when `n` is at

@@ -13,8 +13,8 @@ File: `Chess/MoveGen.lean`. Depends on: `Chess.Rules` (and through it `Chess.Pos
 `Chess.Basic`); core only. Does **not** import `Chess.Game`. Refines DESIGN §5.7 and §8.4. Theorem
 targets here: **M1** (target lists mean `Reaches`), **M4** in both halves (`legalMoves_sound`,
 `legalMoves_complete`, `mem_legalMoves`), **M2** and **M6** through one cover lemma (§7), and the
-perft definitions and equations that **M7**'s tests use. Planned in `Chess/MoveGen/Correct.lean`:
-**M5**.
+perft definitions and equations that **M7**'s tests use. **M5** (`legalMoves_nodup`) is proved in this
+file too, section `NoDuplicates` (2026-11-03), not in a separate `Chess/MoveGen/Correct.lean`.
 
 What a reader must trust from this module: nothing. That every move it lists is legal is L3.5, by
 the shape of the definitions (design choice 1); that it misses none is the cover L7.1.
@@ -166,8 +166,8 @@ Notes.
 | L1.1 | `t` is listed by `b.upToBlocker l` exactly when, for some `i`, `t` is entry `i` of `l` and every entry before `i` is empty on `b`. | `theorem Board.mem_upToBlocker : t ∈ b.upToBlocker l ↔ ∃ i : Nat, l[i]? = some t ∧ ∀ j < i, l[j]?.bind b = none` | [core] *(checked)* |
 | L1.2 | **The squares listed by `slideTargets d b s` are exactly those a piece sliding from `s` in direction `d` reaches on `b`.** | `theorem mem_slideTargets : t ∈ slideTargets d b s ↔ Slides d b s t` | [core, M1] *(checked)* |
 | L1.3 | **The squares listed by `reachTargets k c b s` are exactly those a piece of kind `k` and colour `c` reaches from `s` on `b`.** | `theorem mem_reachTargets : t ∈ reachTargets k c b s ↔ Reaches k c b s t` | [core, M1] *(checked)* |
-| L1.4 | The squares up to the first blocker are a sublist of the list. | `theorem Board.upToBlocker_sublist (b : Board) (l : List Square) : (b.upToBlocker l).Sublist l` | [later, M5] |
-| L1.5 | A target list names each square once. | `theorem reachTargets_nodup (k : Kind) (c : Color) (b : Board) (s : Square) : (reachTargets k c b s).Nodup` | [later, M5] |
+| L1.4 | The squares up to the first blocker are a sublist of the list. | `theorem Board.upToBlocker_sublist (b : Board) (l : List Square) : (b.upToBlocker l).Sublist l` | core (M5, done 2026-11-03) |
+| L1.5 | A target list names each square once. | `theorem reachTargets_nodup (k : Kind) (c : Color) (b : Board) (s : Square) : (reachTargets k c b s).Nodup` | core (M5, done 2026-11-03) |
 
 Proof notes *(checked)*.
 - L1.1: induction on `l`; in the `cons` case `unfold Board.upToBlocker; split`. The `none` branch is
@@ -342,8 +342,8 @@ pseudo-legal moves *(checked)*.
 |---|---|---|---|
 | L2.1 | **A pawn move list holds exactly the moves from `s` to `t` that obey the promotion rule for colour `c`.** | `theorem mem_pawnMovesTo : m ∈ pawnMovesTo c s t ↔ m.src = s ∧ m.dst = t ∧ m.PromotionRule c` | [core] *(checked)* |
 | L2.2 | A castling to wing `w` is the castling move of the side to move to `w`. | `theorem CastleMove.eq_castle (h : CastleMove p w m) : m = Move.castle p.turn w` | [core] *(checked)* |
-| L2.3 | A candidate from `s` moves from `s`. | `theorem src_of_mem_candidatesFrom (h : m ∈ candidatesFrom p s) : m.src = s` | [later, M5] |
-| L2.4 | The candidates name each move once. | `theorem candidates_nodup (p : Position) : (candidates p).Nodup` | [later, M5] |
+| L2.3 | A candidate from `s` moves from `s`. | `theorem src_of_mem_candidatesFrom (h : m ∈ candidatesFrom p s) : m.src = s` | core (M5, done 2026-11-03) |
+| L2.4 | The candidates name each move once. | `theorem candidates_nodup (p : Position) : (candidates p).Nodup` | core (M5, done 2026-11-03; also `pseudoMoves_nodup`, `legalMoves_nodup`, `castleCandidates_nodup`, `pawnMovesTo_nodup`, `candidatesFrom_nodup`) |
 | L2.5 | The candidates do not read the en passant target: changing it leaves them unchanged. | `theorem candidates_ignores_epTarget (e : Option Square) : candidates { p with epTarget := e } = candidates p` | [core] *(checked, `rfl`)* |
 
 Proof notes *(checked)*. L2.1: `rcases m with ⟨s', t', o⟩; unfold pawnMovesTo Move.PromotionRule;
@@ -579,8 +579,9 @@ def agreesWithLegal (p : Position) : Bool :=
 
 Docstring: "The generator agrees with the specification on `p`: every move `legalMovesBySpec` finds
 is listed by `legalMoves`, and `legalMoves` lists no move twice. (That every listed move is legal is
-a theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, the first half holds at every position, so
-only the second, M5 at `p`, still tests anything.)"
+a theorem, `legalMoves_sound`. Since M4, `mem_legalMoves`, and M5, `legalMoves_nodup`, both halves
+hold at every position, so the test now only cross-checks the generator against the specification
+by computation.)"
 
 Notes. Since M4 (L7.4, `mem_legalMoves`) the first conjunct is true at every position (by `simp
 [List.all_eq_true, mem_legalMovesBySpec, mem_legalMoves]`), so the test checks M5 at `p` and

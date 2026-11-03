@@ -191,13 +191,17 @@ example : ¬ takeAway.WinsIn .white 1 (.black, 4) :=
     (by decide : takeAway.play (.black, 4) 1 = (.white, 3)) (by decide)
 
 -- T24. The defender's own win: White wins from 4 (T1), so Black does not win within any budget.
-example : ¬ takeAway.WinsIn .black 3 (.white, 4) :=
+example (n : Nat) : ¬ takeAway.WinsIn .black n (.white, 4) :=
   not_winsIn_of_winsIn_other (a := .black) (by decide : takeAway.WinsIn .white 2 (.white, 4))
 
 -- T25. Stalemate: Black to move facing an empty pile is not mated in `takeAwayStalemate`, so
--- nobody wins, at any budget; and the budget can be lowered (`not_winsIn_mono`).
+-- nobody wins, at any budget; the budget can be lowered (`not_winsIn_mono`); and an attacker to
+-- move with no budget left does not win (`not_winsIn_zero_of_turn`).
 example (n : Nat) : ¬ takeAwayStalemate.WinsIn .white n (.black, 0) :=
   not_winsIn_of_stalemate (by decide) (by decide)
+example (n : Nat) : ¬ takeAwayStalemate.WinsIn .black n (.black, 0) :=
+  not_winsIn_of_stalemate (by decide) (by decide)
+example : ¬ takeAway.WinsIn .white 0 (.white, 1) := not_winsIn_zero_of_turn rfl
 example : ¬ takeAway.WinsIn .white 0 (.white, 4) :=
   not_winsIn_mono takeAway_not_winsIn_one (by decide)
 

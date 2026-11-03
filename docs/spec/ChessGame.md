@@ -11,7 +11,8 @@ scratch file importing the built `Chess` library (scratchpad only; nothing in th
 written), and is marked *(checked)*. Timings are from that scratch file, on this
 machine, one process at a time.
 
-File: `Chess/ChessGame.lean`. Depends on: `Chess.MoveGen` and `Chess.Game` (and through them
+File: `Chess/ChessGame.lean`. Depends on: `Chess.MoveGen` and `Chess.Game.Search`, `Chess.Game.Cert`
+(not `Chess.Game`, whose examples it does not need, since 2026-11-03) (and through them
 `Chess.Rules`, `Chess.Position`, `Chess.Basic`); core only. Refines DESIGN §6.4 and §8.6. Theorem
 targets here: **G1** (the chess instance) and **M11** except M11.1 (the FEN and UCI readers, sound
 and complete, all proved in Stage 1). **G8** (the chess game means FIDE chess) is proved in its own
@@ -1257,7 +1258,8 @@ Deviations:
 
 ## 11. Checklist for the translator
 
-- `import Chess.MoveGen` and `import Chess.Game`; add `import Chess.ChessGame` to `Chess.lean`.
+- `import Chess.MoveGen`, `import Chess.Game.Search` and `import Chess.Game.Cert`; add
+  `import Chess.ChessGame` to `Chess.lean`.
 - Module docstring `/-! # ChessGame … -/` with `## Main definitions` (`Game.chess`; `WinsIn`,
   `Wins`, `MateIn`, `OnlyWinningMove`; `Position.toFEN`, `Position.fenFields`; `readFEN`,
   `Position.Sane`, `parseFEN`, `fen`; `parseUCI`, `uci`; since Round 4 also `IsFEN`), `## Main

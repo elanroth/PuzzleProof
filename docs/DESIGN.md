@@ -522,16 +522,15 @@ filtered by `Legal`. (Before ROADMAP step 6 the filter was that condition itself
 it to cut the kernel's cost, MoveGen spec design choice 10.) Check masks and pin rays would be later
 optimizations, proved equal to the same filter. `perft` counts leaves of the tree of `legalMoves`
 (M7). The theorems planned for Stage 2 were `mem_legalMoves` (`↔`, not list equality, so move order
-stays free) and `legalMoves_nodup`. `mem_legalMoves` (M4) is proved; `legalMoves_nodup` (M5) is
-still planned, and is checked position by position by the test `agreesWithLegal`.
+stays free) and `legalMoves_nodup`. `mem_legalMoves` (M4) and `legalMoves_nodup` (M5,
+2026-11-03) are both proved.
 
 **Stage 1 testing against the specification.** Because `Legal` is decidable, the test suite checks,
 on every perft test position, both `∀ m ∈ legalMoves p, Legal p m` (soundness) and, by enumerating
 all 64 × 64 × 5 candidate moves, `∀ m, Legal p m → m ∈ legalMoves p` (completeness). This is far
 stronger evidence than perft counts alone, and it tests the generator against the very definition
-M4 relates it to. Since M4 is proved (`mem_legalMoves`), both halves hold at every position; what
-the test `agreesWithLegal` still adds is the check of M5 (no move listed twice) at the tested
-positions.
+M4 relates it to. Since M4 and M5 are proved (`mem_legalMoves`, `legalMoves_nodup`), both halves
+hold at every position; the test `agreesWithLegal` remains as a computed cross-check.
 
 ---
 
@@ -861,7 +860,7 @@ Planned later files, given homes now so that the reviews have fixed targets (not
 
 | File | Stage | Contents |
 |---|---|---|
-| `Chess/MoveGen/Correct.lean` | 2 | Not created yet. M1, M2, M4 and M6 landed in `MoveGen` itself (section `Completeness`); M5 (`legalMoves_nodup`) is still planned here (MoveGen spec §7). |
+| `Chess/MoveGen/Correct.lean` | 2 | Not created yet. M1, M2, M4 and M6 landed in `MoveGen` itself (section `Completeness`); M5 (`legalMoves_nodup`) landed there too (section `NoDuplicates`, 2026-11-03). |
 | `Chess/Invariants.lean` | 2 | `WellFormed`, `Reachable`, R6–R10. Imports `Rules`. |
 | `Chess/Spec/Winning.lean` (done) | 2 | `SpecForces`, `SpecWinsIn`, `SpecWins`, `SpecMateIn`, `SpecOnlyWinningMove`: winning written with `Legal`, `play` and `Checkmate` alone. Imports `Rules` only. Trusted. |
 | `Chess/Game/{Defs,Laws,Search,Cert,Examples}.lean` (done) | 1 | The parts of `Chess.Game`, split at the trust boundary (ROADMAP step 5, Game review C2). `Chess/Game.lean` imports them. |
