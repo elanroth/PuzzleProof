@@ -9,6 +9,7 @@ file that does not compile, or a test that fails, never a false theorem.
 | `perft_jobs.py`, `perft_diff.py` | The differential perft test of `chess-perft` against python-chess (`docs/process/ChessTest.md`). |
 | `check_docstrings.py` | Checks that the docstring of every definition and instance under `Chess/` appears word for word in its `docs/spec/` file; reports theorem docstrings that do not (Rules review C8). |
 | `build_viewer.py` | Builds `viewer/gotham.html`, a page that steps through the Gotham proof, from `ChessDemo/GothamCert.lean`. |
+| `measure_minimality.py` | Measures the proof tree for "the side to move cannot mate within n" (the lower half of `MateIn`); results in `docs/research/minimality.md`. |
 
 Python: any Python 3 with python-chess 1.11 (`pip install chess`); run scripts with `python -I`.
 `gen_cert.py` also needs Stockfish and the compiled program `chess-perft`
@@ -106,3 +107,17 @@ fonts). Open it in a browser, or at https://elanroth.github.io/PuzzleProof/viewe
 board; a menu for Black's first move (Rxb2+, or any of the 33 refuted alternatives); the moves, with
 a link for each other reply the proof also covers; and beside them the Lean source of the node
 theorem that justifies the current move, with the move's line marked.
+
+## measure_minimality.py
+
+```
+python -I scripts/measure_minimality.py --max-budget 11 --stockfish /opt/homebrew/bin/stockfish \
+  --out docs/research/data/minimality-gotham.json
+```
+
+Run it from the library's root, with python-chess. It only counts: for each budget n it builds a
+certificate for "the side to move cannot force mate within n", with every move of that side
+searched. Stockfish is optional and only orders the other side's replies and says where to try a
+quick forced mate; a suggestion is kept only if the search then succeeds. See
+`docs/research/minimality.md` for the method and the Gotham numbers (about 21k positions at
+n = 10, 22 s).

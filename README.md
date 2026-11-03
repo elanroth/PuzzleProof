@@ -123,7 +123,7 @@ the roadmap covers them.
 | `docs/spec/<Module>.md` | English specification of each module, definition by definition. |
 | `docs/process/<Module>.md` | Log of the English↔Lean rounds: what changed and why. |
 | `docs/reviews/<Module>.md` | File-level design reviews: verdicts, concerns, measurements. |
-| `docs/research/*.md` | Background: prior formal work, game theory and Stockfish's role, board representations, Lean engineering, the theorem landscape. |
+| `docs/research/*.md` | Background: prior formal work, game theory and Stockfish's role, board representations, Lean engineering, the theorem landscape; `minimality.md`, the measured size of a proof that Black cannot mate the Gotham puzzle within 10. |
 | `docs/THEOREMS.md`, `docs/DESIGN.md`, `docs/ROADMAP.md` | Target theorems, architecture, plan. |
 | `docs/VERIFICATION.md` | The verification report of 2026-11-02: builds, counts, trust, differential tests, audit findings and their disposition. |
 
