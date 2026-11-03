@@ -35,8 +35,9 @@ carries the docstring given there.
   section "Writing" it uses (`Move.toUCI`, the UCI writer, is in `Chess.Position`). Not the
   generator `legalMoves`, not the game instance `Game.chess`, not the parsers, not the generated
   file, not the engine.
-* No claim says anything about the fifty-move or repetition rules (THEOREMS G15), and none says
-  that 11 is the shortest mate: `MateIn` is not claimed.
+* No claim says anything about the fifty-move or repetition rules (THEOREMS G15). None here says
+  that 11 is the shortest mate; that is `gotham_mateIn` (`MateIn .black 11`) in
+  `ChessDemoBound/GothamMateIn.lean`, whose lower half is a separate generated certificate.
 -/
 
 namespace ChessDemo

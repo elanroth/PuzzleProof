@@ -217,7 +217,7 @@ info: Chess.uci (s : String) (h : (Chess.parseUCI s).isSome = true := by decide 
 /-- info: Chess.Puzzles.gotham : Chess.Position -/
 #guard_msgs in #check Chess.Puzzles.gotham
 
-/-! ### Lower bounds (THEOREMS C8) -/
+/-! ### Lower bounds (THEOREMS C9) -/
 
 /--
 info: Chess.Game.not_winsIn_zero_of_turn {G : Chess.Game} {a : Chess.Color} {x : G.State} (ht : G.turn x = a) :

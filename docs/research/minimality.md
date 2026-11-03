@@ -1,6 +1,6 @@
 # Is 11 the minimum? The proof of "no mate within 10"
 
-2026-11-02. Script: `scripts/measure_minimality.py`. Data: `docs/research/data/minimality-gotham.json`.
+2026-11-02, proof and corrections 2026-11-03. Scripts: `scripts/measure_minimality.py`, `scripts/gen_bound.py`. Data: `docs/research/data/minimality-gotham.json`.
 
 ## The claim and its two halves
 
@@ -130,9 +130,10 @@ in `ChessDemoBound/GothamMateIn.lean`. The lower half is the generated certifica
 | build | 46 min wall, 4.5 CPU-hours, peak 0.9 GB per process (`lake build ChessDemoBound`, 10 cores) |
 
 Each node theorem uses the glue of `Chess.Game.Cert` (sections `PerNode` and `Bounds`, THEOREMS C3
-and C8), `Game.Forces.mono` (3,229 times, to use a forced mate found with a smaller budget),
+and C9), `Game.Forces.mono` (3,229 times, to use a forced mate found with a smaller budget),
 `mem_chess_moves`, literal facts about one position proved by `decide +kernel`, and side
-conditions `k ≤ n` on numbers proved by plain `decide` (74 times). All of it is checked by the
+conditions `k ≤ n` on budgets proved by plain `decide` (3,303 times: 74 for `not_winsIn_mono`, 3,229
+for `Forces.mono`). All of it is checked by the
 kernel; there is no `native_decide`. The checkmate checks are the most expensive kind: about 1.0 s
 each on an idle machine, so about 1.9 of the 4.5 CPU-hours (the 2.4 s timed earlier was under load).
 
@@ -175,7 +176,6 @@ to an hour and a half of build time. Memory per file stays like `GothamCert`'s (
    proof stays short. A faster filter that uses what geometry already guarantees (for a
    non-pawn candidate, only "the destination does not hold a piece of the mover's colour" is left
    to test) would roughly halve every move list and checkmate check, at the price of re-proving
-   `PseudoLegal.mem_candidates`/`mem_pseudoMoves` for the new filter. The mate leaves also took about
-   2.4 s each under the parallel build's load, so that figure, used in the estimate above, is
-   pessimistic for an idle machine.
+   `PseudoLegal.mem_candidates`/`mem_pseudoMoves` for the new filter. The mate leaves took about
+   2.4 s each when timed under load, a figure that overstates the cost on an idle machine.
 2. **Other puzzles.** `gen_bound.py` takes any FEN, root and budget.

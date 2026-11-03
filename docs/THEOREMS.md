@@ -1188,7 +1188,7 @@ searcher never enters the trusted base (*game-theory* §5, the certifying-algori
 - **Meta.** D1/D2. Stage 5. The Hurd/Marzion route to verified 3–4 piece tables: checked with forward
   move generation only, so no un-move generator enters the trusted base.
 
-### C8 Per-node lower bounds
+### C9 Per-node lower bounds
 
 - **English.** "The attacker does not win within `n`", checked one node at a time: with the attacker
   to move and budget 0 it holds; with budget `n + 1`, every available move (an explicit move list)
@@ -1469,7 +1469,7 @@ definitions, and both ends (the semantics at the top, the rules at the bottom) e
 | C2 | `checkWin_complete` | checker completeness | D1 |
 | C3 | per-node glue lemmas | proof engineering | D0/D1 |
 | C7 | `checkOnlyMove_sound` (opponent-win refutations) | checker soundness | D1 |
-| C8 | per-node glue for lower bounds (`not_winsIn_*`, `MateIn.of_winsIn_of_not`) | proof engineering | D0/D1 |
+| C9 | per-node glue for lower bounds (`not_winsIn_*`, `MateIn.of_winsIn_of_not`) | proof engineering | D0/D1 |
 | O2 | `OnlyWinningMove.wins_iff` | optimality (first rung) | D1 |
 
 **Demonstration that closes Stage 1.** Re-prove the prototype's GothamChess results on the new
@@ -1479,7 +1479,7 @@ prototype could not state), and `OnlyWinningMove gotham best`, each in a **[kern
 
 *Done (2026-11-02, ROADMAP step 7)*, with one change of claim: `WinsIn .black 11 Puzzles.gotham`
 (Black is to move; within 11, and since 2026-11-03 exactly 11: `ChessDemo.gotham_mateIn` in
-`ChessDemoBound/GothamMateIn.lean`, its lower half by C8) and
+`ChessDemoBound/GothamMateIn.lean`, its lower half by C9) and
 `OnlyWinningMove Puzzles.gotham (uci "b7b2")`, both [kernel], in `ChessDemo/Gotham.lean`, also
 read through G8, with the refutations behind the only move stated too (`gotham_refuted`: after
 each other move of Black, White forces mate); exact `MateIn` is proved for three small mates (`ChessDemo/Mates.lean`): the mates in 1 and 2 by search, the mate in 3 by a certificate for the win and a search for minimality.

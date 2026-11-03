@@ -1150,7 +1150,8 @@ the design asked for.
   `Cert.goal`, `pawnCapture` to `PawnCaptureMove`, `Castling.get c side` to `get c w`, and the
   inductive `PseudoLegal` to the disjunction of Section 5.4.
 - §1 and §7: the headline is `Chess.OnlyWinningMove gotham (uci "b7b2") ∧ Chess.WinsIn .black 11
-  gotham` (Gotham is Black to move). Exact `MateIn` only for short mates; delete "exactly 11, using
+  gotham` (Gotham is Black to move). Exact `MateIn` only for short mates (until 2026-11-03, when
+  `MateIn .black 11` was proved for Gotham by a generated lower-bound certificate); delete "exactly 11, using
   G5 or C4 for the lower bound", and change G5's and C4's "Why it matters" to say the same.
   *(§1 made; §7's plan text left under its dated note, as said above; G5 and C4 not changed.)*
 - §1: replace "Every other legal move allows the opponent at least a draw. Therefore `m` is the

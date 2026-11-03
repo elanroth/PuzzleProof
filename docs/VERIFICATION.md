@@ -3,7 +3,7 @@
 This report covers one night of work on the library: five build steps (ROADMAP steps 2 to 7), eight
 independent audits, two skeptics per audit finding, and the fix rounds that followed. It says what
 was built, what is proved and on what trust, what was only tested, and what is still open. Nothing
-is committed. Every figure below was measured on this Mac (16 GB) on 2026-11-02, one heavy Lean job
+was committed during the night (it was committed afterwards, as `ae51012`; §9 covers 2026-11-03). Every figure below was measured on this Mac (16 GB) on 2026-11-02, one heavy Lean job
 at a time, unless it is labelled otherwise.
 
 ## 1. Final state (measured after all fix rounds)
@@ -78,10 +78,12 @@ Every theorem in all three libraries is checked by the kernel with the standard 
     `gotham_specOnlyWinningMove`.
   - `gotham_refuted` and `gotham_specRefuted` add that after each of Black's other 33 moves, White
     forces mate (30 within 1, two within 2, one within 5).
-  - The proof uses 679 `decide +kernel` calls.
-  - The claim is "within 11", not "exactly 11": `MateIn` is not claimed for Gotham.
+  - The proof uses 964 `decide +kernel` calls, on 679 lines.
+  - The claim is "within 11", not "exactly 11": `MateIn` is not claimed for Gotham. *(Superseded on
+    2026-11-03: `gotham_mateIn` proves exactly 11; see §9.)*
 - **Generator.** `legalMoves` is proved sound and complete (`mem_legalMoves`, M4), and so are
-  `checkmate_iff` and `stalemate_iff` (M6). That it lists no move twice (M5) is **tested only**.
+  `checkmate_iff` and `stalemate_iff` (M6). That it lists no move twice (M5) is **tested only**. *(Proved on 2026-11-03,
+  `legalMoves_nodup`; see §9.)*
 - **Game layer.** Proved:
   - search correctness (`searchForces_iff`);
   - checker soundness (`checkWin_sound`, `checkOnlyMove_sound`);
@@ -213,7 +215,7 @@ and the regenerated certificate).
 SpecMateIn .black 11 Puzzles.gotham`, in `ChessDemoBound/GothamMateIn.lean`, each with
 `#print axioms` = `[propext, Classical.choice, Quot.sound]` checked by `#guard_msgs`. The lower half
 is the generated certificate `ChessDemoBound/Gotham10/` (159 files, 24,994 node theorems over
-21,417 checkpoints), chained by the glue of `Chess.Game.Cert` section `Bounds` (THEOREMS C8).
+21,417 checkpoints), chained by the glue of `Chess.Game.Cert` section `Bounds` (THEOREMS C9).
 
 **How it was checked.**
 
@@ -221,7 +223,7 @@ is the generated certificate `ChessDemoBound/Gotham10/` (159 files, 24,994 node 
   0.9 GB per process.
 * *Bug check 1, three independent reviewers on the diff.*
   * **Lean soundness:** no defect. The definitions mean mate in 11 as a chess player means it. The
-    ten C8 lemmas are proved from existing laws and add no hypothesis. A search for trust leaks
+    ten C9 lemmas are proved from existing laws and add no hypothesis. A search for trust leaks
     (`sorry`, `native_decide`, `axiom`, `implemented_by`, `extern`, `unsafe`, `set_option`,
     `opaque`, `macro`/`elab`/`#eval`, …) over the library and all generated files found none.
     `root_eq` ties the certificate to `Puzzles.gotham`. Spot checks of every node kind passed. A

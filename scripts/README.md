@@ -69,6 +69,14 @@ A generated file
   position, and at an only-move root the move-list equation `moves_root` used by `rw` and `▸`;
 * never applies a constructor of `Forces` and names no lemma of core.
 
+A lower-bound file written by `gen_bound.py` (since 2026-11-03) states its claim as `¬ WinsIn a n R`
+and may also use the C9 glue of `Chess.Game.Cert` section `Bounds`
+(`Game.not_winsIn_zero_of_turn`, `not_winsIn_succ_of_moves_eq`, `not_winsIn_of_escape`,
+`not_winsIn_zero_of_defender`, `not_winsIn_of_stalemate`, `not_winsIn_of_winsIn_other`,
+`not_winsIn_forall_mem_nil`, `not_winsIn_forall_mem_cons`, `not_winsIn_mono`), `Game.Forces.mono`,
+and plain `decide` for inequalities between budgets. It writes no `Cert` value: the theorems are
+the certificate.
+
 `ChessTest/Interface.lean` records the signatures of these names, so a change to one of them fails
 `lake build ChessTest` before it breaks a generated file.
 
@@ -100,7 +108,8 @@ python -I scripts/build_viewer.py
 
 Run it from the library's root after regenerating `ChessDemo/GothamCert.lean`. It needs no package
 and no engine: it reads the checkpoints, the node theorems (`wN`), the best move's node and the
-`refutes_…` theorems straight from the generated file, so the page shows the tree the kernel
+`refutes_…` theorems straight from the generated file, and the two headline statements from
+`ChessDemo/Gotham.lean` (both files must exist), so the page shows the tree the kernel
 checked, and stops if any node theorem, move or checkpoint fails to parse. The data is inlined into
 `viewer/template.html` with the cburnett piece images of `viewer/pieces/` (GPLv2+, credited in
 `viewer/pieces/README.md`), giving `viewer/gotham.html`, one self-contained page (it loads only its

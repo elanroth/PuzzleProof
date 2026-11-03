@@ -1,6 +1,6 @@
 # Roadmap for `Chess`
 
-Author role: library reviewer. Date: 2026-11-01. Read for this document: all of `Chess/*.lean`,
+Author role: library reviewer. Date: 2026-11-01, updated through 2026-11-03 (§0 and steps 7b, 8). Read for this document: all of `Chess/*.lean`,
 `Chess.lean`, `docs/THEOREMS.md`, `docs/DESIGN.md`, and the specs, process logs, reviews and research
 under `docs/`. This file summarizes where the library stands and what to do next. Where it disagrees
 with an older document, the code is the reference, and this file says which document is stale.
@@ -17,8 +17,9 @@ with an older document, the code is the reference, and this file says which docu
 | `TARGET` markers | **0**. [later] lemmas are kept in the specs, not as `sorry` stubs in the Lean. |
 | `axiom` declarations, `native_decide`, `partial`, `unsafe` | **0** |
 | `#print axioms` | Checked on every build of `ChessTest` for 152 headline theorems (`ChessTest/Axioms.lean`, 144, and `ChessTest/AxiomsPerft.lean`, the 8 kernel perft counts; since the ledger-coverage fix of 2026-11-02 every theorem and instance named in a `Chess/` module's Main statements is among them, checked by a scripted name comparison, not by the build), and on every build of `ChessDemo` for its 16 theorems (`ChessDemo/Axioms.lean`): all [kernel], none beyond `propext`, `Classical.choice`, `Quot.sound`. |
+| `lake build ChessDemoBound` (not a default target, 2026-11-03) | **green**: mate in exactly 11 for Gotham (`gotham_mateIn`, `gotham_specMateIn`), from the generated lower-bound certificate `ChessDemoBound/Gotham10` (24,994 node theorems), and two small generated test certificates. About 45 min on 10 cores, under 1 GB per process (`docs/research/minimality.md`). Its 3 headline theorems and the 2 tests have their axioms checked by `#guard_msgs`. |
 | `lake build ChessDemo` (not a default target, since step 7) | **green**: the Gotham demonstration and small mates. **165 s** and 2.7 GB in the final pass (24 jobs). Earlier: **162 s** after a clean library build, peak 2.8 GB (`GothamCert` 160 s and 1.1 GB alone; `Mates` 19 s). No `native_decide`. |
-| Generated-file interface | Since step 5: the names a generated certificate file may use (Game spec §4.3) have their signatures recorded by `ChessTest/Interface.lean` (`#guard_msgs` over `#check`/`#print`): 25 at step 5, 30 since step 7 (the only-move root glue and `mem_chess_moves`). The first generated file, `ChessDemo/GothamCert.lean`, uses only these. |
+| Generated-file interface | Since step 5: the names a generated certificate file may use (Game spec §4.3) have their signatures recorded by `ChessTest/Interface.lean` (`#guard_msgs` over `#check`/`#print`): 25 at step 5, 30 since step 7 (the only-move root glue and `mem_chess_moves`), 41 since 2026-11-03 (the C9 lower-bound glue and `Forces.mono`, used by `ChessDemoBound/Gotham10`). The first generated file, `ChessDemo/GothamCert.lean`, uses only these. |
 | Size | 17 files in `Chess/` since the readability round (`Chess.Game` is an umbrella over five files since step 5, `Chess.Rules` over three since the readability round; about 6 000 lines, about 400 `theorem` declarations); about 215 `example`/`#guard` tests, about two thirds of them in `ChessTest`, plus the 152 entries of the axioms ledger, the 30 of the interface ledger and the 16 of the demo ledger |
 
 Every definition in `Chess/` has a docstring that appears word for word in its `docs/spec/<Module>.md`
@@ -27,7 +28,7 @@ docstrings of `Basic` were abbreviated in its spec, and no checker was in the re
 Lemma docstrings follow two documented exceptions, and no other: where a spec table cell groups
 several lemmas, each lemma's docstring is the part of the cell's sentence about it, reworded to
 stand alone (Basic spec §0; 67 lemmas of `Basic`), and in `Game` a leading tag such as "(G3)"
-becomes a trailing "THEOREMS G3." (Game spec §0; 26 lemmas). Every lemma alone in its table cell
+becomes a trailing "THEOREMS G3." (Game spec §0; 26 lemmas on 2026-11-02, 37 since the C9 lemmas and their tests of 2026-11-03). Every lemma alone in its table cell
 has its English column as its docstring, word for word, after the `Game` tag rule (checked by
 script on 2026-11-02).
 Each module went through four rounds: English spec, critique, Lean translation, critique of the Lean
@@ -217,13 +218,13 @@ notation of `ChessGame`: the writers, `IsNumeral`, `ClockFields`, `IsFEN`,
 |---|---|---|---|
 | ~~Kernel cost per certificate node~~ **Reduced in step 6** (2026-11-02): mate leaves and defender nodes 2.0 s → 0.7 s, attacker nodes 0.1 s by `Legal`; the 319-node Gotham certificate checks in 165 s and 1.1 GB. Still about 2× the prototype's time (its packed `Nat` board), for a fifth of its memory. | low-medium | `docs/process/MoveGen.md` Round 5, `docs/spec/ChessDemo.GothamCert.md` §3 | What is left of a node is mostly `pseudoMoves` (Rules' `PseudoLegal` instance per candidate). Certificates ten times larger would want the bitboard layer (step 10b) or a faster `PseudoLegal` decision proved equal. |
 | ~~The Stage 1 demonstration has not been attempted~~ **Done in step 7** (2026-11-02) | — | `ChessDemo/` | — |
-| **Search in the kernel is memory-hungry.** `decide` on `WinsIn`/`MateIn` through `searchForces` keeps every evaluated position: a mate in 2 whose search visits about 300 defender nodes took 7.2 GB and 408 s; a mate in 3 visiting 184 took 5.9 GB. | medium (for "exact `MateIn`" claims) | `docs/spec/ChessDemo.Mates.md` §3 | Prove the win by a certificate and only the minimality (`¬ WinsIn (n-1)`) by search (`mateIn_succ_iff`); choose positions with a cost model. A per-node survival certificate (C4, step 9) would replace the search for minimality. |
+| **Search in the kernel is memory-hungry.** `decide` on `WinsIn`/`MateIn` through `searchForces` keeps every evaluated position: a mate in 2 whose search visits about 300 defender nodes took 7.2 GB and 408 s; a mate in 3 visiting 184 took 5.9 GB. | medium (for "exact `MateIn`" claims) | `docs/spec/ChessDemo.Mates.md` §3 | Prove the win by a certificate and only the minimality (`¬ WinsIn (n-1)`) by search (`mateIn_succ_iff`); choose positions with a cost model. A per-node survival certificate (C4, step 9) would replace the search for minimality: done for Gotham on 2026-11-03 (step 7b, C9 glue, 45 min of build for mate in exactly 11). |
 | ~~Tests live inside library modules~~ **Resolved by step 3** (2026-11-02): the clean library build went from 36.3 s to 8.1 s. | — | ChessGame review C3, MoveGen review C4 | Keep new tests in `ChessTest`; keep only cheap `#guard`s in library modules. |
 | **A board read from a FEN is slow to read in compiled and interpreted code.** The code for `readBoard cs` re-reads the FEN text at every square read (profiled: the time of an untabulated perft is in `splitOn`, `readBoard`, `Piece.ofLetter?`). Compiled perft 3 of the initial position read from its FEN: 10.9 s, against 0.38 s tabulated. Any untrusted tool that runs the generator on `fen "…"` or `parseFEN` output (`scripts/`, `firstFailure`) meets it. Not seen in the kernel to the same degree (Kiwipete perft 1: 4.7 s via `fen`, 3.9 s via a packed literal). | medium | `docs/process/ChessTest.md` | Use `Position.tabulate` (`ChessTest/Tabulate.lean`, proved equal), or move it into `Chess.Position` with its lemma, or make `readBoard` build its board from a computed array, which changes untrusted reader code and its proofs (`readBoard_fenChars`). Owner's choice. |
 | Test-library memory. Before step 6, kernel perft at depth 2 cost 3.9–6.6 GB per position, `ChessTest.Perft` peaked near 5 GB, and, under swap pressure from other processes, depth 2 of Position 5 did not finish in 10 minutes. Since step 6 (re-measured 2026-11-02): `ChessTest.Perft` takes 39 s with a 3.7 GB peak; depth 2 of the initial position 9.8 s, of Position 3 5.6 s; depth 2 of Positions 4, 5, 6 and Kiwipete not re-measured. | low | `docs/spec/ChessTest.Perft.md` §3 | Kernel depth 2 kept only where it costs at most 4 GB; deeper counts by `#guard` and by the compiled program. |
 | Positional `rcases` over the six rules is brittle under any change to rule conjuncts | low | Rules review C1, MoveGen review C1 | Decided in step 4: the rules stay conjunctions (Rules spec design choice 14). A break shows at build time, never silently. Revisit if L4.6 (M5) is painful; the migration can go rule by rule. |
 | ~~L4.11 (castling landing square) unproved inside trusted text~~ **Resolved by step 4** (2026-11-02): `CastleMove.legal_iff`. | — | Rules spec §7a | — |
-| Document drift: THEOREMS.md still uses pre-design names (`searchWin`, `Reach`, `Cert.mate`, `Chess.game`, "exactly 11" for Gotham). | low-medium | DESIGN §12 lists the edits | The theorem architect applies DESIGN §12. The name map in §7 below covers the gap until then. Applied so far (2026-11-02, docs fix round, `docs/process/Chess.md`): §1's headline and goal sentence, C7's conclusion, the G1 binders and the G2 `not_wins_of_stalemate` signature, C3's glue list, status lines for M2, M4 and M6, the M3 entry of the dependency map, and M7's timing. |
+| Document drift: THEOREMS.md still uses pre-design names (`searchWin`, `Reach`, `Cert.mate`, `Chess.game`; "exactly 11" for Gotham was drift until 2026-11-03, when it was proved). | low-medium | DESIGN §12 lists the edits | The theorem architect applies DESIGN §12. The name map in §7 below covers the gap until then. Applied so far (2026-11-02, docs fix round, `docs/process/Chess.md`): §1's headline and goal sentence, C7's conclusion, the G1 binders and the G2 `not_wins_of_stalemate` signature, C3's glue list, status lines for M2, M4 and M6, the M3 entry of the dependency map, and M7's timing. |
 | ~~`Game.lean` is 748 lines~~ **Resolved by step 5** (2026-11-02): split into `Game/Defs` (the trusted part, 130 lines), `Laws`, `Search`, `Cert`, `Examples`. | — | Game review C2 | — |
 | ~~`Rules.lean` interleaves its 37 trusted definitions with about 700 lines of lemmas~~ (`Legal`, `Checkmate`, `Stalemate` at lines 820–841 of 1280) **Resolved by the readability round** (2026-11-02): split into `Rules/Defs` (definitions and instances only, 396 lines), `Laws`, `Castling`. | — | Rules spec design choice 15 | — |
 | `OnlyWinningMove` can only be certified when every alternative *loses* | known limit | Game spec, `checkOnlyMove` docstring | Stage 3 trap (draw) certificates (step 9). |
@@ -537,7 +538,7 @@ Stages 3–5.
    Puzzles.gotham` and `SpecMateIn` (`ChessDemoBound/GothamMateIn.lean`), kernel only. The lower
    half, `¬ WinsIn .black 10 Puzzles.gotham`, is a generated certificate (`scripts/gen_bound.py`,
    `ChessDemoBound/Gotham10/`, 24,994 node theorems) that refutes every Black move at every Black
-   turn, with new per-node glue in `Chess.Game.Cert` section `Bounds` (THEOREMS C8, toy tests
+   turn, with new per-node glue in `Chess.Game.Cert` section `Bounds` (THEOREMS C9, toy tests
    T21–T25, signatures in `ChessTest.Interface`). Method and measurements:
    `docs/research/minimality.md`. Reviewed by three independent reviewers (Lean soundness, the
    Python tooling, the docs against the code): no soundness defect; the documentation and
@@ -568,7 +569,8 @@ Stages 3–5.
      about 22 times as many leaves. Not tried: memory is the unknown. Try it alone, under
      `/usr/bin/time -l` and a timeout, in a scratch file first, and keep it only if it stays well
      under 9 GB.
-9. **Stage 3, the approximation ladder.** Survival certificates (C4: "no forced mate within k",
+9. **Stage 3, the approximation ladder.** Survival certificates (C4: "no forced mate within k";
+   one kind exists since 2026-11-03, the per-node C9 glue and `scripts/gen_bound.py`, step 7b),
    the dual of win trees, same `Cert` shape) give **no-blunder within a horizon** (O5) and
    **only mate within N** (O4). These are honest, decidable approximations of "this move is
    optimal" for middlegames. Then traps (G9/C5: closed sets the defender can stay in), which let
@@ -636,5 +638,5 @@ turns into the strongest game-theoretic statement its output lets us certify (re
 | `Castling`, `get c side` | `CastlingRights`, `get c w` |
 | `inCheck p = true` | `InCheck p` (a decidable `Prop`) |
 | `Attacked b c t`, `Board.Attacked` | `Board.AttackedBy b c t` (since the readability round) |
-| `MateIn .white 11 gotham` | `WinsIn .black 11 Puzzles.gotham` (Gotham is Black to move; exact `MateIn` only for short mates) |
+| `MateIn .white 11 gotham` | `WinsIn .black 11 Puzzles.gotham` (Gotham is Black to move), and since 2026-11-03 `MateIn .black 11 Puzzles.gotham` (`ChessDemo.gotham_mateIn`, lower half by a generated certificate) |
 | `checkOnlyMove n x best c refs` (and DESIGN's earlier `n k x best c refs`) | `checkOnlyMove n x best oc` with `oc : OnlyMoveCert` (`next`, `refBudget`, `refs`), since step 5 |

@@ -29,7 +29,7 @@ there.
 * `not_winsIn_zero_of_turn`, `not_winsIn_succ_of_moves_eq`, `not_winsIn_of_escape`,
   `not_winsIn_zero_of_defender`, `not_winsIn_of_stalemate`, `not_winsIn_of_winsIn_other`,
   `not_winsIn_forall_mem_nil`, `not_winsIn_forall_mem_cons`, `not_winsIn_mono`,
-  `MateIn.of_winsIn_of_not` (C8): the
+  `MateIn.of_winsIn_of_not` (C9): the
   glue for lower bounds, "the attacker does not win within `n`", checked one node at a time: every
   attacker move is refuted, and the defender answers with one escape or a win of its own.
 * `firstFailure_eq_none_iff`, `firstFailureOnlyMove_eq_none_iff`: the diagnostics find a failure
@@ -306,12 +306,12 @@ section Bounds
 
 variable {G : Game} {a : Color} {n k : Nat} {x y : G.State} {m : G.Move} {ms : List G.Move}
 
-/-- Attacker node with no budget: the attacker, to move, does not win within `0`. THEOREMS C8. -/
+/-- Attacker node with no budget: the attacker, to move, does not win within `0`. THEOREMS C9. -/
 theorem not_winsIn_zero_of_turn (ht : G.turn x = a) : ¬ G.WinsIn a 0 x := fun w =>
   turn_ne_both ht ((forces_attacker_zero_iff ht).1 w).1
 
 /-- Attacker node: if the attacker is to move, its available moves are the explicit list `ms`, and
-after none of them does it win within `n`, it does not win within `n + 1`. THEOREMS C8. -/
+after none of them does it win within `n`, it does not win within `n + 1`. THEOREMS C9. -/
 theorem not_winsIn_succ_of_moves_eq (ht : G.turn x = a) (hl : G.moves x = ms)
     (h : ∀ m ∈ ms, ¬ G.WinsIn a n (G.play x m)) : ¬ G.WinsIn a (n + 1) x := by
   intro w'
@@ -321,7 +321,7 @@ theorem not_winsIn_succ_of_moves_eq (ht : G.turn x = a) (hl : G.moves x = ms)
 
 /-- Defender node, one escape: if the defender is to move and has not been mated, `m` is
 available, playing it gives `y`, and the attacker does not win within `n` from `y`, then the
-attacker does not win within `n` from `x`. THEOREMS C8. -/
+attacker does not win within `n` from `x`. THEOREMS C9. -/
 theorem not_winsIn_of_escape (ht : G.turn x = a.other) (hnm : ¬ G.Mated x) (hm : m ∈ G.moves x)
     (h : G.play x m = y) (w : ¬ G.WinsIn a n y) : ¬ G.WinsIn a n x := by
   intro w'
@@ -330,7 +330,7 @@ theorem not_winsIn_of_escape (ht : G.turn x = a.other) (hnm : ¬ G.Mated x) (hm 
   · exact w (h ▸ hw m hm)
 
 /-- Defender node with no budget: if the defender is to move and has not been mated, the attacker
-does not win within `0`. THEOREMS C8. -/
+does not win within `0`. THEOREMS C9. -/
 theorem not_winsIn_zero_of_defender (ht : G.turn x = a.other) (hnm : ¬ G.Mated x) :
     ¬ G.WinsIn a 0 x := by
   intro w'
@@ -341,34 +341,34 @@ theorem not_winsIn_zero_of_defender (ht : G.turn x = a.other) (hnm : ¬ G.Mated 
     exact not_winsIn_zero_of_turn hc (hw m hm)
 
 /-- Stalemate: if the side to move has no available move and has not been mated, nobody wins
-within any budget. THEOREMS C8. -/
+within any budget. THEOREMS C9. -/
 theorem not_winsIn_of_stalemate (hnm : ¬ G.Mated x) (hl : G.moves x = []) : ¬ G.WinsIn a n x :=
   fun w => not_wins_of_stalemate hnm hl ⟨n, w⟩
 
 /-- The defender's own win: if the other side wins within `k`, the attacker does not win within
-`n`. THEOREMS C8. -/
+`n`. THEOREMS C9. -/
 theorem not_winsIn_of_winsIn_other (w : G.WinsIn a.other k x) : ¬ G.WinsIn a n x :=
   fun w' => w'.not_both w
 
 /-- The end of an attacker's move list: after no move of the empty list does the attacker win
-within `n`. THEOREMS C8. -/
+within `n`. THEOREMS C9. -/
 theorem not_winsIn_forall_mem_nil : ∀ m' ∈ ([] : List G.Move), ¬ G.WinsIn a n (G.play x m') :=
   fun _ h => nomatch h
 
 /-- One move of an attacker's move list: if playing `m` gives `y`, the attacker does not win within
 `n` from `y`, and the same holds after every move of `ms`, then it holds after every move of
-`m :: ms`. THEOREMS C8. -/
+`m :: ms`. THEOREMS C9. -/
 theorem not_winsIn_forall_mem_cons (h : G.play x m = y) (w : ¬ G.WinsIn a n y)
     (t : ∀ m' ∈ ms, ¬ G.WinsIn a n (G.play x m')) :
     ∀ m' ∈ m :: ms, ¬ G.WinsIn a n (G.play x m') :=
   List.forall_mem_cons.2 ⟨h ▸ w, t⟩
 
 /-- A smaller budget: if the attacker does not win within `n`, it does not win within any `k ≤ n`.
-THEOREMS C8. -/
+THEOREMS C9. -/
 theorem not_winsIn_mono (h : ¬ G.WinsIn a n x) (hk : k ≤ n) : ¬ G.WinsIn a k x :=
   fun w => h (w.mono hk)
 
-/-- Exact distance from the two halves: winning within `n + 1` and not within `n`. THEOREMS C8. -/
+/-- Exact distance from the two halves: winning within `n + 1` and not within `n`. THEOREMS C9. -/
 theorem MateIn.of_winsIn_of_not (w : G.WinsIn a (n + 1) x) (h : ¬ G.WinsIn a n x) :
     G.MateIn a (n + 1) x :=
   mateIn_succ_iff.2 ⟨w, h⟩
